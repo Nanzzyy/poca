@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, memo } from "react";
-import { MapContainer, TileLayer, Marker, Popup, ZoomControl, useMap, useMapEvents } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, ZoomControl, useMap, useMapEvents, LayersControl } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -16,8 +16,8 @@ const defaultIcon = L.icon({
 });
 L.Marker.prototype.options.icon = defaultIcon;
 
-const TILE_URL = "https://tile.openfreemap.org/{z}/{x}/{y}.png";
-const ATTRIBUTION = '&copy; <a href="https://openfreemap.org/">OpenFreeMap</a>';
+const TILE_URL = "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
+const ATTRIBUTION = '&copy; <a href="https://carto.com/attributions">CARTO</a>';
 
 const MARKER_COLORS: Record<string, string> = {
   recommended: "#2563eb",
@@ -66,6 +66,7 @@ interface MapViewProps {
   markers?: MapMarkerData[];
   onMarkerClick?: (id: string) => void;
   onBoundsChange?: (sw: [number, number], ne: [number, number]) => void;
+  focus?: [number, number] | null;   // fly to a coordinate (e.g. clicked search result)
   className?: string; height?: string;
 }
 
@@ -80,6 +81,19 @@ const MapController = memo(function MapController({ center, zoom }: { center: [n
       prev.current = { center, zoom };
     }
   }, [center[0], center[1], zoom, map]);
+  return null;
+});
+
+// Flies to `focus` whenever it changes (clicking a search result)
+const FocusController = memo(function FocusController({ focus }: { focus: [number, number] | null }) {
+  const map = useMap();
+  const prev = useRef<[number, number] | null>(null);
+  useEffect(() => {
+    if (!focus) return;
+    if (prev.current && prev.current[0] === focus[0] && prev.current[1] === focus[1]) return;
+    map.flyTo(focus, Math.max(map.getZoom(), 13), { duration: 0.8 });
+    prev.current = focus;
+  }, [focus, map]);
   return null;
 });
 
@@ -124,6 +138,7 @@ export default function MapView({
   markers = [],
   onMarkerClick,
   onBoundsChange,
+  focus = null,
   className = "",
   height = "100%",
 }: MapViewProps) {
@@ -139,8 +154,21 @@ export default function MapView({
         scrollWheelZoom={true}
       >
         <ZoomControl position="bottomright" />
-        <TileLayer url={TILE_URL} attribution={ATTRIBUTION} />
+
+        <LayersControl position="topright">
+          <LayersControl.BaseLayer checked name="Modern (CARTO)">
+            <TileLayer url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png" attribution="&copy; CARTO" />
+          </LayersControl.BaseLayer>
+          <LayersControl.BaseLayer name="Minimal (Light)">
+            <TileLayer url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png" attribution="&copy; CARTO" />
+          </LayersControl.BaseLayer>
+          <LayersControl.BaseLayer name="Satellite">
+            <TileLayer url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}" attribution="Tiles &copy; Esri" />
+          </LayersControl.BaseLayer>
+        </LayersControl>
+
         <MapController center={center} zoom={initialZoom} />
+        <FocusController focus={focus} />
         {onBoundsChange && <BoundsListener onChange={(b: any) => onBoundsChange(b.sw, b.ne)} />}
         {markers.map((m) => (
           <Marker

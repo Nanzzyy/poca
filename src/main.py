@@ -15,6 +15,7 @@ from src.api.v1 import (
     ai_conversation,
     gamification,
     places,
+    posts,
 )
 
 
@@ -57,3 +58,4 @@ app.include_router(trips.router, prefix=settings.api_prefix)
 app.include_router(ai_conversation.router, prefix=settings.api_prefix)
 app.include_router(gamification.router, prefix=settings.api_prefix)
 app.include_router(places.router, prefix=settings.api_prefix)
+app.include_router(posts.router, prefix=settings.api_prefix)

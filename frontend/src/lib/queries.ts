@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api-client";
 import type {
   Destination, Category, Review, ReviewSummary, Trip, BudgetEstimate,
-  Conversation, Message, User, UserStats, Achievement, PaginatedResponse, LocalGuide,
+  Conversation, Message, User, UserStats, Achievement, PaginatedResponse, LocalGuide, TripPlan,
 } from "@/types";
 
 // Query key factory — keeps keys consistent across hooks
@@ -44,7 +44,7 @@ export function useSearchDestinations(q: string, filters?: Record<string, string
   return useQuery({
     queryKey: keys.destinations.search(q || "__empty__", filters),
     queryFn: () => api.get<PaginatedResponse<Destination>>("/destinations", { params: { q, ...filters } }),
-    enabled: q.length >= 2,
+    enabled: true, // Always enable so it fetches all by default
     staleTime: 120_000,
     gcTime: 300_000,
   });
@@ -225,15 +225,91 @@ export function useConversation(id: string) {
 export function useCreateConversation() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: () => api.post<Conversation>("/ai/conversations"),
+    mutationFn: () => api.post<Conversation>("/ai/conversations", {}),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.chat.conversations }),
+  });
+}
+
+export function useRenameConversation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ convId, summary }: { convId: string; summary: string }) =>
+      api.patch<Conversation>(`/ai/conversations/${convId}`, { summary }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.chat.conversations }),
+  });
+}
+
+export function useDeleteConversation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (convId: string) => api.delete(`/ai/conversations/${convId}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.chat.conversations }),
   });
 }
 
 export function useSendMessage() {
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ convId, content }: { convId: string; content: string }) =>
       api.post<Message>(`/ai/conversations/${convId}/messages`, { content }),
+    // Show the user's bubble instantly — don't wait for the AI reply (which is
+    // what the POST resolves to). Server reconciles on success.
+    onMutate: async ({ convId, content }) => {
+      const key = keys.chat.messages(convId);
+      await qc.cancelQueries({ queryKey: key });
+      const prev = qc.getQueryData<Conversation>(key);
+      if (prev) {
+        const optimistic: Message = {
+          id: `opt-${Date.now()}`,
+          conversation_id: convId,
+          role: "user",
+          content,
+          created_at: new Date().toISOString(),
+        };
+        qc.setQueryData<Conversation>(key, {
+          ...prev,
+          messages: [...(prev.messages ?? []), optimistic],
+        });
+      }
+      return { prev };
+    },
+    onError: (_e, { convId }, ctx) => {
+      // Roll back the optimistic user bubble on failure
+      if (ctx?.prev) qc.setQueryData(keys.chat.messages(convId), ctx.prev);
+    },
+    onSuccess: (_data, { convId }) => {
+      // Refetch messages (picks up the AI reply) + refresh sidebar (summary/order)
+      qc.invalidateQueries({ queryKey: keys.chat.messages(convId) });
+      qc.invalidateQueries({ queryKey: keys.chat.conversations });
+    },
+  });
+}
+
+// Persist an AI-generated plan as a real Trip (Trip -> Days -> Activities).
+export function useSavePlan() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (plan: TripPlan) => {
+      const trip = await api.post<{ id: string }>("/trips", { name: plan.title });
+      const tripId = trip.id;
+      for (const day of plan.days) {
+        await api.post(`/trips/${tripId}/days`, { day_number: day.day, notes: day.notes });
+        for (const [idx, a] of day.activities.entries()) {
+          await api.post(`/trips/${tripId}/days/${day.day}/activities`, {
+            name: a.name,
+            description: a.category,
+            location_name: a.location_name || undefined,
+            latitude: a.lat ?? undefined,
+            longitude: a.lng ?? undefined,
+            estimated_cost: a.cost,
+            category: a.category,
+            order_index: idx,
+          });
+        }
+      }
+      return tripId;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.trips.list }),
   });
 }
 

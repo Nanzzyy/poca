@@ -8,6 +8,20 @@ class ReviewRepository:
     def __init__(self, db: AsyncSession):
         self.db = db
 
+    async def get_all_reviews(self, page: int = 1, size: int = 20) -> tuple[list[Review], int]:
+        query = (
+            select(Review)
+            .where(Review.moderation_status != "rejected")
+            .options(selectinload(Review.user), selectinload(Review.destination))
+            .order_by(Review.created_at.desc())
+        )
+        count_query = select(func.count()).select_from(query.subquery())
+        count_result = await self.db.execute(count_query)
+        total = count_result.scalar() or 0
+        query = query.offset((page - 1) * size).limit(size)
+        result = await self.db.execute(query)
+        return list(result.scalars().all()), total
+
     async def get_by_destination(self, dest_id: str, page: int = 1, size: int = 20,
                                   sort: str = "created_at") -> tuple[list[Review], int]:
         query = (

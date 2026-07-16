@@ -26,6 +26,7 @@ class ConversationRepository:
         query = (
             select(Conversation)
             .where(Conversation.user_id == user_id)
+            .options(selectinload(Conversation.messages))
             .order_by(Conversation.updated_at.desc())
         )
         count_query = select(func.count()).select_from(query.subquery())

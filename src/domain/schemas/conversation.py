@@ -9,6 +9,10 @@ class ConversationCreate(BaseModel):
     trip_id: Optional[UUID] = None
 
 
+class ConversationUpdate(BaseModel):
+    summary: str
+
+
 class MessageSend(BaseModel):
     content: str
 
@@ -18,7 +22,7 @@ class MessageResponse(BaseModel):
     conversation_id: UUID
     role: str
     content: str
-    metadata: Optional[dict[str, Any]] = None
+    msg_metadata: Optional[dict[str, Any]] = None
     created_at: datetime
 
     model_config = {"from_attributes": True}

@@ -126,7 +126,7 @@ export interface Message {
   conversation_id: string;
   role: string;
   content: string;
-  metadata?: Record<string, any>;
+  msg_metadata?: { recommendations?: RecommendationCard[]; plan?: TripPlan; [k: string]: any };
   created_at: string;
 }
 
@@ -171,4 +171,83 @@ export interface LocalGuide {
   customs: any[];
   hidden_gems: any[];
   seasonal?: Record<string, any>;
+}
+
+export interface MediaItem {
+  type: "image" | "video";
+  url: string;
+}
+
+export interface Post {
+  id: string;
+  user_id: string;
+  destination_id?: string;
+  content: string;
+  media: MediaItem[];
+  like_count: number;
+  comment_count: number;
+  liked_by_me: boolean;
+  created_at: string;
+  username?: string;
+  avatar_url?: string;
+}
+
+export interface Comment {
+  id: string;
+  post_id: string;
+  user_id: string;
+  content: string;
+  created_at: string;
+  username?: string;
+  avatar_url?: string;
+}
+
+export interface RecommendationCard {
+  id: string;
+  name: string;
+  city?: string;
+  country?: string;
+  rating_avg: number;
+  review_count?: number;
+  price_level?: string;
+  image?: string | null;
+  category_name?: string;
+}
+
+export interface PlanActivity {
+  name: string;
+  category: string;
+  time: string;
+  location_name?: string | null;
+  lat?: number | null;
+  lng?: number | null;
+  cost: number;
+  destination_id?: string | null;
+  price_level?: string;
+  travel_next?: { minutes: number; mode: string; distance_km: number };
+}
+
+export interface PlanDay {
+  day: number;
+  title: string;
+  notes?: string;
+  activities: PlanActivity[];
+}
+
+export interface TripPlan {
+  title: string;
+  num_days: number;
+  location?: string | null;
+  people: number;
+  budget_requested?: number | null;
+  budget_estimate: {
+    total: number;
+    per_day: number;
+    breakdown: Record<string, number>;
+    currency: string;
+  };
+  budget_fit: string;
+  budget_delta?: number | null;
+  price_level?: string;
+  days: PlanDay[];
 }

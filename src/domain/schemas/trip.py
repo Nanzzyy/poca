@@ -16,6 +16,7 @@ class TripActivityCreate(BaseModel):
     estimated_cost: Optional[float] = None
     currency: str = "IDR"
     category: Optional[str] = None
+    order_index: int = 0
 
 
 class TripActivityResponse(BaseModel):

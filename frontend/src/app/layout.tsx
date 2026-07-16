@@ -5,6 +5,7 @@ import { Providers } from "./providers";
 import { TopNav } from "@/components/layout/TopNav";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { ToastContainer } from "@/components/ui/Toast";
+import { AnnouncementModal } from "@/components/ui/AnnouncementModal";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -31,6 +32,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <main className="flex-1 pb-16 md:pb-0">{children}</main>
           <BottomNav />
           <ToastContainer />
+          <AnnouncementModal />
         </Providers>
       </body>
     </html>

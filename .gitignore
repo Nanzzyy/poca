@@ -1,0 +1,30 @@
+# Secrets — NEVER commit
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+
+# Node / Next
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+
+# Local tooling / editor
+.commandcode/
+.vscode/
+.idea/
+.DS_Store
+
+# Generated data (regenerable via seed/collect_places_overpass.py)
+seed/data/
+
+# Logs
+*.log

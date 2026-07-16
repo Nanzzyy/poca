@@ -19,6 +19,26 @@ from src.services.review_service import ReviewService
 router = APIRouter(tags=["reviews"])
 
 
+@router.get("/reviews/all")
+async def list_all_reviews(
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+) -> PaginatedResponse:
+    repo = ReviewRepository(db)
+    items, total = await repo.get_all_reviews(page, size)
+    result = []
+    for r in items:
+        d = ReviewResponse.model_validate(r)
+        d.username = r.user.username if r.user else None
+        d.avatar_url = r.user.avatar_url if r.user else None
+        result.append(d)
+    return PaginatedResponse(
+        items=result, total=total, page=page, size=size,
+        pages=(total + size - 1) // size,
+    )
+
+
 @router.get("/destinations/{dest_id}/reviews")
 async def list_reviews(
     dest_id: str,

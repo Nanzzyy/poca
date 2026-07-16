@@ -20,6 +20,8 @@ class DestinationRepository:
 
     async def search(self, q: str = "", category_id: int | None = None, price_level: str | None = None,
                      rating_min: float | None = None, tags: list[str] | None = None,
+                     city: str | None = None, cities: list[str] | None = None,
+                     exclude_category_ids: list[int] | None = None, sort: str | None = None,
                      lat: float | None = None, lng: float | None = None, radius_km: float | None = None,
                      page: int = 1, size: int = 20) -> tuple[list[Destination], int]:
         query = select(Destination).where(Destination.is_active == True)
@@ -35,10 +37,18 @@ class DestinationRepository:
             )
         if category_id:
             query = query.where(Destination.category_id == category_id)
+        if exclude_category_ids:
+            query = query.where(Destination.category_id.not_in(exclude_category_ids))
         if price_level:
             query = query.where(Destination.price_level == price_level)
         if rating_min:
             query = query.where(Destination.rating_avg >= rating_min)
+        if city:
+            query = query.where(Destination.city.ilike(f"%{city}%"))
+        if cities:
+            # OR across multiple city names — used for region lookups where the
+            # user says "bali" but the DB stores Denpasar/Badung/Tabanan/etc.
+            query = query.where(or_(*[Destination.city.ilike(f"%{c}%") for c in cities]))
         if tags:
             query = query.where(Destination.tags.has_any(tags))
         if lat is not None and lng is not None and radius_km is not None:
@@ -55,8 +65,12 @@ class DestinationRepository:
         count_result = await self.db.execute(count_query)
         total = count_result.scalar() or 0
 
-        # Paginate
-        query = query.order_by(Destination.rating_avg.desc()).offset((page - 1) * size).limit(size)
+        # Paginate + sort
+        order = {
+            "popular": Destination.review_count.desc(),
+            "name": Destination.name.asc(),
+        }.get(sort or "", Destination.rating_avg.desc())
+        query = query.order_by(order).offset((page - 1) * size).limit(size)
         query = query.options(selectinload(Destination.category))
         result = await self.db.execute(query)
         items = list(result.scalars().all())

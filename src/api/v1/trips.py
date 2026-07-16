@@ -135,7 +135,12 @@ async def add_day(
 
     day = TripDay(trip_id=trip_id, day_number=body.day_number, date=body.date, notes=body.notes)
     day = await repo.add_day(day)
-    return TripDayResponse.model_validate(day)
+    # Build the response from columns only — touching day.activities triggers an
+    # async lazy-load (MissingGreenlet) on the fresh object.
+    return TripDayResponse(
+        id=day.id, trip_id=day.trip_id, day_number=day.day_number,
+        date=day.date, notes=day.notes, activities=[],
+    )
 
 
 @router.post("/{trip_id}/days/{day_num}/activities", status_code=status.HTTP_201_CREATED)

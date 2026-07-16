@@ -22,6 +22,8 @@ async def list_destinations(
     category_id: int | None = None,
     price_level: str | None = None,
     rating_min: float | None = None,
+    city: str | None = None,
+    sort: str | None = None,
     lat: float | None = None,
     lng: float | None = None,
     radius: float | None = None,
@@ -32,7 +34,8 @@ async def list_destinations(
     repo = DestinationRepository(db)
     items, total = await repo.search(
         q=q, category_id=category_id, price_level=price_level,
-        rating_min=rating_min, lat=lat, lng=lng, radius_km=radius,
+        rating_min=rating_min, city=city, sort=sort,
+        lat=lat, lng=lng, radius_km=radius,
         page=page, size=size,
     )
     return PaginatedResponse(

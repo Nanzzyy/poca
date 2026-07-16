@@ -8,6 +8,7 @@ from src.domain.schemas.conversation import (
     ConversationCreate,
     ConversationListItem,
     ConversationResponse,
+    ConversationUpdate,
     MessageResponse,
     MessageSend,
 )
@@ -67,6 +68,25 @@ async def get_conversation(
     return ConversationResponse.model_validate(conv)
 
 
+@router.patch("/{conv_id}")
+async def rename_conversation(
+    conv_id: str,
+    body: ConversationUpdate,
+    user: User = Depends(require_user),
+    db: AsyncSession = Depends(get_db),
+) -> ConversationResponse:
+    repo = ConversationRepository(db)
+    conv = await repo.get_by_id(conv_id)
+    if not conv:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    if str(conv.user_id) != str(user.id):
+        raise HTTPException(status_code=403, detail="Not authorized")
+    summary = " ".join(body.summary.split())[:80] or "Percakapan baru"
+    await repo.update_summary(conv_id, summary)
+    conv.summary = summary
+    return ConversationResponse.model_validate(conv)
+
+
 @router.post("/{conv_id}/messages")
 async def send_message(
     conv_id: str,
@@ -85,15 +105,22 @@ async def send_message(
     user_msg = Message(conversation_id=conv_id, role="user", content=body.content)
     await repo.add_message(user_msg)
 
+    # Give the conversation a readable title from its first message so the
+    # sidebar history isn't a wall of "Percakapan baru".
+    if not conv.summary:
+        title = " ".join(body.content.split())[:60] or "Percakapan baru"
+        await repo.update_summary(conv_id, title)
+        conv.summary = title
+
     # Generate AI response
     ai_service = AIConversationService(db)
     try:
-        ai_content = await ai_service.generate_response(conv_id, body.content)
+        ai_content, ai_metadata = await ai_service.generate_response(conv_id, body.content)
     except Exception as e:
-        ai_content = f"Sorry, I encountered an error: {str(e)}"
+        ai_content, ai_metadata = f"Maaf, ada gangguan teknis: {str(e)}", {}
 
-    # Save AI message
-    ai_msg = Message(conversation_id=conv_id, role="assistant", content=ai_content)
+    # Save AI message (metadata may carry recommendation cards)
+    ai_msg = Message(conversation_id=conv_id, role="assistant", content=ai_content, msg_metadata=ai_metadata or None)
     await repo.add_message(ai_msg)
 
     return MessageResponse.model_validate(ai_msg)

@@ -2,14 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Search, MapPin, Briefcase, MessageCircle, User } from "lucide-react";
+import { Search, MapPin, Briefcase, MessageCircle, Newspaper } from "lucide-react";
 
 const links = [
   { href: "/search", icon: Search, label: "Explore" },
   { href: "/map", icon: MapPin, label: "Map" },
-  { href: "/trips", icon: Briefcase, label: "Trips" },
+  { href: "/feed", icon: Newspaper, label: "Feed" },
   { href: "/chat", icon: MessageCircle, label: "Chat" },
-  { href: "/profile", icon: User, label: "Profile" },
 ];
 
 export function BottomNav() {
