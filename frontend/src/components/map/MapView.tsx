@@ -64,7 +64,7 @@ interface MapMarkerData {
 interface MapViewProps {
   center?: [number, number]; zoom?: number;
   markers?: MapMarkerData[];
-  onMarkerClick?: (id: string) => void;
+  onMarkerClick?: (marker: MapMarkerData) => void;
   onBoundsChange?: (sw: [number, number], ne: [number, number]) => void;
   focus?: [number, number] | null;   // fly to a coordinate (e.g. clicked search result)
   className?: string; height?: string;
@@ -175,10 +175,8 @@ export default function MapView({
             key={m.id}
             position={[m.latitude, m.longitude]}
             icon={getIcon(m.marker_type || m.category_name || "default", getLabel(m.category_name || ""))}
-            eventHandlers={onMarkerClick ? { click: () => onMarkerClick(m.id) } : undefined}
-          >
-            <Popup><PopupContent marker={m} /></Popup>
-          </Marker>
+            eventHandlers={onMarkerClick ? { click: () => onMarkerClick(m) } : undefined}
+          />
         ))}
       </MapContainer>
       {/* Legend */}

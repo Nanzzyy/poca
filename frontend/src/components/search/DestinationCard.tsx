@@ -2,25 +2,23 @@
 
 import { motion } from "framer-motion";
 import type { Destination } from "@/types";
-import { Star, MapPin } from "lucide-react";
+import { Star, MapPin, Heart } from "lucide-react";
 import { CategoryIcon } from "@/components/ui";
 import { item } from "@/lib/animations";
 
 function getBadge(d: Destination) {
-  if (d.rating_avg >= 4.5 && d.review_count > 50) return { label: "Recommended", class: "bg-blue-500 text-white" };
-  if (d.rating_avg >= 4.0 && d.review_count > 20) return { label: "Trending", class: "bg-purple-500 text-white" };
-  if (d.review_count < 5 && d.rating_avg > 0) return { label: "Hidden Gem", class: "bg-emerald-500 text-white" };
-  if (d.review_count > 200) return { label: "Popular", class: "bg-orange-500 text-white" };
+  if (d.rating_avg >= 4.5 && d.review_count > 50) return { label: "RECOMMENDED", class: "bg-emerald-500/90" };
+  if (d.rating_avg >= 4.0 && d.review_count > 20) return { label: "TRENDING", class: "bg-secondary/90" };
+  if (d.review_count < 5 && d.rating_avg > 0) return { label: "HIDDEN GEM", class: "bg-primary/90" };
+  if (d.review_count > 200) return { label: "POPULAR", class: "bg-amber-500/90" };
   return null;
 }
 
 const GRADIENTS = [
-  "from-blue-400 to-cyan-500",
-  "from-purple-400 to-pink-500",
-  "from-emerald-400 to-teal-500",
-  "from-orange-400 to-red-500",
-  "from-indigo-400 to-blue-500",
-  "from-rose-400 to-pink-500",
+  "from-surface-container-high to-surface-container",
+  "from-surface-container to-surface-container-high",
+  "from-surface-container-highest to-surface-container",
+  "from-surface-dim to-surface-container",
 ];
 
 export function DestinationCard({ destination: d, onClick }: { destination: Destination; onClick: () => void }) {
@@ -31,65 +29,61 @@ export function DestinationCard({ destination: d, onClick }: { destination: Dest
   return (
     <motion.div
       variants={item}
-      whileHover={{ y: -6 }}
-      transition={{ type: "spring", stiffness: 300, damping: 25 }}
       onClick={onClick}
-      className="group bg-white rounded-3xl shadow-sm border border-gray-100/60 cursor-pointer overflow-hidden card-hover"
+      className="group bg-surface-container-lowest rounded-2xl border border-outline-variant/30 overflow-hidden shadow-sm hover:shadow-md transition-all active:scale-[0.98] cursor-pointer"
     >
-      <div className={`relative h-56 ${validImage ? "bg-gray-100" : `bg-gradient-to-br ${gradient}`} overflow-hidden`}>
+      <div className={`relative h-48 sm:h-52 ${validImage ? "bg-surface-container-low" : `bg-gradient-to-br ${gradient}`} overflow-hidden`}>
         {validImage ? (
-          <img src={d.images[0]} alt={d.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" loading="lazy" />
+          <img src={d.images[0]} alt={d.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" />
         ) : (
           <div className="absolute inset-0 flex items-center justify-center">
-            <motion.div
-              className="text-white/90 drop-shadow-lg"
-              whileHover={{ scale: 1.1, rotate: 5 }}
-              transition={{ type: "spring", stiffness: 300 }}
-            >
-              <CategoryIcon name={d.category?.icon} className="w-20 h-20" />
-            </motion.div>
+            <CategoryIcon name={d.category?.icon} className="w-14 h-14 text-outline/30" />
           </div>
         )}
-        {/* Overlay pattern for gradient only */}
-        {!validImage && <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_50%,rgba(255,255,255,0.15),transparent)]" />}
 
-        <span className="absolute top-3 left-3 px-2.5 py-1 bg-white/90 backdrop-blur rounded-lg text-xs font-medium capitalize shadow-sm">
-          {d.price_level === "budget" ? "💰 Budget" : d.price_level === "luxury" ? "💎 Luxury" : "💳 Mid"}
+        {/* Favorite button */}
+        <button
+          onClick={(e) => { e.stopPropagation(); }}
+          className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/50 backdrop-blur-sm text-on-surface flex items-center justify-center hover:bg-surface-container-lowest transition-colors"
+        >
+          <Heart className="w-[18px] h-[18px]" />
+        </button>
+
+        {/* Price level badge */}
+        <span className="absolute top-3 left-3 px-2.5 py-1 bg-surface-container-lowest/90 backdrop-blur rounded-lg text-[10px] font-bold uppercase tracking-wider shadow-sm">
+          {d.price_level === "budget" ? "Budget" : d.price_level === "luxury" ? "Luxury" : "Mid"}
         </span>
-        {d.category && (
-          <span className="absolute top-3 right-3 px-2 py-1 bg-black/30 backdrop-blur rounded-lg text-xs text-white">
-            {d.category.name}
-          </span>
-        )}
+
+        {/* Dynamic badge */}
         {badge && (
-          <div className="absolute bottom-3 left-3">
-            <span className={`px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide ${badge.class} shadow-sm`}>
-              {badge.label}
-            </span>
+          <div className={`absolute bottom-3 left-3 px-2 py-1 ${badge.class} text-white text-[10px] font-bold rounded`}>
+            {badge.label}
           </div>
         )}
       </div>
 
-      <div className="p-4">
-        <h3 className="font-semibold text-gray-900 truncate group-hover:text-blue-600 transition-colors">
-          {d.name}
-        </h3>
-        <p className="text-sm text-gray-500 truncate flex items-center">
-          <MapPin className="w-3 h-3 mr-0.5 flex-shrink-0" />
+      <div className="p-4 space-y-2">
+        <div className="flex justify-between items-start">
+          <h3 className="text-body-md font-bold text-on-surface group-hover:text-primary transition-colors">
+            {d.name}
+          </h3>
+          <div className="flex items-center text-on-surface text-body-sm font-bold">
+            <Star className="w-3.5 h-3.5 text-yellow-500 fill-current" />
+            {d.rating_avg}
+          </div>
+        </div>
+        <p className="text-body-sm text-on-surface-variant flex items-center gap-1">
+          <MapPin className="w-3.5 h-3.5 flex-shrink-0" />
           {d.city ? `${d.city}, ` : ""}{d.country}
         </p>
-        <div className="flex items-center justify-between mt-2.5">
-          <div className="flex items-center space-x-1">
-            <Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400" />
-            <span className="text-sm font-semibold">{d.rating_avg}</span>
-            <span className="text-xs text-gray-400">({d.review_count})</span>
+        {d.tags && d.tags.length > 0 && (
+          <div className="flex items-center gap-2 pt-1">
+            {d.tags.slice(0, 3).map((t) => (
+              <span key={t} className="px-2 py-1 bg-surface-container text-on-surface-variant text-[10px] rounded">{t}</span>
+            ))}
+            <span className="text-[10px] text-on-surface-variant">({d.review_count})</span>
           </div>
-          {d.tags && d.tags.length > 0 && (
-            <span className="text-[10px] text-gray-400 bg-gray-50 px-1.5 py-0.5 rounded">
-              #{d.tags[0]}
-            </span>
-          )}
-        </div>
+        )}
       </div>
     </motion.div>
   );

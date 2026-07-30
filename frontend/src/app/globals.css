@@ -1,42 +1,130 @@
 @import "tailwindcss";
 
 @theme inline {
-  --color-background: #ffffff;
-  --color-foreground: #0f172a;
-  --font-sans: var(--font-geist-sans), system-ui, sans-serif;
-  --font-mono: var(--font-geist-mono), monospace;
+  /* Stitch Design System — Poca */
+  --color-surface: #faf8ff;
+  --color-surface-dim: #d2d9f4;
+  --color-surface-bright: #faf8ff;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-low: #f2f3ff;
+  --color-surface-container: #eaedff;
+  --color-surface-container-high: #e2e7ff;
+  --color-surface-container-highest: #dae2fd;
+  --color-on-surface: #131b2e;
+  --color-on-surface-variant: #434655;
+  --color-inverse-surface: #283044;
+  --color-inverse-on-surface: #eef0ff;
+  --color-outline: #737686;
+  --color-outline-variant: #c3c6d7;
+  --color-primary: #004ac6;
+  --color-on-primary: #ffffff;
+  --color-primary-container: #2563eb;
+  --color-on-primary-container: #eeefff;
+  --color-inverse-primary: #b4c5ff;
+  --color-secondary: #712ae2;
+  --color-on-secondary: #ffffff;
+  --color-secondary-container: #8a4cfc;
+  --color-on-secondary-container: #fffbff;
+  --color-tertiary: #006242;
+  --color-on-tertiary: #ffffff;
+  --color-tertiary-container: #007d55;
+  --color-on-tertiary-container: #bdffdb;
+  --color-error: #ba1a1a;
+  --color-on-error: #ffffff;
+  --color-error-container: #ffdad6;
+  --color-on-error-container: #93000a;
+  --color-background: #f8fafc;
+  --color-foreground: #131b2e;
+  --color-on-background: #131b2e;
+
+  /* Typography scale */
+  --font-sans: "Plus Jakarta Sans", system-ui, sans-serif;
+  --font-mono: ui-monospace, monospace;
+
+  /* Radius */
+  --radius-sm: 0.25rem;
+  --radius-default: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.5rem;
+  --radius-full: 9999px;
 }
 
 :root {
-  --bg: #f8fafc;
+  --primary: #004ac6;
+  --primary-container: #2563eb;
+  --secondary: #712ae2;
+  --tertiary: #006242;
   --surface: #ffffff;
-  --primary: #2563eb;
-  --primary-dark: #1d4ed8;
-  --text: #0f172a;
-  --text-muted: #64748b;
-  --border: #e2e8f0;
+  --text: #131b2e;
+  --text-muted: #434655;
+  --border: #c3c6d7;
+  --bg: #f8fafc;
+  --nav-h: 4rem;
+  --bottom-nav-h: 4.5rem;
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --shadow-card: 0 1px 3px rgba(0,0,0,0.06);
+  --shadow-card-hover: 0 4px 6px -1px rgba(0,0,0,0.1);
+  --shadow-elevated: 0 8px 24px rgba(0,0,0,0.08);
+  --container-max: 1280px;
+  --gutter: 20px;
 }
 
 * { -webkit-tap-highlight-color: transparent; }
 
 html {
-  scroll-behavior: smooth;
   -webkit-font-smoothing: antialiased;
+  text-size-adjust: 100%;
 }
 
 body {
   background: var(--bg);
   color: var(--text);
   font-family: var(--font-sans);
+  overflow-x: hidden;
 }
 
-/* Custom scrollbar */
-::-webkit-scrollbar { width: 8px; height: 8px; }
+/* ── Stitch Design Utilities ── */
+.glass {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+.ai-glow {
+  box-shadow: inset 0 0 12px rgba(113, 42, 226, 0.15), 0 4px 6px -1px rgba(0,0,0,0.1);
+  border: 1px solid rgba(113, 42, 226, 0.2);
+}
+.connecting-thread {
+  position: relative;
+}
+.connecting-thread::after {
+  content: '';
+  position: absolute;
+  left: 20px;
+  top: 40px;
+  bottom: 0;
+  width: 2px;
+  border-left: 2px dashed #cbd5e1;
+  z-index: -1;
+}
+.scale-95 { transition: transform 0.1s ease; }
+.scale-95:active { transform: scale(0.95); }
+
+/* ── Safe area ── */
+@supports (padding: env(safe-area-inset-bottom)) {
+  .safe-bottom { padding-bottom: calc(var(--safe-b) + 0.5rem); }
+}
+
+/* ── Scrollbar slim ── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
-/* Skeleton shimmer */
+/* ── Hide scrollbar on containers ── */
+.hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+.hide-scrollbar::-webkit-scrollbar { display: none; }
+
+/* ── Skeleton — GPU-accelerated ── */
 @keyframes shimmer {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
@@ -45,90 +133,80 @@ body {
   background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
-  border-radius: 0.5rem;
+  border-radius: var(--radius-sm);
+  will-change: background-position;
 }
 
-/* Gradient text */
-.gradient-text {
-  background: linear-gradient(135deg, #2563eb, #7c3aed);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-/* Glassmorphism */
-.glass {
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(16px) saturate(180%);
-  -webkit-backdrop-filter: blur(16px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.4);
-}
-
-/* Card hover */
+/* ── Card hover — CSS only, no JS ── */
 .card-hover {
-  transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.25s ease;
-  will-change: transform;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
 }
-.card-hover:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 16px 32px -12px rgba(0, 0, 0, 0.12);
+@media (hover: hover) {
+  .card-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-card-hover);
+  }
+}
+.card-hover:active {
+  transform: translateY(0);
 }
 
-/* Pulse glow for CTAs */
-@keyframes glow {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.4); }
-  50% { box-shadow: 0 0 0 12px rgba(37, 99, 235, 0); }
-}
-.glow-pulse { animation: glow 2s infinite; }
-
-/* Floating animation for decorative elements */
-@keyframes float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-10px); }
-}
-.float-anim { animation: float 4s ease-in-out infinite; }
-
-/* Slide in animation for toast */
+/* ── Toast ── */
 @keyframes slide-in {
   from { transform: translateX(100%); opacity: 0; }
   to { transform: translateX(0); opacity: 1; }
 }
-.animate-slide-in { animation: slide-in 0.3s cubic-bezier(0.22, 1, 0.36, 1); }
+.animate-slide-in { animation: slide-in 0.2s cubic-bezier(0.22, 1, 0.36, 1); }
 
-/* Gradient shift */
-@keyframes gradient-shift {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
-.animate-gradient {
-  background-size: 200% 200%;
-  animation: gradient-shift 8s ease infinite;
-}
+/* ── Leaflet ── */
+.leaflet-container { width: 100%; height: 100%; z-index: 1; font-family: var(--font-sans); }
+.leaflet-popup-content-wrapper { border-radius: var(--radius-sm) !important; box-shadow: var(--shadow-elevated) !important; }
 
-/* Map */
-.leaflet-container {
-  width: 100%;
-  height: 100%;
-  z-index: 1;
-  font-family: var(--font-sans);
+/* ── Focus ── */
+/* ponytail: global focus outline removed per request (was noisy on search inputs).
+   Each control styles its own :focus via ring/border. Add a keyboard-only ring back
+   if a11y auditing requires it. */
+
+/* ── Masonry grid ── */
+.masonry-grid {
+  column-count: 1;
+  column-gap: 20px;
 }
-.leaflet-popup-content-wrapper {
-  border-radius: 12px;
-  box-shadow: 0 8px 24px -8px rgba(0,0,0,0.15);
+@media (min-width: 768px) { .masonry-grid { column-count: 2; } }
+@media (min-width: 1024px) { .masonry-grid { column-count: 3; } }
+.masonry-item {
+  break-inside: avoid;
+  margin-bottom: 20px;
 }
 
-/* Focus visible for accessibility */
-*:focus-visible {
-  outline: 2px solid var(--primary);
-  outline-offset: 2px;
-  border-radius: 4px;
+/* ── Notification thread line ── */
+.thread-line-notif {
+  position: absolute;
+  left: 23px;
+  top: 48px;
+  bottom: -20px;
+  width: 2px;
+  background-image: linear-gradient(to bottom, #c3c6d7 50%, transparent 50%);
+  background-size: 2px 8px;
 }
 
-/* Reduce motion for users who prefer it */
+/* ── Reduced motion ── */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* ── Press scale ── */
+.press-scale {
+  transition: transform 0.1s ease;
+}
+.press-scale:active {
+  transform: scale(0.97);
+}
+
+/* ── Bottom nav spacer ── */
+.pb-bottom-nav {
+  padding-bottom: calc(var(--bottom-nav-h) + var(--safe-b));
 }

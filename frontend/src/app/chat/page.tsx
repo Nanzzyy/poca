@@ -3,13 +3,14 @@
 export const dynamic = "force-dynamic";
 
 import { useState, useRef, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useConversations, useConversation, useCreateConversation, useSendMessage, useRenameConversation, useDeleteConversation, useProfile } from "@/lib/queries";
-import { MessageCircle, Send, Plus, ArrowLeft, Sparkles, Pencil, Trash2, Check, X } from "lucide-react";
+import { MessageCircle, Send, Plus, Sparkles, Pencil, Trash2, Check, X, ChevronLeft, Menu, History, Paperclip, Bookmark, Share2, Printer, Edit, Hotel, Lightbulb, ChevronRight, Maximize2, Compass, RefreshCw, Sliders, Wand2 } from "lucide-react";
 import { RecommendationCards } from "@/components/chat/RecommendationCards";
 import { PlanCard } from "@/components/chat/PlanCard";
 import { FormattedText } from "@/components/chat/FormattedText";
+import { PlanInputForm } from "@/components/chat/PlanInputForm";
+import type { PlanFormData } from "@/components/chat/PlanInputForm";
 
 const QUICK_PROMPTS = [
   "Rekomendasi pantai di Bali",
@@ -18,8 +19,21 @@ const QUICK_PROMPTS = [
   "Candi terbaik di Indonesia",
 ];
 
+const REFINEMENT_PROMPTS = [
+  { icon: RefreshCw, label: "Ubah budget", prompt: "Ubah budget jadi lebih hemat" },
+  { icon: Sliders, label: "Tambah hari", prompt: "Tambah durasi jadi 4 hari" },
+  { icon: Wand2, label: "Ganti minat", prompt: "Ganti fokus ke kuliner" },
+  { icon: Compass, label: "Ganti lokasi", prompt: "Ganti lokasi ke daerah lain" },
+];
+
+const PLACEHOLDER_PLANS = [
+  { name: "Tegalalang Rice Terrace", img: null },
+  { name: "Pura Tirta Empul", img: null },
+];
+
 export default function ChatPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { data: user } = useProfile();
   const { data: conversations } = useConversations();
   const createConv = useCreateConversation();
@@ -31,40 +45,96 @@ export default function ChatPage() {
   const [input, setInput] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
+  const [showSidebar, setShowSidebar] = useState(false);
+  const [showPlanner, setShowPlanner] = useState(false);
+  const [planLoading, setPlanLoading] = useState(false);
+  const [pendingImg, setPendingImg] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const messages = conv?.messages || (activeConv ? [] : []);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [conv?.messages]);
+  }, [messages]);
 
-  const sendMessage = async (convId: string, text: string) => {
+  const prevConvRef = useRef<string | null>(activeConv);
+  useEffect(() => {
+    if (showSidebar && prevConvRef.current !== activeConv) setShowSidebar(false);
+    prevConvRef.current = activeConv;
+  }, [activeConv, showSidebar]);
+
+  // ?example=1 (from home "Lihat Contoh Plan") → auto-generate a sample plan.
+  const exampleStarted = useRef(false);
+  useEffect(() => {
+    if (exampleStarted.current) return;
+    if (searchParams.get("example") && user && !activeConv) {
+      exampleStarted.current = true;
+      startNewChat("Buatkan rencana perjalanan 2 hari di Bali untuk 2 orang dengan budget Rp3.000.000, minat pantai. Berikan detail aktivitas per hari, estimasi biaya, dan rekomendasi tempat.");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, user, activeConv]);
+
+  const pickImage = (files: FileList | null) => {
+    const f = files?.[0];
+    if (!f) return;
+    if (!f.type.startsWith("image/")) return;
+    if (f.size > 3 * 1024 * 1024) return;
+    const r = new FileReader();
+    r.onload = () => setPendingImg(r.result as string);
+    r.readAsDataURL(f);
+    if (fileRef.current) fileRef.current.value = "";
+  };
+
+  const sendMessage = async (convId: string, text: string, attachment?: string | null) => {
     const content = text.trim();
-    if (!content) return;
-    await sendMsg.mutateAsync({ convId, content });
-    // Optimistic user bubble + AI-reply refetch are handled in useSendMessage;
-    // invalidate the active conversation's cache too in case it's the one open.
+    if (!content && !attachment) return;
+    await sendMsg.mutateAsync({ convId, content: content || "(gambar)", attachment: attachment || undefined });
     if (convId === activeConv) refetchConv();
   };
 
   const handleSend = async (text?: string) => {
     const content = text || input;
-    if (!content.trim() || !activeConv) return;
+    if (!content.trim() && !pendingImg) return;
+    if (!activeConv) return;
+    const img = pendingImg;
     setInput("");
-    await sendMessage(activeConv, content);
+    setPendingImg(null);
+    await sendMessage(activeConv, content, img);
   };
 
   const startNewChat = async (initialMsg?: string) => {
     if (!user) return router.push("/auth/login");
     const result = await createConv.mutateAsync();
     setActiveConv(result.id);
-    // Use the freshly-created id directly — reading `activeConv` here would race
-    // (state hasn't committed yet) and drop the first message.
     if (initialMsg) {
       await sendMessage(result.id, initialMsg);
     }
+    setShowPlanner(false);
   };
 
-  const startRename = (id: string, summary: string | null) => {
+  // Handle plan generation from PlanInputForm
+  const handlePlanGenerate = async (data: PlanFormData) => {
+    setPlanLoading(true);
+    let prompt = `Buatkan rencana perjalanan ${data.days} hari`;
+    if (data.location) prompt += ` di ${data.location}`;
+    prompt += ` untuk ${data.people} orang`;
+    if (data.budget > 0) prompt += ` dengan budget Rp${data.budget.toLocaleString("id-ID")}`;
+    if (data.interest) prompt += `, minat: ${data.interest}`;
+    prompt += `. Berikan detail aktivitas per hari, estimasi biaya, dan rekomendasi tempat.`;
+    await startNewChat(prompt);
+    setPlanLoading(false);
+  };
+
+  // Handle refinement clicks
+  const handleRefinement = async (prompt: string) => {
+    if (!activeConv) return;
+    setInput(prompt);
+    // Auto-send after brief delay
+    setTimeout(() => handleSend(prompt), 100);
+  };
+
+  const startRename = (id: string, summary?: string | null) => {
     setEditingId(id);
     setEditText(summary || "Percakapan baru");
   };
@@ -79,19 +149,19 @@ export default function ChatPage() {
     if (activeConv === id) setActiveConv(null);
   };
 
+  // Check if latest AI message has a plan
+  const lastAiMsg = [...messages].reverse().find(m => m.role === "assistant");
+  const hasPlan = lastAiMsg?.msg_metadata?.plan;
+
   if (!user) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-gray-500">
-        <motion.div
-          initial={{ scale: 0.8, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          className="w-20 h-20 rounded-3xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center mb-4 shadow-lg"
-        >
-          <MessageCircle className="w-10 h-10 text-white" />
-        </motion.div>
-        <h2 className="text-xl font-semibold text-gray-700 mb-1">Ngobrol sama AI</h2>
-        <p className="text-sm text-gray-400 mb-5">Masuk dulu untuk mulai chat dengan asisten AI</p>
-        <button onClick={() => router.push("/auth/login")} className="px-6 py-2.5 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors">
+      <div className="pt-20 flex flex-col items-center justify-center px-5 text-center h-screen">
+        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-primary-container flex items-center justify-center mb-4 shadow-lg">
+          <MessageCircle className="w-8 h-8 text-on-primary" />
+        </div>
+        <h2 className="text-headline-sm font-semibold text-on-surface mb-1">Ngobrol sama AI</h2>
+        <p className="text-body-md text-on-surface-variant mb-5 max-w-xs">Masuk dulu untuk mulai chat dengan asisten AI perjalanan</p>
+        <button onClick={() => router.push("/auth/login")} className="px-6 py-2.5 bg-primary text-on-primary rounded-xl font-bold hover:bg-primary/90 transition-colors">
           Masuk
         </button>
       </div>
@@ -99,193 +169,236 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-3.5rem)] max-w-5xl mx-auto">
-      {/* Sidebar */}
-      <div className="hidden md:flex flex-col w-64 border-r bg-white">
-        <div className="p-3 border-b">
-          <button
-            onClick={() => startNewChat()}
-            className="w-full flex items-center justify-center space-x-2 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl text-sm font-medium hover:shadow-lg transition-shadow"
-          >
-            <Plus className="w-4 h-4" /> <span>Chat Baru</span>
+    <main className="flex flex-1 pt-16 h-[calc(100dvh-var(--bottom-nav-h))] md:h-screen overflow-hidden bg-background">
+      {/* ═══ LEFT SIDEBAR ═══ */}
+      <aside className="hidden lg:flex flex-col w-72 bg-surface-container-low border-r border-outline-variant/30">
+        <div className="p-4 flex flex-col gap-4">
+          <button onClick={() => { setActiveConv(null); setShowPlanner(true); setShowSidebar(false); }} className="w-full bg-primary text-on-primary py-3 px-4 rounded-xl text-[14px] flex items-center justify-center gap-2 active:scale-[0.98] transition-all shadow-sm">
+            <Sparkles className="w-5 h-5" />
+            Buat Rencana
           </button>
-        </div>
-        <div className="flex-1 overflow-y-auto">
-          {conversations?.map((c) => (
-            <div
-              key={c.id}
-              onClick={() => editingId !== c.id && setActiveConv(c.id)}
-              className={`group w-full p-3 text-left text-sm border-b hover:bg-gray-50 transition-colors ${
-                activeConv === c.id ? "bg-blue-50 border-l-4 border-l-blue-600" : ""
-              }`}
-            >
-              {editingId === c.id ? (
-                <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                  <input
-                    autoFocus
-                    value={editText}
-                    onChange={(e) => setEditText(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") saveRename(c.id);
-                      if (e.key === "Escape") setEditingId(null);
-                    }}
-                    className="flex-1 min-w-0 text-sm border rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  />
-                  <button onClick={() => saveRename(c.id)} className="p-1 text-green-600 hover:bg-green-50 rounded">
-                    <Check className="w-3.5 h-3.5" />
-                  </button>
-                  <button onClick={() => setEditingId(null)} className="p-1 text-gray-400 hover:bg-gray-100 rounded">
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </div>
+          <button onClick={() => startNewChat()} className="w-full border border-dashed border-outline-variant text-on-surface-variant py-3 px-4 rounded-xl text-[14px] flex items-center justify-center gap-2 hover:border-primary hover:text-primary transition-all active:scale-[0.98]">
+            <Plus className="w-5 h-5" />
+            Chat Baru
+          </button>
+          <div>
+            <h3 className="text-[11px] font-bold uppercase tracking-wider text-outline mb-2 px-2">Recent Explorations</h3>
+            <div className="flex flex-col gap-1 overflow-y-auto max-h-[calc(100vh-380px)]">
+              {conversations && conversations.length > 0 ? (
+                conversations.map((c) => {
+                  const active = activeConv === c.id;
+                  return (
+                    <div
+                      key={c.id}
+                      onClick={() => { if (editingId !== c.id) setActiveConv(c.id); setShowPlanner(false); }}
+                      className={`px-4 py-3 rounded-xl flex items-center gap-2 cursor-pointer transition-all ${active ? "bg-primary-container text-on-primary-container" : "text-on-surface-variant hover:bg-surface-container-highest"}`}
+                    >
+                      <History className="w-5 h-5 flex-shrink-0" />
+                      <span className="text-[14px] truncate">{c.summary || "Percakapan baru"}</span>
+                    </div>
+                  );
+                })
               ) : (
-                <div className="flex items-start justify-between gap-1">
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium truncate">{c.summary || "Percakapan baru"}</p>
-                    <p className="text-xs text-gray-400 mt-0.5">{new Date(c.created_at).toLocaleDateString("id-ID")}</p>
+                <p className="text-[12px] text-on-surface-variant px-2">Belum ada percakapan</p>
+              )}
+            </div>
+          </div>
+        </div>
+        <div className="mt-auto p-4 border-t border-outline-variant/30">
+          <div className="flex items-center gap-4 p-3 rounded-xl bg-surface-container-lowest/50">
+            <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center text-on-primary">
+              <Sparkles className="w-5 h-5 fill-current" />
+            </div>
+            <div>
+              <p className="text-[12px] font-bold text-on-surface">AI Companion</p>
+              <p className="text-[10px] text-on-surface-variant">Your Informed Explorer</p>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      {showSidebar && <div className="fixed inset-0 z-30 bg-black/15 lg:hidden" onClick={() => setShowSidebar(false)} />}
+
+      {/* ═══ MIDDLE: CHAT STREAM ═══ */}
+      <section className="flex-1 flex flex-col bg-surface-container-lowest relative">
+        <div className="flex-1 overflow-y-auto p-4 space-y-6 pb-6">
+          {/* Plan Input Form (shown when no active conv or planner mode) */}
+          {(!activeConv || showPlanner) && (
+            <div className="max-w-xl mx-auto w-full pt-6">
+              <div className="flex flex-col items-center text-center mb-6">
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary/10 to-secondary/10 flex items-center justify-center mb-4">
+                  <Sparkles className="w-7 h-7 text-primary" />
+                </div>
+                <h2 className="text-headline-sm font-bold text-on-surface mb-1">AI Trip Planner</h2>
+                <p className="text-body-md text-on-surface-variant mb-2 max-w-sm">Pilih template cepat atau buat rencana custom — AI akan menyusun itinerary lengkap untukmu!</p>
+              </div>
+              <PlanInputForm onGenerate={handlePlanGenerate} loading={planLoading || sendMsg.isPending} />
+            </div>
+          )}
+
+          {/* Quick prompts when no active conv and not showing planner */}
+          {!activeConv && !showPlanner && (
+            <div className="flex flex-col items-center justify-center h-full text-center">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary/10 to-secondary/10 flex items-center justify-center mb-4">
+                <Sparkles className="w-7 h-7 text-primary" />
+              </div>
+              <h2 className="text-headline-sm font-bold text-on-surface mb-1">Asisten Perjalanan AI</h2>
+              <p className="text-body-md text-on-surface-variant mb-6 max-w-sm">Tanya soal destinasi, budget, atau tips lokal</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-md">
+                {QUICK_PROMPTS.map((prompt) => (
+                  <button key={prompt} onClick={() => startNewChat(prompt)}
+                    className="p-3 bg-surface-container-lowest border border-outline-variant/30 rounded-xl text-left text-body-md text-on-surface hover:border-primary/30 hover:shadow-sm transition-all active:scale-[0.98]">
+                    {prompt}
+                  </button>
+                ))}
+              </div>
+              <div className="flex gap-2 mt-6">
+                <button onClick={() => setShowSidebar(true)} className="md:hidden px-4 py-2 border border-outline-variant text-on-surface-variant rounded-xl text-body-sm font-medium hover:bg-surface-container-low flex items-center gap-1.5 active:scale-[0.98]">
+                  <Menu className="w-4 h-4" /> Riwayat
+                </button>
+                <button onClick={() => setShowPlanner(true)} className="px-6 py-2 bg-primary text-on-primary rounded-xl font-bold hover:bg-primary/90 transition-colors active:scale-[0.98] flex items-center gap-2">
+                  <Sparkles className="w-4 h-4" /> Buat Rencana
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Messages */}
+          {activeConv && messages.map((m: any) => (
+            <div key={m.id}>
+              {m.role === "user" && (
+                <div className="flex flex-col items-end gap-1 max-w-2xl ml-auto mb-6">
+                  <div className="bg-surface-container-high text-on-surface p-2 rounded-2xl rounded-tr-none">
+                    {m.msg_metadata?.attachment && (
+                      <img src={m.msg_metadata.attachment} alt="lampiran" className="rounded-xl max-h-60 w-auto mb-1" />
+                    )}
+                    {m.content && m.content !== "(gambar)" && (
+                      <p className="text-[14px] leading-relaxed px-2 py-1">{m.content}</p>
+                    )}
                   </div>
-                  <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); startRename(c.id, c.summary); }}
-                      className="p-1 text-gray-400 hover:text-blue-600 rounded"
-                      title="Ganti judul"
-                    >
-                      <Pencil className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleDelete(c.id); }}
-                      className="p-1 text-gray-400 hover:text-red-600 rounded"
-                      title="Hapus"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                  <span className="text-[10px] text-outline">{new Date(m.created_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}</span>
+                </div>
+              )}
+              {m.role === "assistant" && (
+                <div className="flex gap-4 max-w-4xl mb-6">
+                  <div className="w-10 h-10 rounded-full bg-secondary text-on-secondary flex-shrink-0 flex items-center justify-center mt-1">
+                    <Sparkles className="w-5 h-5 fill-current" />
+                  </div>
+                  <div className="flex flex-col gap-3 w-full">
+                    <div className="text-[14px] leading-relaxed text-on-surface"><FormattedText text={m.content} /></div>
+                    {m.msg_metadata?.plan && <PlanCard plan={m.msg_metadata.plan} />}
+                    {m.msg_metadata?.recommendations?.length > 0 && <RecommendationCards items={m.msg_metadata.recommendations} />}
+
+                    {/* Refinement actions — show after plan */}
+                    {m.msg_metadata?.plan && (
+                      <div className="flex flex-wrap gap-2 pt-1 pb-2">
+                        <span className="text-[11px] text-on-surface-variant font-medium self-center mr-1">Sempurnakan:</span>
+                        {REFINEMENT_PROMPTS.map((r, i) => (
+                          <button
+                            key={i}
+                            onClick={() => handleRefinement(r.prompt)}
+                            className="flex items-center gap-1 px-3 py-1.5 bg-surface-container text-on-surface-variant rounded-full text-[11px] font-medium hover:bg-primary/10 hover:text-primary transition-all active:scale-[0.95]"
+                          >
+                            <r.icon className="w-3.5 h-3.5" />
+                            {r.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
             </div>
           ))}
-          {(!conversations || conversations.length === 0) && (
-            <p className="p-4 text-sm text-gray-400 text-center">Belum ada percakapan</p>
-          )}
+          <div ref={messagesEndRef} />
         </div>
-      </div>
 
-      {/* Chat area */}
-      <div className="flex-1 flex flex-col">
-        {!activeConv ? (
-          <div className="flex flex-col items-center justify-center flex-1 text-gray-500 p-6">
-            <motion.div
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              className="w-20 h-20 rounded-3xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center mb-4 shadow-xl"
-            >
-              <Sparkles className="w-10 h-10 text-white" />
-            </motion.div>
-            <h2 className="text-2xl font-bold text-gray-800 mb-2">Asisten Perjalanan AI</h2>
-            <p className="text-center max-w-md mb-6 text-gray-500">
-              Tanya apa saja soal destinasi, rencana perjalanan, budget, atau tips lokal. AI siap bantu!
-            </p>
-
-            {/* Quick prompts */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-md">
-              {QUICK_PROMPTS.map((prompt) => (
-                <motion.button
-                  key={prompt}
-                  whileHover={{ y: -2 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => startNewChat(prompt)}
-                  className="p-3 bg-white border border-gray-200 rounded-xl text-left text-sm text-gray-700 hover:border-blue-300 hover:shadow-sm transition-all"
-                >
-                  {prompt}
-                </motion.button>
-              ))}
+        {/* Input Area — in-flow (no dead gap below) */}
+        <div className="p-4 bg-surface-container-lowest/80 backdrop-blur-md border-t border-outline-variant/30">
+          <div className="max-w-4xl mx-auto relative flex items-center gap-3">
+            <div className="flex-1 relative">
+              {pendingImg && (
+                <div className="mb-2 inline-block relative">
+                  <img src={pendingImg} alt="" className="h-20 w-20 object-cover rounded-xl border border-outline-variant" />
+                  <button onClick={() => setPendingImg(null)} className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-error text-white flex items-center justify-center"><X className="w-3 h-3" /></button>
+                </div>
+              )}
+              <input
+                className="w-full bg-surface-container-low border border-outline-variant/50 rounded-2xl py-4 pl-6 pr-14 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all text-[14px] text-on-surface"
+                placeholder="Tanyakan apa saja tentang perjalananmu..."
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && activeConv) handleSend();
+                  if (e.key === "Enter" && !activeConv && input.trim()) startNewChat(input.trim());
+                }}
+                disabled={sendMsg.isPending}
+              />
+              <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => pickImage(e.target.files)} />
+              <div className="absolute right-4 top-1/2 -translate-y-1/2 flex gap-2">
+                <button onClick={() => fileRef.current?.click()} title="Lampirkan gambar" className="text-on-surface-variant cursor-pointer hover:text-primary transition-colors"><Paperclip className="w-5 h-5" /></button>
+              </div>
             </div>
-
             <button
-              onClick={() => startNewChat()}
-              className="mt-6 px-6 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-medium hover:shadow-lg transition-shadow"
+              onClick={() => { if (activeConv) handleSend(); else if (input.trim() || pendingImg) startNewChat(input.trim()); }}
+              disabled={(!input.trim() && !pendingImg) || sendMsg.isPending}
+              className="bg-primary text-on-primary p-4 rounded-2xl shadow-md hover:bg-primary/90 active:scale-90 transition-all disabled:opacity-40 flex items-center justify-center"
             >
-              Mulai chat baru
+              <Send className="w-5 h-5" />
             </button>
           </div>
-        ) : (
-          <>
-            <div className="flex items-center p-3 border-b bg-white">
-              <button onClick={() => setActiveConv(null)} className="md:hidden mr-2 p-1">
-                <ArrowLeft className="w-5 h-5" />
-              </button>
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center mr-2">
-                <Sparkles className="w-4 h-4 text-white" />
-              </div>
-              <span className="font-medium text-sm">AI Assistant</span>
-              {sendMsg.isPending && (
-                <span className="ml-2 flex items-center text-xs text-gray-400">
-                  <span className="flex space-x-0.5 mr-1">
-                    {[0, 1, 2].map((i) => (
-                      <motion.span
-                        key={i}
-                        className="w-1.5 h-1.5 bg-gray-400 rounded-full"
-                        animate={{ y: [0, -4, 0] }}
-                        transition={{ duration: 0.6, repeat: Infinity, delay: i * 0.15 }}
-                      />
-                    ))}
-                  </span>
-                  Mengetik...
-                </span>
-              )}
-            </div>
+        </div>
+      </section>
 
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50/50">
-              <AnimatePresence initial={false}>
-                {conv?.messages?.map((m) => (
-                  <motion.div
-                    key={m.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
-                  >
-                    <div className={`max-w-[85%] p-3.5 rounded-2xl text-sm ${
-                      m.role === "user"
-                        ? "bg-gradient-to-br from-blue-600 to-indigo-600 text-white rounded-br-md"
-                        : "bg-white text-gray-800 shadow-sm rounded-bl-md border border-gray-100"
-                    }`}>
-                      <div className="leading-relaxed"><FormattedText text={m.content} /></div>
-                      {m.role === "assistant" && m.msg_metadata?.plan ? (
-                        <PlanCard plan={m.msg_metadata.plan} />
-                      ) : m.role === "assistant" && m.msg_metadata?.recommendations?.length ? (
-                        <RecommendationCards items={m.msg_metadata.recommendations} />
-                      ) : null}
+      {/* ═══ RIGHT INSPECTOR PANEL ═══ */}
+      {activeConv && (
+        <aside className="hidden xl:flex flex-col w-80 bg-surface-container-low border-l border-outline-variant/30 overflow-y-auto">
+          <div className="p-5 space-y-6">
+            {hasPlan ? (
+              <>
+                <div>
+                  <h3 className="text-headline-sm font-semibold mb-3 text-on-surface">Preview Rencana</h3>
+                  <div className="rounded-2xl overflow-hidden shadow-sm relative h-48 group bg-gradient-to-br from-primary/10 to-secondary/10 flex items-center justify-center">
+                    <Compass className="w-16 h-16 text-outline/30" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent flex items-end p-4">
+                      <p className="text-white font-bold text-[12px]">{lastAiMsg?.msg_metadata?.plan?.location || "Destinasi"}</p>
                     </div>
-                  </motion.div>
-                ))}
-              </AnimatePresence>
-              <div ref={messagesEndRef} />
-            </div>
-
-            <div className="p-3 border-t bg-white">
-              <div className="flex space-x-2">
-                <input
-                  type="text"
-                  placeholder="Tulis pesan..."
-                  className="flex-1 p-3 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleSend()}
-                  disabled={sendMsg.isPending}
-                />
-                <motion.button
-                  whileTap={{ scale: 0.9 }}
-                  onClick={() => handleSend()}
-                  disabled={!input.trim() || sendMsg.isPending}
-                  className="w-11 h-11 flex items-center justify-center bg-blue-600 text-white rounded-xl disabled:opacity-50 hover:bg-blue-700 transition-colors"
-                >
-                  <Send className="w-4 h-4" />
-                </motion.button>
+                  </div>
+                </div>
+                <div>
+                  <h4 className="text-[14px] font-bold mb-3">Quick Actions</h4>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { icon: Share2, label: "Bagikan" },
+                      { icon: Bookmark, label: "Simpan" },
+                      { icon: Edit, label: "Ubah" },
+                      { icon: Hotel, label: "Cari Hotel" },
+                    ].map(({ icon: Icon, label }) => (
+                      <button key={label} className="flex flex-col items-center gap-2 p-4 bg-surface-container-lowest border border-outline-variant/20 rounded-xl hover:border-primary/50 transition-all active:scale-[0.98]">
+                        <Icon className="w-5 h-5 text-primary" />
+                        <span className="text-[10px] font-bold">{label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="p-4 rounded-2xl bg-secondary/5 border border-secondary/20">
+                  <div className="flex items-center gap-2 mb-2 text-secondary">
+                    <Lightbulb className="w-4 h-4 fill-current" />
+                    <h4 className="text-[12px] font-bold">Poca Tip</h4>
+                  </div>
+                  <p className="text-[12px] text-on-surface-variant italic">Kamu bisa refine rencana ini dengan klik tombol sempurnakan di chat.</p>
+                </div>
+              </>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full text-center py-10">
+                <Lightbulb className="w-12 h-12 text-outline/30 mb-3" />
+                <p className="text-[14px] text-on-surface-variant">Belum ada rencana aktif</p>
+                <p className="text-[12px] text-outline mt-1">Minta AI untuk membuat rencana perjalanan</p>
               </div>
-            </div>
-          </>
-        )}
-      </div>
-    </div>
+            )}
+          </div>
+        </aside>
+      )}
+    </main>
   );
 }

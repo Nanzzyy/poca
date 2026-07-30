@@ -98,15 +98,15 @@ export interface TripActivity {
 }
 
 export interface BudgetEstimate {
-  accommodation: number;
-  food: number;
-  transportation: number;
-  tickets: number;
-  parking: number;
-  emergency_reserve: number;
+  accommodation?: number;
+  food?: number;
+  transportation?: number;
+  tickets?: number;
+  parking?: number;
+  emergency_reserve?: number;
   total: number;
   currency: string;
-  breakdown: Record<string, number>;
+  breakdown?: Record<string, number>;
 }
 
 export interface Conversation {

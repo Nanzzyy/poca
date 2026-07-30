@@ -196,6 +196,30 @@ export function useProfile() {
   });
 }
 
+// Favorites live on user.preferences.favorite_ids (account-bound, zero-migration).
+export function useFavoriteIds() {
+  const { data: user } = useProfile();
+  return new Set<string>((user?.preferences as any)?.favorite_ids || []);
+}
+
+export function useToggleFavorite() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (destId: string) =>
+      api.post<{ favorited: boolean; favorite_ids: string[] }>(`/users/me/favorites/${destId}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.user.me }),
+  });
+}
+
+export function useUpdatePreferences() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (preferences: Record<string, any>) =>
+      api.put<User>("/users/me/preferences", { preferences }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.user.me }),
+  });
+}
+
 export function useUserStats() {
   return useQuery({
     queryKey: keys.user.stats,
@@ -250,8 +274,8 @@ export function useDeleteConversation() {
 export function useSendMessage() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ convId, content }: { convId: string; content: string }) =>
-      api.post<Message>(`/ai/conversations/${convId}/messages`, { content }),
+    mutationFn: ({ convId, content, attachment }: { convId: string; content: string; attachment?: string }) =>
+      api.post<Message>(`/ai/conversations/${convId}/messages`, { content, attachment }),
     // Show the user's bubble instantly — don't wait for the AI reply (which is
     // what the POST resolves to). Server reconciles on success.
     onMutate: async ({ convId, content }) => {
@@ -336,6 +360,16 @@ export function useRecommendations(prefs: Record<string, any>) {
     queryKey: ["recommendations", prefs],
     queryFn: () => api.post<PaginatedResponse<Destination>>("/recommendations", prefs),
     enabled: Object.keys(prefs).length > 0,
+    staleTime: 300_000,
+    gcTime: 600_000,
+  });
+}
+
+export function useQuickRecommendations(enabled: boolean) {
+  return useQuery({
+    queryKey: ["recommendations", "quick"],
+    queryFn: () => api.get<PaginatedResponse<Destination>>("/recommendations/quick", { params: { size: 9 } }),
+    enabled,
     staleTime: 300_000,
     gcTime: 600_000,
   });

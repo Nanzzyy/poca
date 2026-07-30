@@ -17,6 +17,20 @@ export function useAllReviews(page = 1) {
   });
 }
 
+import { useInfiniteQuery } from "@tanstack/react-query";
+
+export function useInfinitePosts() {
+  return useInfiniteQuery({
+    queryKey: feedKeys.all,
+    queryFn: ({ pageParam = 1 }) => api.get<PaginatedResponse<Post>>(`/posts`, { params: { page: pageParam } }),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) => {
+      return lastPage.page < lastPage.pages ? lastPage.page + 1 : undefined;
+    },
+    staleTime: 30_000,
+  });
+}
+
 export function usePosts(page = 1) {
   return useQuery({
     queryKey: [...feedKeys.all, page],

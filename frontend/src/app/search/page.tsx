@@ -2,203 +2,250 @@
 
 export const dynamic = "force-dynamic";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { motion } from "framer-motion";
-import { useSearchDestinations, useCategories } from "@/lib/queries";
-import { Search, MapPin, SlidersHorizontal, X } from "lucide-react";
-import { DestinationCard } from "@/components/search/DestinationCard";
-import { GridSkeleton, EmptyState, CategoryIcon } from "@/components/ui";
-import { staggerContainer } from "@/lib/animations";
+import { useSearchDestinations, useCategories, useQuickRecommendations, useProfile, useFavoriteIds, useToggleFavorite } from "@/lib/queries";
+import { useUIStore } from "@/stores";
+import { destImage } from "@/lib/utils";
+import { Star, MapPin, Sparkles, Heart, Compass } from "lucide-react";
+import { GridSkeleton } from "@/components/ui";
 
-const PRICES = [
-  { key: "", label: "Semua" },
-  { key: "budget", label: "💰 Budget" },
-  { key: "mid", label: "💳 Mid" },
-  { key: "luxury", label: "💎 Luxury" },
+const TRENDING = [
+  { name: "Mount Bromo, East Java", location: "Probolinggo, ID", img: "https://lh3.googleusercontent.com/aida-public/AB6AXuBSg2XQro9jhHhQVbs6F_j8KrwtZGjlhv6wJopLU107uPXPSsTq6jXaFZweTocpteIQz5OBUnXattz_q1z5u7ok0JD8BZo7exiqmwV9ROfuVxaYBNxbkD1WD-jqmWr0FavFCeXghimF-eg012zSGm0TFJQ4vSbuPHH76LIRC0yyZ9sD8huPdy3SIhlEMDTOXq-3RMmfSKWNoPkGXrNLxwhRQS9yjb1Vc-svOVVKpyLxSSmvu80kXKV9" },
+  { name: "Ubud Terraces, Bali", location: "Gianyar, ID", img: "https://lh3.googleusercontent.com/aida-public/AB6AXuC0INKx7CVH1vQe3lnrxIFI_2xS2aDXZwOAu-wHVtSNYAIcaj2hm-QtQTfkwnBA8sqAtpUsK1icTAeN7G6z6QokSmOfT60RtkdMPmITnLDin2_FxU4eQ2Z5u2P-bX3SX4wtAIASkUpf6EuTsrR3wHdO8htyPrg17qKmSwGE_-CEBcRpcQtIAfIRBLRYat76BuXkQ1Q3UnbiFs3NuxLUqHimrCHB89ijAQWYwoecsSjx1bpFhiIQFULz" },
 ];
-const RATINGS = [
-  { key: "", label: "Semua" },
-  { key: "4", label: "4.0+" },
-  { key: "4.5", label: "4.5+" },
+
+const AI_RECOS = [
+  { name: "Samosir, Danau Toba", location: "Sumatera Utara", price: "Rp 1.2jt", rating: 4.9, reviews: "1.2k", tags: ["BUDAYA", "ALAM"], desc: "Eksplorasi budaya Batak di tengah danau vulkanik terbesar di dunia.", img: "https://lh3.googleusercontent.com/aida-public/AB6AXuDAz0IiUMKNv3Ixs4IVzrsm7LxTm1vXc-8AV8Dt9B6bKLUVTm4T8HJaQxFf1NXiS3ihqmOMS0-VruTXQjFBRngZfWz5zo9kQAWHzAtKrkV3xyuganxuM4MDv6HYYd5nDtMphuLUCMkjHMLI2dp8K-fAz4yvQfAs0CdXIgLRoulV2ToKYKVsjYkG3sUcbwgAnIhUHGTsaKUianNBARooQaEP-3qZ_hF5n6xutH3n7AZCLSNXCH7M4uP0" },
+  { name: "Modern District, Tokyo", location: "Tokyo, JP", price: "Rp 8.5jt", rating: 4.8, reviews: "850", tags: ["URBAN", "TEKNOLOGI"], desc: "Perpaduan futuristik antara tradisi dan teknologi.", img: "https://lh3.googleusercontent.com/aida-public/AB6AXuCfwiX7zPHsnUmGwTmPU0OByYdbTNtFnovxk4Zq0xt5kLCKCJLLPu3hKT3fGHiunM0Qh2IC8IMmJod-TxZ_GJJxjvJqonmkTZ8HPhKqVPc8wF_yi1GtECh6kFtjPH4fDruJOUNobo8yCjYJwfAAf3bdb-g-cDJbmhVW0x5ogke2m_u9D0c3HORua2Bp6nK8_A8CRBpfkTtF4ql50VTXSJbU3UVDwlQyV1eKAxC_SqBXnZpGfRtrvLY" },
+  { name: "Secret Cove, El Nido", location: "Palawan, PH", price: "Rp 5.4jt", rating: 5.0, reviews: "340", tags: ["ADVENTURE", "RELAX"], desc: "Permata tersembunyi bagi pencari ketenangan total.", img: "https://lh3.googleusercontent.com/aida-public/AB6AXuD9KKuxj8C1fXc4xddqKiLn-LAiWTA2DHvuCx69oLyisFRaBNaONHB7jnO7QjeNSCoga7hI-EfLrJSMtvPcNzp2ENjIIe-Q873CJ8U_WkSzN3utU1Zv3HFrNpsE-Du5XjVrFW9HmLSdP_fEwp_Y7j6LvgS_JD9P2FVEMemFNlkSEkMl3lmNLADgeDW16dnNobuQueXYqWEjYTpmD5zgBg2qdYu5XNrCngr_A-VpCDFjO0wuyd1Eue6b" },
 ];
-const SORTS = [
-  { key: "rating", label: "Rating" },
-  { key: "popular", label: "Terpopuler" },
-  { key: "name", label: "A–Z" },
-];
+
+const cardImg = (item: any) => (item.images ? destImage(item.images, item.name) : (item.img || destImage([], item.name)));
 
 function SearchContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const addToast = useUIStore(s => s.addToast);
   const [q, setQ] = useState(searchParams.get("q") || "");
-  const [location, setLocation] = useState("");
   const [category, setCategory] = useState(searchParams.get("category") || "");
-  const [price, setPrice] = useState("");
-  const [ratingMin, setRatingMin] = useState("");
-  const [sort, setSort] = useState("rating");
-  const [debounced, setDebounced] = useState({ q, location });
+  const [budget, setBudget] = useState("");
+  const [rating, setRating] = useState("");
+  const [showAllRecos, setShowAllRecos] = useState(false);
 
-  useEffect(() => {
-    const t = setTimeout(() => setDebounced({ q, location }), 300);
-    return () => clearTimeout(t);
-  }, [q, location]);
+  const { data: user } = useProfile();
+  const favIds = useFavoriteIds();
+  const toggleFav = useToggleFavorite();
+
+  const { data: cats } = useCategories();
+  // Resolve category slug/name (from chips/select) → category_id the backend expects.
+  const resolvedCat = (cats || []).find(
+    c => c.slug.toLowerCase() === category.toLowerCase() || c.name.toLowerCase() === category.toLowerCase()
+  );
 
   const filters: Record<string, string> = {};
-  if (category) filters.category_id = category;
-  if (price) filters.price_level = price;
-  if (ratingMin) filters.rating_min = ratingMin;
-  if (debounced.location.trim()) filters.city = debounced.location.trim();
-  if (sort) filters.sort = sort;
+  if (resolvedCat) filters.category_id = String(resolvedCat.id);
+  if (budget) filters.price_level = budget;
+  if (rating) filters.rating_min = rating;
 
-  const { data, isLoading } = useSearchDestinations(debounced.q, filters);
-  const { data: cats } = useCategories();
+  const { data, isLoading } = useSearchDestinations(q, filters);
+  const results = data?.items || [];
 
-  const reset = () => { setQ(""); setLocation(""); setCategory(""); setPrice(""); setRatingMin(""); setSort("rating"); };
-  const hasFilter = q || location || category || price || ratingMin;
+  // Recommendations: live results first, fallback to quick endpoint, then static.
+  const hasResults = results.length > 0;
+  const quickRecos = useQuickRecommendations(showAllRecos && !hasResults);
+  const recoList = hasResults
+    ? (showAllRecos ? results.slice(0, 9) : results.slice(0, 3))
+    : (showAllRecos ? (quickRecos.data?.items || []) : AI_RECOS);
+
+  const onLike = (id: string | undefined) => {
+    if (!id) return;
+    if (!user) return router.push("/auth/login");
+    toggleFav.mutate(id);
+  };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
-      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 mb-1">Jelajahi Destinasi</h1>
-        <p className="text-sm text-gray-500">Temukan tempat liburan impianmu di seluruh Indonesia</p>
-      </motion.div>
-
-      {/* Search + location */}
-      <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr] gap-3 mb-4">
-        <div className="relative">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Cari nama destinasi… (Borobudur, Bromo)"
-            className="w-full pl-12 pr-4 py-3 rounded-2xl border border-gray-200 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-          />
+    <div className="pt-16 bg-background text-on-background min-h-screen">
+      {/* ═══════ HERO ═══════ */}
+      <section className="relative rounded-none md:rounded-[2rem] overflow-hidden h-[500px] flex items-center justify-center text-center px-4 group mx-0 md:mx-4 md:mt-4">
+        <div className="absolute inset-0 z-0">
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20 z-10" />
+          <img className="w-full h-full object-cover scale-105 group-hover:scale-100 transition-transform duration-1000" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDMgmqWl0KYFsPsXUHfbH6pzJZ3Q2rymEw31HOQXdslY7X66EMZXt03I_NNUlQ7xGyGR3Ozl8Qtk6DdzqaP6eupR0uL621GqDbADXF8jBs-5yVr2ta-lAi8cAGwq4q3LcW3wehwRv2N8wRnu4OW7OZBp7m5pw_Hc114ncFKo_vcWp1bAD9vRhMbRffx2rXI9c-8X7bEJnzzsFN7tqeS3SF_Lqjp5A50ymHiQ3XfgzM0-Pmn5Iq2vIQz" alt="" />
         </div>
-        <div className="relative">
-          <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Lokasi… (Bali, Yogyakarta, Bandung)"
-            className="w-full pl-12 pr-4 py-3 rounded-2xl border border-gray-200 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-            value={location}
-            onChange={(e) => setLocation(e.target.value)}
-          />
-        </div>
-      </div>
-
-      {/* Category chips (icons, no double label) */}
-      {cats && cats.length > 0 && (
-        <div className="flex items-center gap-1.5 mb-4 overflow-x-auto pb-1">
-          <SlidersHorizontal className="w-4 h-4 text-gray-400 flex-shrink-0" />
-          <button
-            onClick={() => setCategory("")}
-            className={`px-3.5 py-1.5 rounded-full text-xs whitespace-nowrap font-medium flex items-center ${
-              !category ? "bg-blue-600 text-white shadow-sm" : "bg-white border text-gray-600 hover:border-blue-300"
-            }`}
-          >
-            Semua
-          </button>
-          {cats.map((c) => {
-            const on = category === String(c.id);
-            return (
-              <button
-                key={c.id}
-                onClick={() => setCategory(on ? "" : String(c.id))}
-                className={`px-3.5 py-1.5 rounded-full text-xs whitespace-nowrap font-medium flex items-center ${
-                  on ? "bg-blue-600 text-white shadow-sm" : "bg-white border text-gray-600 hover:border-blue-300"
-                }`}
-              >
-                <CategoryIcon name={c.icon} className="w-3.5 h-3.5 mr-1" />
-                {c.name}
-              </button>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Price / Rating / Sort */}
-      <div className="flex flex-wrap items-center gap-2 mb-6">
-        <Seg label="Harga" options={PRICES} value={price} onChange={setPrice} />
-        <Seg label="Rating" options={RATINGS} value={ratingMin} onChange={setRatingMin} />
-        <div className="flex items-center gap-1.5 ml-auto">
-          <span className="text-xs text-gray-400">Urutkan</span>
-          <select
-            value={sort}
-            onChange={(e) => setSort(e.target.value)}
-            className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            {SORTS.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
-          </select>
-        </div>
-      </div>
-
-      {/* Results count + reset */}
-      {data && (
-        <div className="flex items-center justify-between mb-4">
-          <p className="text-sm text-gray-500">
-            {data.total} destinasi ditemukan
-            {debounced.q && <span> untuk “<span className="font-medium text-gray-700">{debounced.q}</span>”</span>}
-          </p>
-          {hasFilter && (
-            <button onClick={reset} className="text-xs text-gray-500 hover:text-red-500 flex items-center">
-              <X className="w-3 h-3 mr-1" /> Reset filter
+        <div className="relative z-20 max-w-2xl text-white">
+          <h1 className="text-[36px] font-bold mb-4 drop-shadow-lg">Temukan Destinasi Impian</h1>
+          <p className="text-[16px] text-white/90 mb-6 drop-shadow-md">Biarkan AI kami membantu Anda merancang perjalanan paling berkesan di seluruh penjuru dunia.</p>
+          <div className="bg-white p-2 rounded-full shadow-2xl flex items-center gap-2 mb-4">
+            <Sparkles className="text-primary ml-4 w-5 h-5 flex-shrink-0" />
+            <input
+              type="text"
+              placeholder="Mau kemana hari ini? Misal: Pantai tersembunyi di Bali"
+              className="flex-1 border-none focus:ring-0 text-on-surface caret-primary text-[16px] bg-transparent outline-none placeholder:text-on-surface-variant"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && q && router.push(`/search?q=${encodeURIComponent(q)}`)}
+            />
+            <button onClick={() => q && router.push(`/search?q=${encodeURIComponent(q)}`)} className="bg-primary text-white px-6 py-3 rounded-full font-bold hover:bg-primary-container transition-all active:scale-95">
+              Cari
             </button>
-          )}
+          </div>
+          <div className="flex flex-wrap justify-center gap-2">
+            {["Pantai", "Candi", "Gunung", "Kuliner", "Budaya", "Alam"].map((chip) => {
+              const slug = chip.toLowerCase();
+              const on = category.toLowerCase() === slug;
+              return (
+                <button
+                  key={chip}
+                  onClick={() => setCategory(on ? "" : slug)}
+                  className={`px-4 py-1 rounded-full border text-[12px] transition-all ${on ? "bg-white text-primary border-white" : "bg-white/20 backdrop-blur-md border-white/30 text-white hover:bg-white hover:text-primary"}`}
+                >
+                  {chip}
+                </button>
+              );
+            })}
+          </div>
         </div>
-      )}
+      </section>
 
-      {isLoading && <GridSkeleton count={6} />}
+      <div className="max-w-[1280px] mx-auto px-4 pb-10">
+        {/* ═══════ FILTER BAR ═══════ */}
+        <section className="mt-8 flex items-center justify-between border-b border-outline-variant pb-4 gap-4">
+          <div className="flex items-center gap-4 overflow-x-auto hide-scrollbar">
+            <div className="flex items-center gap-2 font-bold text-primary whitespace-nowrap text-[14px]">Filter Destinasi</div>
+            <div className="h-6 w-px bg-outline-variant" />
+            <select value={category} onChange={(e) => setCategory(e.target.value)} className="border-none bg-surface-container rounded-lg text-[14px] text-on-surface outline-none px-3 py-2 cursor-pointer">
+              <option value="">Kategori: Semua</option>
+              {(cats || []).map(c => <option key={c.id} value={c.slug}>{c.name}</option>)}
+            </select>
+            <select value={budget} onChange={(e) => setBudget(e.target.value)} className="border-none bg-surface-container rounded-lg text-[14px] text-on-surface outline-none px-3 py-2 cursor-pointer">
+              <option value="">Budget: Semua</option>
+              <option value="budget">Ekonomis</option>
+              <option value="mid">Menengah</option>
+              <option value="luxury">Mewah</option>
+            </select>
+            <select value={rating} onChange={(e) => setRating(e.target.value)} className="border-none bg-surface-container rounded-lg text-[14px] text-on-surface outline-none px-3 py-2 cursor-pointer">
+              <option value="">Rating: Semua</option>
+              <option value="4">4.0+</option>
+              <option value="4.5">4.5+</option>
+            </select>
+          </div>
+          <div className="hidden md:block text-[12px] text-outline whitespace-nowrap">
+            Menampilkan {results.length || 0} destinasi
+          </div>
+        </section>
 
-      {!isLoading && data && data.items.length === 0 && (
-        <EmptyState
-          icon={MapPin}
-          title="Destinasi tidak ditemukan"
-          description="Coba kata kunci lain atau ubah filter"
-          action={{ label: "Reset pencarian", onClick: reset }}
-        />
-      )}
+        {/* ═══════ AI RECOMMENDATIONS ═══════ */}
+        <section className="mt-8">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center">
+                <Sparkles className="w-5 h-5 text-white fill-current" />
+              </div>
+              <div>
+                <h2 className="text-[28px] font-bold text-secondary">Rekomendasi Cerdas Poca AI</h2>
+                <p className="text-[12px] text-on-surface-variant">Berdasarkan riwayat perjalanan dan preferensi Anda</p>
+              </div>
+            </div>
+            <button onClick={() => setShowAllRecos(s => !s)} className="text-secondary font-bold text-[14px] hover:underline whitespace-nowrap">
+              {showAllRecos ? "Tampilkan Sedikit" : "Lihat Semua Rekomendasi"}
+            </button>
+          </div>
 
-      {!isLoading && data && data.items.length > 0 && (
-        <motion.div
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5"
-          variants={staggerContainer}
-          initial="hidden"
-          animate="visible"
-        >
-          {data.items.map((dest) => (
-            <DestinationCard key={dest.id} destination={dest} onClick={() => router.push(`/destination/${dest.id}`)} />
-          ))}
-        </motion.div>
-      )}
-    </div>
-  );
-}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {recoList.map((item: any, i: number) => (
+              <div
+                key={item.id || i}
+                onClick={() => item.id && router.push(`/destination/${item.id}`)}
+                className="rounded-2xl overflow-hidden bg-surface-container-lowest p-2 group cursor-pointer transition-transform hover:-translate-y-1"
+                style={{ boxShadow: "0 0 20px rgba(124, 58, 237, 0.15)", border: "1px solid rgba(124, 58, 237, 0.2)" }}
+              >
+                <div className="relative rounded-xl overflow-hidden h-64">
+                  <img className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" src={cardImg(item)} alt={item.name} />
+                  <div className="absolute top-3 right-3 bg-secondary text-white text-[10px] px-2 py-1 rounded-full font-bold uppercase tracking-wider">Generated by Poca</div>
+                  <div className="absolute bottom-3 left-3 flex items-center gap-1 bg-black/40 backdrop-blur-md px-2 py-1 rounded-lg text-white text-[12px]">
+                    <Star className="w-4 h-4 text-yellow-400 fill-current" />
+                    {item.rating_avg ?? item.rating} ({item.reviews ?? "—"})
+                  </div>
+                </div>
+                <div className="p-4">
+                  <div className="flex justify-between items-start mb-2">
+                    <h3 className="text-[20px] font-semibold">{item.name}</h3>
+                    <span className="text-secondary font-bold">{item.price || "—"}{item.price && <span className="text-outline text-xs font-normal">/org</span>}</span>
+                  </div>
+                  <p className="text-[14px] text-on-surface-variant line-clamp-2">{item.desc || item.description || "Rekomendasi pilihan Poca AI untukmu."}</p>
+                  <div className="mt-3 flex gap-1">
+                    {(item.tags || (item.category?.name ? [item.category.name] : [])).map((t: string) => (
+                      <span key={t} className="px-2 py-1 bg-secondary-fixed text-on-secondary-fixed-variant rounded text-[10px] font-bold uppercase">{t}</span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
 
-function Seg({
-  label, options, value, onChange,
-}: {
-  label: string;
-  options: { key: string; label: string }[];
-  value: string;
-  onChange: (v: string) => void;
-}) {
-  return (
-    <div className="flex items-center gap-1.5">
-      <span className="text-xs text-gray-400">{label}</span>
-      <div className="flex bg-gray-100 rounded-lg p-0.5">
-        {options.map((o) => (
-          <button
-            key={o.key}
-            onClick={() => onChange(o.key)}
-            className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
-              value === o.key ? "bg-white text-blue-600 shadow-sm" : "text-gray-500 hover:text-gray-700"
-            }`}
-          >
-            {o.label}
-          </button>
-        ))}
+        {/* ═══════ TRENDING DESTINATIONS ═══════ */}
+        <section className="mt-10">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-[28px] font-bold text-on-background">Trending Destinations</h2>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {(results.length >= 4 ? results.slice(0, 4) : TRENDING).map((item: any, i: number) => (
+              <div
+                key={item.id || i}
+                onClick={() => item.id && router.push(`/destination/${item.id}`)}
+                className="bg-surface-container-lowest rounded-xl shadow-sm border border-outline-variant overflow-hidden group hover:shadow-md transition-all cursor-pointer"
+              >
+                <div className="h-48 relative overflow-hidden">
+                  <img className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" src={cardImg(item)} alt={item.name} />
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onLike(item.id); }}
+                    className={`absolute top-3 right-3 w-8 h-8 rounded-full backdrop-blur-md flex items-center justify-center transition-all ${favIds.has(item.id) ? "bg-red-500 text-white" : "bg-white/30 text-white hover:bg-white hover:text-red-500"}`}
+                  >
+                    <Heart className={`w-5 h-5 ${favIds.has(item.id) ? "fill-current" : ""}`} />
+                  </button>
+                </div>
+                <div className="p-4">
+                  <div className="flex items-center gap-1 text-tertiary font-bold text-[10px] uppercase mb-1">Trending</div>
+                  <h4 className="text-[16px] font-bold mb-1">{item.name}</h4>
+                  <div className="flex items-center gap-1 text-[12px] text-on-surface-variant">
+                    <MapPin className="w-4 h-4" />
+                    {item.location || `${item.city || ""}${item.city ? ", " : ""}${item.country || ""}`}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* ═══════ CTA SECTION ═══════ */}
+        <section className="mt-10 bg-primary rounded-3xl p-8 flex flex-col md:flex-row items-center gap-8 overflow-hidden relative group">
+          <div className="absolute top-0 right-0 w-1/2 h-full opacity-10 pointer-events-none">
+            <Sparkles className="w-full h-full" />
+          </div>
+          <div className="flex-1 relative z-10">
+            <h2 className="text-[36px] font-bold text-white mb-4">Siap untuk petualangan berikutnya?</h2>
+            <p className="text-[16px] text-white/80 mb-6">Dapatkan rencana perjalanan (itinerary) yang dibuat khusus oleh Poca AI hanya untuk Anda. Gratis dan personal!</p>
+            <div className="flex flex-col sm:flex-row gap-4">
+              <button onClick={() => router.push("/chat")} className="px-8 py-4 bg-white text-primary font-bold rounded-xl hover:bg-surface-container transition-all flex items-center justify-center gap-2 shadow-xl active:scale-95">
+                <Sparkles className="w-5 h-5" />
+                Coba AI Planner Sekarang
+              </button>
+              <button
+                onClick={() => addToast(user ? "Berhasil berlangganan info diskon!" : "Masuk untuk berlangganan.", user ? "success" : "info")}
+                className="px-8 py-4 bg-primary-container border border-white/30 text-white font-bold rounded-xl hover:bg-white/10 transition-all flex items-center justify-center gap-2 active:scale-95"
+              >
+                Langganan Info Diskon
+              </button>
+            </div>
+          </div>
+          <div className="w-full md:w-80 h-64 rounded-2xl overflow-hidden relative z-10 shadow-2xl rotate-3 group-hover:rotate-0 transition-all duration-500">
+            <div className="w-full h-full bg-gradient-to-br from-secondary/20 to-primary/20 flex items-center justify-center">
+              <Compass className="w-20 h-20 text-white/30" />
+            </div>
+          </div>
+        </section>
       </div>
     </div>
   );
@@ -206,7 +253,7 @@ function Seg({
 
 export default function SearchPage() {
   return (
-    <Suspense fallback={<GridSkeleton count={3} />}>
+    <Suspense fallback={<div className="pt-16 bg-background min-h-screen"><div className="max-w-[1280px] mx-auto px-4 py-8"><GridSkeleton count={6} /></div></div>}>
       <SearchContent />
     </Suspense>
   );

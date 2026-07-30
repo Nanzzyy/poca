@@ -1,0 +1,17 @@
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.git/
+.gitignore
+node_modules/
+frontend/node_modules/
+frontend/.next/
+.env
+*.log
+.DS_Store
+.commandcode/
+.vscode/
+.idea/
+seed/data/

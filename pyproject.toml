@@ -17,6 +17,8 @@ dependencies = [
     "passlib[bcrypt]",
     "python-multipart",
     "litellm",
+    "email-validator>=2.0",
+    "bcrypt>=4.0",
 ]
 
 [project.optional-dependencies]

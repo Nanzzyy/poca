@@ -33,9 +33,19 @@ export function timeAgo(date: string | Date) {
   const diff = now.getTime() - past.getTime();
   const mins = Math.floor(diff / 60000);
   const hours = Math.floor(diff / 3600000);
-  const days = Math.floor(diff / 86400000);
+  const days = Math.floor(diff / 8640000);
   if (days > 0) return `${days} hari lalu`;
   if (hours > 0) return `${hours} jam lalu`;
   if (mins > 0) return `${mins} menit lalu`;
   return "baru saja";
+}
+
+// source.unsplash.com is defunct (503). Fall back to a branded placeholder so
+// cards never show a broken image. ponytail: replace with real photography when
+// the seed/DB ships curated image URLs.
+export function destImage(images?: string[] | null, name?: string | null): string {
+  const raw = images?.[0];
+  if (raw && !raw.includes("source.unsplash") && !raw.includes("placehold.co")) return raw;
+  const text = encodeURIComponent((name || "Poca").slice(0, 24));
+  return `https://placehold.co/800x600/004ac6/ffffff?text=${text}`;
 }

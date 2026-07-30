@@ -1,3 +1,5 @@
+import uuid
+
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
@@ -27,8 +29,13 @@ async def get_current_user(
 
     from src.repositories.user_repo import UserRepository
 
+    try:
+        user_uuid = uuid.UUID(user_id)
+    except ValueError:
+        return None
+
     repo = UserRepository(db)
-    user = await repo.get_by_id(user_id)
+    user = await repo.get_by_id(str(user_uuid))
     return user
 
 

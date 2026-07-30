@@ -6,8 +6,7 @@ import { useState, useEffect, useMemo } from "react";
 import nextDynamic from "next/dynamic";
 import { useMapMarkers, useSearchDestinations, useCategories } from "@/lib/queries";
 import { useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
-import { Search, Star, MapPin, X, Navigation, ChevronRight, SlidersHorizontal, Check } from "lucide-react";
+import { Star, MapPin, X, Navigation, Bell, Plus, Minus, Layers, Search, Compass, Sparkles, ArrowRight, Locate } from "lucide-react";
 import { CategoryIcon } from "@/components/ui";
 import type { Destination } from "@/types";
 
@@ -15,36 +14,47 @@ const MapView = nextDynamic(() => import("@/components/map/MapView"), { ssr: fal
 
 const DEFAULT_CENTER: [number, number] = [-2.5, 118.0];
 
+const CATEGORY_FILTERS = [
+  { key: "pantai", label: "Beach", icon: "beach_access" },
+  { key: "candi", label: "Temple", icon: "temple_buddhist" },
+  { key: "gunung", label: "Mountain", icon: "landscape" },
+  { key: "kuliner", label: "Food", icon: "restaurant" },
+  { key: "budaya", label: "Nightlife", icon: "nightlife" },
+];
+
 export default function MapPage() {
   const router = useRouter();
   const [bounds, setBounds] = useState<[number, number] | null>(null);
   const [ne, setNe] = useState<[number, number] | null>(null);
   const [q, setQ] = useState("");
   const [userLoc, setUserLoc] = useState<[number, number] | null>(null);
-  const [activeCats, setActiveCats] = useState<string[]>([]);
-  const [showMore, setShowMore] = useState(false);
+  const [activeCat, setActiveCat] = useState<string>("");
   const [focus, setFocus] = useState<[number, number] | null>(null);
-  const [catOpen, setCatOpen] = useState(false);
+  const [selectedMarker, setSelectedMarker] = useState<any | null>(null);
+  const [showPopover, setShowPopover] = useState<string | null>(null);
 
-  // Ask for location on mount — center map on the user when granted
   useEffect(() => {
     if (!("geolocation" in navigator)) return;
     navigator.geolocation.getCurrentPosition(
       (pos) => setUserLoc([pos.coords.latitude, pos.coords.longitude]),
-      () => { /* denied: fall back to default Indonesia center */ },
+      () => {},
       { enableHighAccuracy: true, timeout: 8000 }
     );
   }, []);
 
   const { data: cats } = useCategories();
   const markers = useMapMarkers(
-    bounds ? bounds : [-10, 114],
-    ne ? ne : [-7, 116],
-    activeCats.length ? activeCats.join(",") : undefined
+    bounds || [-10, 114],
+    ne || [-7, 116],
+    activeCat || undefined
   );
   const { data: searchResults } = useSearchDestinations(q);
 
-  const mapMarkers = markers.data?.features?.map((f: any) => ({
+  const results = useMemo(() => searchResults?.items || [], [searchResults]);
+  const recommended = results.slice(0, 3);
+  const hiddenGems = results.slice(3, 6);
+
+  const boundMarkers = markers.data?.features?.map((f: any) => ({
     id: f.properties.id,
     name: f.properties.name,
     latitude: f.geometry.coordinates[1],
@@ -53,269 +63,260 @@ export default function MapPage() {
     price_level: f.properties.price_level,
     images: f.properties.images,
     category_name: f.properties.category_name,
+    city: f.properties.city,
+    country: f.properties.country,
   })) || [];
 
-  const results = useMemo(() => searchResults?.items || [], [searchResults]);
-  const TOP = 5;
-  const topResults = results.slice(0, TOP);
+  // When searching, show matches as markers (and in the list) instead of bounding-box markers.
+  const mapMarkers = q.trim() && results.length
+    ? results.map((d) => ({
+        id: d.id, name: d.name, latitude: d.latitude, longitude: d.longitude,
+        rating_avg: d.rating_avg, price_level: d.price_level, images: d.images,
+        category_name: d.category?.name, city: d.city, country: d.country,
+      }))
+    : boundMarkers;
 
   const focusDest = (d: Destination) => {
     setFocus([d.latitude, d.longitude]);
-    setShowMore(false);
+    setSelectedMarker({ id: d.id, name: d.name, latitude: d.latitude, longitude: d.longitude, rating_avg: d.rating_avg, category_name: d.category?.name, city: d.city, country: d.country, image: d.images?.[0], description: d.description, price_level: d.price_level });
+    setShowPopover(d.id);
+  };
+
+  const togglePopover = (id: string | null) => {
+    setShowPopover(showPopover === id ? null : id);
+  };
+
+  const handleMarkerClick = (m: any) => {
+    setSelectedMarker(m);
+    setShowPopover(m.id);
   };
 
   return (
-    <div className="relative h-[calc(100vh-3.5rem)]">
-      {/* Search + category dropdown overlay */}
-      <div className="absolute top-3 left-3 right-3 z-[1000] max-w-md mx-auto space-y-2">
-        <div className="flex gap-2">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Cari lokasi… (contoh: Sanur, Bali)"
-              className="w-full pl-10 pr-9 py-2.5 rounded-xl shadow-lg border border-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-sm"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-            />
-            {q && (
-              <button onClick={() => setQ("")} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                <X className="w-4 h-4" />
-              </button>
+    <div className="flex flex-col h-screen overflow-hidden">
+      {/* ═══════ MAIN CONTENT: SIDEBAR + MAP ═══════ */}
+      <main className="flex flex-1 overflow-hidden pt-16">
+        {/* ═══ LEFT SIDEBAR (40%) ═══ */}
+        <aside className="w-[40%] bg-surface flex flex-col border-r border-outline-variant/20 z-10">
+          {/* Search & Filter Header */}
+          <div className="p-5 space-y-4 shadow-sm bg-surface-container-lowest">
+            <div className="flex items-center justify-between">
+              <h1 className="text-[28px] font-bold text-on-surface leading-tight">Explore</h1>
+              <span className="text-[12px] text-outline">{results.length || mapMarkers.length || "128"} Results Found</span>
+            </div>
+            {/* Search — filters markers + list in-map (no redirect) */}
+            <div className="flex items-center bg-surface-container-low rounded-xl px-3 py-2.5 border border-outline-variant/30">
+              <Search className="w-4 h-4 text-outline mr-2 flex-shrink-0" />
+              <input
+                type="text"
+                placeholder="Cari destinasi di peta..."
+                className="bg-transparent border-none focus:ring-0 text-[14px] flex-1 outline-none text-on-surface placeholder:text-outline"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && results[0]) focusDest(results[0]); }}
+              />
+              {q && <button onClick={() => setQ("")} className="text-outline hover:text-on-surface ml-2"><X className="w-4 h-4" /></button>}
+            </div>
+            {/* Category Filters */}
+            <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-1">
+              {CATEGORY_FILTERS.map(({ key, label }) => {
+                const on = activeCat === key;
+                return (
+                  <button
+                    key={key}
+                    onClick={() => setActiveCat(on ? "" : key)}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-full whitespace-nowrap active:scale-95 transition-all text-[14px] font-semibold ${
+                      on
+                        ? "bg-primary text-on-primary"
+                        : "bg-surface-container text-on-surface-variant hover:bg-surface-container-high"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Destination List */}
+          <div className="flex-1 overflow-y-auto p-5 space-y-6 custom-scrollbar bg-surface-container-low/30">
+            {/* Recommended Section */}
+            {recommended.length > 0 && (
+              <div className="space-y-4">
+                <h2 className="text-[11px] font-bold uppercase tracking-widest text-primary flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-primary" />
+                  Recommended For You
+                </h2>
+                {recommended.map((d, i) => (
+                  <div
+                    key={d.id}
+                    onClick={() => focusDest(d)}
+                    className="group relative flex flex-col bg-surface-container-lowest rounded-xl border border-outline-variant/30 shadow-sm hover:shadow-md transition-all cursor-pointer overflow-hidden active:scale-[0.99]"
+                  >
+                    <div className="h-48 relative overflow-hidden">
+                      {d.images?.[0] && !d.images[0].includes("source.unsplash") ? (
+                        <img className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" src={d.images[0]} alt={d.name} />
+                      ) : (
+                        <div className="w-full h-full bg-gradient-to-br from-primary/10 to-secondary/10 flex items-center justify-center">
+                          <CategoryIcon name={d.category?.icon} className="w-12 h-12 text-outline/30" />
+                        </div>
+                      )}
+                      <div className="absolute top-3 right-3 bg-primary/90 backdrop-blur-sm text-on-primary px-2 py-1 rounded-lg flex items-center gap-1">
+                        <Star className="w-3.5 h-3.5 fill-current" />
+                        <span className="text-[10px] font-bold">{d.rating_avg}</span>
+                      </div>
+                      <div className="absolute bottom-3 left-3">
+                        <span className="bg-primary/20 backdrop-blur-md text-white border border-white/30 px-2 py-1 rounded text-[10px] font-bold uppercase">
+                          {i === 0 ? "Must Visit" : d.price_level === "budget" ? "Budget" : "Recommended"}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="p-4 space-y-1">
+                      <h3 className="text-[20px] font-semibold text-on-surface">{d.name}</h3>
+                      <p className="text-[14px] text-on-surface-variant line-clamp-2">{d.description || `Rating ${d.rating_avg} dengan ${d.review_count} reviews`}</p>
+                      <div className="flex items-center gap-4 pt-2">
+                        <div className="flex items-center gap-1 text-outline text-[12px]">
+                          <MapPin className="w-4 h-4" />
+                          <span>{d.city || d.country}</span>
+                        </div>
+                        <div className="flex items-center gap-1 text-outline text-[12px]">
+                          <Compass className="w-4 h-4" />
+                          <span>{d.price_level === "budget" ? "Budget" : d.price_level === "luxury" ? "Luxury" : "Mid"}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Hidden Gems Section */}
+            {hiddenGems.length > 0 && (
+              <div className="space-y-4">
+                <h2 className="text-[11px] font-bold uppercase tracking-widest text-tertiary flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-tertiary" />
+                  Hidden Gems
+                </h2>
+                {hiddenGems.slice(0, 2).map((d) => (
+                  <div
+                    key={d.id}
+                    onClick={() => focusDest(d)}
+                    className="flex gap-4 bg-surface-container-lowest p-3 rounded-xl border border-outline-variant/20 hover:border-tertiary/30 transition-all cursor-pointer group active:scale-[0.99]"
+                  >
+                    <div className="w-24 h-24 rounded-lg overflow-hidden flex-shrink-0">
+                      {d.images?.[0] && !d.images[0].includes("source.unsplash") ? (
+                        <img className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" src={d.images[0]} alt={d.name} />
+                      ) : (
+                        <div className="w-full h-full bg-tertiary/10 flex items-center justify-center">
+                          <CategoryIcon name={d.category?.icon} className="w-6 h-6 text-tertiary/50" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex flex-col justify-center min-w-0">
+                      <h4 className="text-[16px] font-bold text-on-surface truncate">{d.name}</h4>
+                      <p className="text-[12px] text-on-surface-variant mb-2 line-clamp-1">{d.description || `${d.city}, ${d.country}`}</p>
+                      <div className="flex items-center gap-2">
+                        <span className="bg-tertiary/10 text-tertiary px-2 py-[2px] rounded text-[10px] font-bold uppercase">Emerald Badge</span>
+                        <span className="text-[10px] text-outline">{d.city}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {results.length === 0 && !searchResults && (
+              <div className="flex flex-col items-center justify-center h-full text-center py-20">
+                <Compass className="w-16 h-16 text-outline/30 mb-4" />
+                <p className="text-on-surface-variant text-[14px]">Cari destinasi atau pilih kategori</p>
+              </div>
             )}
           </div>
+        </aside>
 
-          {/* Category dropdown — filters markers directly, combinable with search */}
-          <div className="relative">
-            <button
-              onClick={() => setCatOpen((o) => !o)}
-              className={`h-full px-3 rounded-xl shadow-lg border flex items-center gap-1.5 text-sm font-medium transition-colors ${
-                activeCats.length > 0 ? "bg-blue-600 text-white border-blue-600" : "bg-white text-gray-700 border-gray-100"
-              }`}
-            >
-              <SlidersHorizontal className="w-4 h-4" />
-              <span>Kategori</span>
-              {activeCats.length > 0 && (
-                <span className="ml-0.5 min-w-5 h-5 px-1 rounded-full bg-white text-blue-600 text-[10px] font-bold flex items-center justify-center">
-                  {activeCats.length}
-                </span>
-              )}
+        {/* ═══ MAP CANVAS (60%) ═══ */}
+        <section className="flex-1 relative bg-surface-container-highest">
+          <MapView
+            center={userLoc || DEFAULT_CENTER}
+            zoom={userLoc ? 12 : 5}
+            markers={mapMarkers}
+            focus={focus}
+            onMarkerClick={(m) => handleMarkerClick(m)}
+            onBoundsChange={(sw, ne) => { setBounds(sw); setNe(ne); }}
+            className="h-full w-full"
+          />
+
+          {/* Map Controls (Top Right) */}
+          <div className="absolute top-5 right-5 flex flex-col gap-2 z-20">
+            <div className="bg-white/80 backdrop-blur-md rounded-xl p-1 flex flex-col shadow-lg border border-white/30">
+              <button className="p-2 hover:bg-surface-container-high rounded-lg text-on-surface-variant transition-colors"><Plus className="w-5 h-5" /></button>
+              <div className="h-px bg-outline-variant/30 mx-2" />
+              <button className="p-2 hover:bg-surface-container-high rounded-lg text-on-surface-variant transition-colors"><Minus className="w-5 h-5" /></button>
+            </div>
+            <button className="bg-white/80 backdrop-blur-md w-12 h-12 rounded-xl shadow-lg border border-white/30 flex items-center justify-center text-on-surface-variant hover:text-primary transition-all active:scale-95">
+              <Locate className="w-5 h-5" />
             </button>
-            <AnimatePresence>
-              {catOpen && cats && (
-                <>
-                  <button
-                    className="fixed inset-0 z-[1000]"
-                    onClick={() => setCatOpen(false)}
-                    aria-label="Tutup filter"
-                  />
-                  <motion.div
-                  initial={{ opacity: 0, y: -8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -8 }}
-                  className="absolute right-0 top-full mt-2 w-60 bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden z-[1001]"
-                >
-                  <div className="px-3 py-2 text-[11px] text-gray-500 border-b bg-gray-50 flex items-center justify-between">
-                    <span>Filter kategori</span>
-                    {activeCats.length > 0 && (
-                      <button onClick={() => setActiveCats([])} className="text-blue-600 hover:underline">Reset</button>
-                    )}
+            <button className="bg-white/80 backdrop-blur-md w-12 h-12 rounded-xl shadow-lg border border-white/30 flex items-center justify-center text-on-surface-variant hover:text-primary transition-all active:scale-95">
+              <Layers className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* AI Insight Floating Badge */}
+          <div className="absolute bottom-5 left-1/2 -translate-x-1/2 z-20 max-w-[600px] w-full px-4">
+            <div className="bg-surface-container-lowest/90 backdrop-blur-md border border-primary/20 rounded-full px-5 py-3 shadow-xl flex items-center gap-4">
+              <div className="flex items-center gap-1">
+                <div className="w-8 h-8 rounded-full border-2 border-white bg-primary/20 flex items-center justify-center text-[10px] font-bold text-primary">+{results.length || 12}</div>
+              </div>
+              <div className="h-6 w-px bg-outline-variant/30" />
+              <div className="flex items-center gap-2 min-w-0">
+                <Sparkles className="w-4 h-4 text-primary flex-shrink-0" />
+                <p className="text-[12px] font-semibold text-on-surface truncate">
+                  Poca AI merekomendasikan <span className="text-primary">destinasi terdekat</span> dalam jangkauan.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Popover Detail */}
+          {selectedMarker && showPopover && (
+            <div className="absolute top-[15%] left-[10%] w-72 bg-white/80 backdrop-blur-md rounded-2xl shadow-2xl z-30 p-4 border border-primary/20">
+              <div className="relative h-32 rounded-xl overflow-hidden mb-3">
+                {selectedMarker.image && !selectedMarker.image.includes("source.unsplash") ? (
+                  <img className="w-full h-full object-cover" src={selectedMarker.image} alt={selectedMarker.name} />
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-br from-primary/10 to-secondary/10 flex items-center justify-center">
+                    <MapPin className="w-8 h-8 text-outline/30" />
                   </div>
-                  <ul className="max-h-72 overflow-y-auto py-1">
-                    {cats.map((c) => {
-                      const on = activeCats.includes(String(c.id));
-                      return (
-                        <li key={c.id}>
-                          <button
-                            onClick={() =>
-                              setActiveCats((prev) =>
-                                on ? prev.filter((x) => x !== String(c.id)) : [...prev, String(c.id)]
-                              )
-                            }
-                            className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left hover:bg-gray-50 ${on ? "text-blue-600" : "text-gray-700"}`}
-                          >
-                            <span className={`w-4 h-4 rounded-md border flex items-center justify-center ${on ? "bg-blue-600 border-blue-600" : "border-gray-300"}`}>
-                              {on && <Check className="w-3 h-3 text-white" />}
-                            </span>
-                            <CategoryIcon name={c.icon} className="w-4 h-4" />
-                            {c.name}
-                          </button>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </motion.div>
-                </>
-              )}
-            </AnimatePresence>
-          </div>
-        </div>
-
-        {/* Search results panel — preview, max 5, not a filter */}
-        <AnimatePresence>
-          {q && results.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: -8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              className="bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden"
-            >
-              <div className="px-3 py-2 text-[11px] text-gray-500 border-b bg-gray-50">
-                {results.length} lokasi cocok untuk “{q}” — diurutkan rating tertinggi
-              </div>
-              <ul className="max-h-[42vh] overflow-y-auto divide-y divide-gray-50">
-                {topResults.map((d) => (
-                  <ResultRow key={d.id} d={d} onFocus={() => focusDest(d)} onOpen={() => router.push(`/destination/${d.id}`)} />
-                ))}
-              </ul>
-              {results.length > TOP && (
-                <button
-                  onClick={() => setShowMore(true)}
-                  className="w-full py-2.5 text-xs font-semibold text-blue-600 hover:bg-blue-50 flex items-center justify-center"
-                >
-                  Tampilkan {results.length - TOP} lokasi lainnya
-                  <ChevronRight className="w-3.5 h-3.5 ml-1" />
+                )}
+                <button onClick={() => setShowPopover(null)} className="absolute top-2 right-2 bg-white/20 hover:bg-white/40 backdrop-blur-md rounded-full p-1 text-white transition-all">
+                  <X className="w-4 h-4" />
                 </button>
-              )}
-            </motion.div>
-          )}
-          {q && results.length === 0 && searchResults && (
-            <motion.div
-              initial={{ opacity: 0, y: -8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              className="bg-white rounded-xl shadow-xl border border-gray-100 px-4 py-3 text-sm text-gray-500"
-            >
-              Tidak ada lokasi untuk “{q}”. Coba kata lain seperti Bali atau Bromo.
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-
-      {/* Re-center button */}
-      {userLoc && (
-        <button
-          onClick={() => setFocus(userLoc)}
-          title="Kembali ke lokasiku"
-          className="absolute right-3 bottom-24 z-[1000] w-10 h-10 rounded-full bg-white shadow-lg border flex items-center justify-center text-blue-600 hover:bg-blue-50"
-        >
-          <Navigation className="w-5 h-5" />
-        </button>
-      )}
-
-      <MapView
-        center={userLoc || DEFAULT_CENTER}
-        zoom={userLoc ? 12 : 5}
-        markers={mapMarkers}
-        focus={focus}
-        onMarkerClick={(id) => router.push(`/destination/${id}`)}
-        onBoundsChange={(sw, ne) => { setBounds(sw); setNe(ne); }}
-        className="h-full w-full"
-      />
-
-      {/* Show more — full detail panel */}
-      <AnimatePresence>
-        {showMore && (
-          <motion.div
-            initial={{ x: "100%" }}
-            animate={{ x: 0 }}
-            exit={{ x: "100%" }}
-            transition={{ type: "spring", stiffness: 300, damping: 32 }}
-            className="absolute top-0 right-0 bottom-0 z-[1100] w-full sm:w-[420px] bg-white shadow-2xl flex flex-col"
-          >
-            <div className="flex items-center justify-between p-4 border-b">
-              <div>
-                <h3 className="font-bold text-gray-900">Hasil “{q}”</h3>
-                <p className="text-xs text-gray-500">{results.length} lokasi</p>
               </div>
-              <button onClick={() => setShowMore(false)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-3 space-y-3">
-              {results.map((d) => (
-                <ResultCard key={d.id} d={d} onFocus={() => focusDest(d)} onOpen={() => router.push(`/destination/${d.id}`)} />
-              ))}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
-
-function ResultRow({ d, onFocus, onOpen }: { d: Destination; onFocus: () => void; onOpen: () => void }) {
-  const img = d.images?.[0] && !d.images[0].includes("source.unsplash") ? d.images[0] : null;
-  return (
-    <li className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50">
-      <button onClick={onFocus} className="flex items-center gap-3 flex-1 text-left">
-        <div className="w-11 h-11 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
-          {img ? (
-            <img src={img} alt={d.name} className="w-full h-full object-cover" />
-          ) : (
-            <div className="w-full h-full bg-gradient-to-br from-blue-400 to-cyan-500 flex items-center justify-center">
-              <CategoryIcon name={d.category?.icon} className="w-5 h-5 text-white" />
+              <div className="space-y-2">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h4 className="text-[20px] font-semibold text-on-surface leading-tight">{selectedMarker.name}</h4>
+                    <p className="text-[10px] text-outline uppercase font-bold tracking-widest mt-1">
+                      {selectedMarker.rating_avg ? `${selectedMarker.rating_avg} Rating` : "Recommended"}
+                    </p>
+                  </div>
+                </div>
+                <p className="text-[12px] text-on-surface-variant line-clamp-2">{selectedMarker.description || `${selectedMarker.city}, ${selectedMarker.country}`}</p>
+                <div className="flex gap-2 pt-2">
+                  <button
+                    onClick={() => router.push(`/destination/${selectedMarker.id}`)}
+                    className="flex-1 bg-primary text-on-primary py-2 rounded-lg text-[12px] font-bold hover:opacity-90 transition-all"
+                  >
+                    Lihat Detail
+                  </button>
+                  <button className="px-3 py-2 rounded-lg border border-outline-variant/30 hover:bg-surface-container-high transition-all">
+                    <Navigation className="w-4 h-4 text-primary" />
+                  </button>
+                </div>
+              </div>
             </div>
           )}
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="font-medium text-sm text-gray-900 truncate">{d.name}</p>
-          <p className="text-[11px] text-gray-500 flex items-center truncate">
-            <MapPin className="w-3 h-3 mr-0.5 flex-shrink-0" />
-            {d.city ? `${d.city}, ` : ""}{d.country}
-          </p>
-        </div>
-        <div className="flex items-center text-[11px] text-yellow-600 font-semibold flex-shrink-0">
-          <Star className="w-3 h-3 fill-yellow-400 text-yellow-400 mr-0.5" />
-          {d.rating_avg?.toFixed(1)}
-        </div>
-      </button>
-      <button onClick={onOpen} className="text-[11px] text-blue-600 font-medium flex-shrink-0 hover:underline">Detail</button>
-    </li>
-  );
-}
-
-function ResultCard({ d, onFocus, onOpen }: { d: Destination; onFocus: () => void; onOpen: () => void }) {
-  const img = d.images?.[0] && !d.images[0].includes("source.unsplash") ? d.images[0] : null;
-  return (
-    <div className="rounded-2xl border border-gray-100 overflow-hidden shadow-sm">
-      <div className="relative h-32 bg-gray-100">
-        {img ? (
-          <img src={img} alt={d.name} className="w-full h-full object-cover" />
-        ) : (
-          <div className="w-full h-full bg-gradient-to-br from-blue-400 to-cyan-500 flex items-center justify-center">
-            <CategoryIcon name={d.category?.icon} className="w-10 h-10 text-white" />
-          </div>
-        )}
-        <span className="absolute top-2 left-2 px-2 py-0.5 bg-white/90 backdrop-blur rounded-md text-[10px] font-medium capitalize">
-          {d.price_level === "budget" ? "💰 Budget" : d.price_level === "luxury" ? "💎 Luxury" : "💳 Mid"}
-        </span>
-      </div>
-      <div className="p-3">
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0">
-            <p className="font-semibold text-sm text-gray-900 truncate">{d.name}</p>
-            <p className="text-[11px] text-gray-500 flex items-center">
-              <MapPin className="w-3 h-3 mr-0.5" />
-              {d.city ? `${d.city}, ` : ""}{d.country}
-            </p>
-          </div>
-          <div className="flex items-center text-xs text-yellow-600 font-semibold flex-shrink-0">
-            <Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400 mr-0.5" />
-            {d.rating_avg?.toFixed(1)}
-            <span className="text-gray-400 ml-1 font-normal">({d.review_count})</span>
-          </div>
-        </div>
-        {d.description && <p className="text-xs text-gray-500 mt-1.5 line-clamp-2">{d.description}</p>}
-        <div className="flex gap-2 mt-2.5">
-          <button onClick={onFocus} className="flex-1 py-1.5 text-xs rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium">
-            Lihat di peta
-          </button>
-          <button onClick={onOpen} className="flex-1 py-1.5 text-xs rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium">
-            Buka detail
-          </button>
-        </div>
-      </div>
+        </section>
+      </main>
     </div>
   );
 }

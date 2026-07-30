@@ -11,7 +11,7 @@ users type provinces/regions (Bali, Jogja, ...), so we map region -> its cities.
 REGION_CITIES: dict[str, list[str]] = {
     "bali": ["denpasar", "badung", "tabanan", "gianyar", "klungkung",
              "karangasem", "bangli", "jembrana", "buleleng", "ubud", "kuta", "sanur",
-             "uluwatu", "nusua"],
+             "uluwatu", "nusa"],
     "jogja": ["yogyakarta", "sleman", "bantul", "kulon progo", "gunung kidul"],
     "yogyakarta": ["yogyakarta", "sleman", "bantul", "kulon progo", "gunung kidul"],
     "bandung": ["bandung", "lembang"],

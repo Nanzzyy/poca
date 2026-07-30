@@ -23,8 +23,8 @@ class PostRepository:
     async def create(self, post: Post) -> Post:
         self.db.add(post)
         await self.db.flush()
-        # reload user for response serialization
-        await self.db.refresh(post, attribute_names=["user"])
+        # reload relationships for response serialization (avoids lazy-load in async)
+        await self.db.refresh(post, attribute_names=["user", "comments"])
         return post
 
     async def get_by_id(self, post_id: str) -> Post | None:

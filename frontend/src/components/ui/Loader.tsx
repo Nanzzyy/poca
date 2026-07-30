@@ -6,7 +6,7 @@ export function FullPageLoader({ message = "Memuat..." }: { message?: string }) 
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
       <motion.div
-        className="w-12 h-12 rounded-full border-3 border-blue-200 border-t-blue-600"
+        className="w-10 h-10 rounded-full border-[3px] border-blue-200 border-t-blue-600"
         animate={{ rotate: 360 }}
         transition={{ duration: 0.8, repeat: Infinity, ease: "linear" }}
       />

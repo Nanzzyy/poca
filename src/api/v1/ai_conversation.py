@@ -102,7 +102,12 @@ async def send_message(
         raise HTTPException(status_code=403, detail="Not authorized")
 
     # Save user message
-    user_msg = Message(conversation_id=conv_id, role="user", content=body.content)
+    user_msg = Message(
+        conversation_id=conv_id,
+        role="user",
+        content=body.content,
+        msg_metadata={"attachment": body.attachment} if body.attachment else None,
+    )
     await repo.add_message(user_msg)
 
     # Give the conversation a readable title from its first message so the
@@ -117,7 +122,8 @@ async def send_message(
     try:
         ai_content, ai_metadata = await ai_service.generate_response(conv_id, body.content)
     except Exception as e:
-        ai_content, ai_metadata = f"Maaf, ada gangguan teknis: {str(e)}", {}
+        import logging; logging.getLogger(__name__).exception(f"AI generation failed: {e}")
+        ai_content, ai_metadata = "Maaf, ada gangguan teknis. Silakan coba lagi nanti.", {}
 
     # Save AI message (metadata may carry recommendation cards)
     ai_msg = Message(conversation_id=conv_id, role="assistant", content=ai_content, msg_metadata=ai_metadata or None)

@@ -7,7 +7,7 @@ interface AuthState {
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
-  token: typeof window !== "undefined" ? localStorage.getItem("auth_token") : null,
+  token: null, // Always start null to match SSR. Hydrated client-side in layout.
   setToken: (token) => {
     if (token) localStorage.setItem("auth_token", token);
     else localStorage.removeItem("auth_token");
@@ -18,6 +18,12 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ token: null });
   },
 }));
+
+// Hydrate auth store from localStorage on client startup
+if (typeof window !== "undefined") {
+  const stored = localStorage.getItem("auth_token");
+  if (stored) useAuthStore.setState({ token: stored });
+}
 
 interface MapState {
   center: [number, number];
@@ -50,7 +56,7 @@ export const useUIStore = create<UIState>((set) => ({
   toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
   toasts: [],
   addToast: (message, type = "info") => {
-    const id = Date.now().toString();
+    const id = typeof crypto !== "undefined" ? crypto.randomUUID() : Date.now().toString() + Math.random().toString(36).slice(2);
     set((s) => ({ toasts: [...s.toasts, { id, message, type }] }));
     setTimeout(() => {
       set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) }));

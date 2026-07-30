@@ -15,6 +15,7 @@ class ConversationUpdate(BaseModel):
 
 class MessageSend(BaseModel):
     content: str
+    attachment: Optional[str] = None  # data URL of an image attached to the message
 
 
 class MessageResponse(BaseModel):

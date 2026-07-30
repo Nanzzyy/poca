@@ -6,7 +6,7 @@ class Settings(BaseSettings):
     app_name: str = "Poca - AI Tourism Companion"
     debug: bool = True
     api_prefix: str = "/api/v1"
-    cors_origins: str = "*"
+    cors_origins: str = "http://localhost:3007,http://localhost:3000,http://localhost:3001,http://localhost:3002,http://localhost:3003,http://localhost:3004,http://localhost:3005,http://localhost:3006"
 
     # Database
     database_url: str = "postgresql+asyncpg://tourism:tourism@localhost:5432/tourism"

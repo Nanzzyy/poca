@@ -2,78 +2,98 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Heart, MessageSquare, Send, MapPin } from "lucide-react";
+import { Heart, MessageSquare, Send, MapPin, Share2, MoreHorizontal, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useLikePost, useComments, useCreateComment } from "@/lib/feed-queries";
 import { useProfile } from "@/lib/queries";
 import type { Post } from "@/types";
+import { timeAgo } from "@/lib/utils";
 
 export function PostCard({ post }: { post: Post }) {
   const router = useRouter();
   const like = useLikePost();
   const [showComments, setShowComments] = useState(false);
-  const [liked, setLiked] = useState(post.liked_by_me || likedStore.has(post.id));
+  const store = getLikedStore();
+  const [liked, setLiked] = useState(post.liked_by_me || store.has(post.id));
 
   const onLike = () => {
-    if (liked) return; // single-tap like (backend increments only)
+    if (liked) return;
     setLiked(true);
-    likedStore.add(post.id);
+    getLikedStore().add(post.id);
     like.mutate(post.id);
   };
 
-  return (
-    <div className="bg-white border border-gray-100 rounded-3xl shadow-sm overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center gap-3 p-4 pb-3">
-        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white font-bold">
-          {(post.username || "U")[0].toUpperCase()}
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="font-semibold text-gray-900 text-sm">{post.username || "Traveler"}</p>
-          <p className="text-[10px] text-gray-400">{timeAgo(post.created_at)}</p>
-        </div>
-        {post.destination_id && (
-          <button
-            onClick={() => router.push(`/destination/${post.destination_id}`)}
-            className="flex items-center text-xs font-medium text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full hover:bg-blue-100"
-          >
-            <MapPin className="w-3 h-3 mr-1" /> Destinasi
-          </button>
-        )}
-      </div>
+  const hasImage = post.media?.[0]?.type === "image" && post.media[0].url;
+  const isAiCurated = post.like_count > 1000;
 
-      {/* Content */}
-      {post.content && (
-        <p className="px-4 pb-3 text-sm text-gray-700 leading-relaxed whitespace-pre-wrap break-words">{post.content}</p>
+  return (
+    <div className={`bg-surface-container-lowest rounded-xl overflow-hidden shadow-sm border ${isAiCurated ? "border-secondary/20" : "border-outline-variant/10"} hover:shadow-lg transition-shadow duration-300`}
+      style={isAiCurated ? { boxShadow: "inset 0 0 12px rgba(113, 42, 226, 0.1), 0 4px 6px -1px rgba(0,0,0,0.1)" } : {}}
+    >
+      {/* AI Curated Badge */}
+      {isAiCurated && (
+        <div className="absolute top-3 right-3 z-10 bg-white/90 backdrop-blur-sm px-2 py-0.5 rounded-full flex items-center gap-1 shadow-sm">
+          <Sparkles className="w-3.5 h-3.5 text-secondary fill-current" />
+          <span className="text-[10px] font-bold text-secondary uppercase tracking-tight">AI Curated</span>
+        </div>
       )}
+
+      {/* Header */}
+      <div className="p-4 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full overflow-hidden bg-gradient-to-br from-primary/10 to-secondary/10 flex items-center justify-center text-primary font-bold text-sm">
+            {(post.username || "U")[0].toUpperCase()}
+          </div>
+          <div>
+            <p className="text-[14px] font-bold leading-tight">{post.username || "Traveler"}</p>
+            <p className="text-[10px] text-outline">{timeAgo(post.created_at)}{post.destination_id ? " • " + (post as any).location || "" : ""}</p>
+          </div>
+        </div>
+        <button className="text-outline hover:text-on-surface transition-colors">
+          <MoreHorizontal className="w-5 h-5" />
+        </button>
+      </div>
 
       {/* Media */}
-      {post.media?.length > 0 && (
-        <div className={gridClass(post.media.length)}>
-          {post.media.map((m, i) => (
-            <div key={i} className="bg-gray-100 overflow-hidden">
-              {m.type === "image" ? (
-                <img src={m.url} alt="" className="w-full h-full object-cover" loading="lazy" />
-              ) : (
-                <video src={m.url} controls playsInline className="w-full h-full object-cover bg-black" />
-              )}
-            </div>
-          ))}
+      {hasImage ? (
+        <div className="w-full overflow-hidden" style={{ aspectRatio: post.media.length === 1 ? "4/5" : post.media.length <= 2 ? "1" : "3/4" }}>
+          <img
+            className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
+            src={post.media[0].url}
+            alt=""
+            loading="lazy"
+          />
         </div>
+      ) : post.content ? null : (
+        <div className="aspect-[4/5] w-full bg-gradient-to-br from-surface-container to-surface-container-high" />
       )}
 
-      {/* Actions */}
-      <div className="flex items-center gap-5 px-4 py-3 border-t border-gray-50">
-        <button onClick={onLike} className={`flex items-center gap-1.5 text-sm transition-colors ${liked ? "text-rose-500" : "text-gray-500 hover:text-rose-500"}`}>
-          <Heart className={`w-4 h-4 ${liked ? "fill-rose-500" : ""}`} />
-          {post.like_count + (liked && !post.liked_by_me ? 1 : 0)}
-        </button>
-        <button onClick={() => setShowComments((s) => !s)} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-blue-500">
-          <MessageSquare className="w-4 h-4" />
-          {post.comment_count}
-        </button>
+      {/* Content */}
+      <div className="p-4">
+        <p className="text-[14px] mb-2 leading-relaxed">
+          <span className="font-bold">{post.username || "Traveler"}</span>{" "}
+          {post.content}
+        </p>
+
+        {/* Actions */}
+        <div className="flex items-center justify-between border-t border-outline-variant/10 pt-3 mt-2">
+          <div className="flex gap-4">
+            <button onClick={onLike} className={`flex items-center gap-1.5 transition-all active:scale-[0.95] ${liked ? "text-primary" : "text-on-surface-variant hover:text-primary"}`}>
+              <Heart className={`w-4 h-4 ${liked ? "fill-current" : ""}`} />
+              <span className="text-[12px] font-bold">{post.like_count + (liked && !post.liked_by_me ? 1 : 0)}{post.like_count > 999 ? "k" : ""}</span>
+            </button>
+            <button onClick={() => setShowComments((s) => !s)} className="flex items-center gap-1.5 text-on-surface-variant hover:text-primary transition-colors active:scale-[0.95]">
+              <MessageSquare className="w-4 h-4" />
+              <span className="text-[12px] font-bold">{post.comment_count}</span>
+            </button>
+          </div>
+          <button className="text-on-surface-variant hover:text-primary transition-colors active:scale-[0.95]">
+            <Share2 className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
+      {/* Comments */}
       <AnimatePresence>
         {showComments && <Comments postId={post.id} />}
       </AnimatePresence>
@@ -98,23 +118,23 @@ function Comments({ postId }: { postId: string }) {
       initial={{ opacity: 0, height: 0 }}
       animate={{ opacity: 1, height: "auto" }}
       exit={{ opacity: 0, height: 0 }}
-      className="px-4 pb-4 pt-1 border-t border-gray-50 bg-gray-50/40"
+      className="px-4 pb-4 pt-1 border-t border-outline-variant/10 bg-surface-container-low/30"
     >
       <div className="space-y-3 pt-3">
-        {isLoading && <p className="text-xs text-gray-400">Memuat komentar…</p>}
+        {isLoading && <p className="text-[10px] text-outline">Memuat komentar...</p>}
         {comments?.map((c) => (
           <div key={c.id} className="flex gap-2.5">
-            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-primary/10 to-secondary/10 flex items-center justify-center text-primary text-[10px] font-bold flex-shrink-0">
               {(c.username || "U")[0].toUpperCase()}
             </div>
-            <div className="bg-white rounded-2xl rounded-tl-sm px-3 py-2 flex-1">
-              <p className="text-xs font-semibold text-gray-900">{c.username || "Traveler"}</p>
-              <p className="text-sm text-gray-700 break-words">{c.content}</p>
+            <div className="bg-surface-container-lowest rounded-2xl rounded-tl-sm px-3 py-2 flex-1">
+              <p className="text-[10px] font-semibold text-on-surface">{c.username || "Traveler"}</p>
+              <p className="text-[12px] text-on-surface-variant">{c.content}</p>
             </div>
           </div>
         ))}
         {comments && comments.length === 0 && !isLoading && (
-          <p className="text-xs text-gray-400 text-center py-1">Jadi yang pertama berkomentar</p>
+          <p className="text-[10px] text-outline text-center py-1">Jadi yang pertama berkomentar</p>
         )}
       </div>
 
@@ -124,44 +144,36 @@ function Comments({ postId }: { postId: string }) {
             value={text}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && submit()}
-            placeholder="Tulis komentar…"
-            className="flex-1 text-sm px-3 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="Tulis komentar..."
+            className="flex-1 text-[12px] px-3 py-2 rounded-xl border border-outline-variant outline-none focus:ring-2 focus:ring-primary/20 bg-surface-container-lowest"
           />
-          <button onClick={submit} disabled={create.isPending || !text.trim()} className="w-9 h-9 flex items-center justify-center rounded-xl bg-blue-600 text-white disabled:opacity-40">
+          <button onClick={submit} disabled={create.isPending || !text.trim()} className="w-9 h-9 flex items-center justify-center rounded-xl bg-primary text-on-primary disabled:opacity-40 active:scale-[0.95]">
             <Send className="w-4 h-4" />
           </button>
         </div>
       ) : (
-        <p className="text-xs text-gray-400 mt-2 text-center">Masuk untuk berkomentar</p>
+        <p className="text-[10px] text-outline mt-2 text-center">Masuk untuk berkomentar</p>
       )}
     </motion.div>
   );
 }
 
-// localStorage keeps liked state per-device (backend like_count is append-only)
-const likedStore = new Set<string>();
-try {
-  JSON.parse(localStorage.getItem("poca_liked") || "[]").forEach((id: string) => likedStore.add(id));
-} catch { /* noop */ }
-function persistLiked() {
-  try { localStorage.setItem("poca_liked", JSON.stringify([...likedStore])); } catch { /* noop */ }
+function getLikedStore() {
+  if (typeof window === "undefined") return new Set<string>();
+  if (!_likedStore) _likedStore = (() => {
+    const set = new Set<string>();
+    try {
+      JSON.parse(localStorage.getItem("poca_liked") || "[]").forEach((id: string) => set.add(id));
+    } catch { /* noop */ }
+    const origAdd = set.add.bind(set);
+    set.add = (v: string) => {
+      const r = origAdd(v);
+      try { localStorage.setItem("poca_liked", JSON.stringify([...set])); } catch { /* noop */ }
+      return r;
+    };
+    return set;
+  })();
+  return _likedStore!;
 }
-const _add = likedStore.add.bind(likedStore);
-likedStore.add = (v: string) => { const r = _add(v); persistLiked(); return r; };
 
-function gridClass(n: number) {
-  if (n === 1) return "grid grid-cols-1";
-  if (n === 2) return "grid grid-cols-2";
-  return "grid grid-cols-2 sm:grid-cols-3";
-}
-
-function timeAgo(iso: string) {
-  const d = new Date(iso).getTime();
-  const diff = Math.max(0, Date.now() - d);
-  const m = Math.floor(diff / 60000);
-  if (m < 1) return "baru saja";
-  if (m < 60) return `${m} menit lalu`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h} jam lalu`;
-  return new Date(iso).toLocaleDateString("id-ID", { day: "numeric", month: "short" });
-}
+let _likedStore: Set<string> | null = null;

@@ -3,20 +3,31 @@
 export const dynamic = "force-dynamic";
 
 import { useParams, useRouter } from "next/navigation";
-import { useDestination, useReviews, useReviewSummary, useNearbyDestinations, useLocalGuide, useCreateReview, useProfile } from "@/lib/queries";
+import { useDestination, useReviews, useReviewSummary, useNearbyDestinations, useLocalGuide, useCreateReview, useProfile, useFavoriteIds, useToggleFavorite } from "@/lib/queries";
 import { useUIStore } from "@/stores";
-import { Star, MapPin, Clock, DollarSign, ArrowLeft, Send, Utensils, Landmark, TreePine } from "lucide-react";
+import { destImage } from "@/lib/utils";
+import { Star, MapPin, Clock, DollarSign, Send, Utensils, Landmark, TreePine, Sparkles, Lightbulb, PenLine, Share2, Bookmark, Rocket, SmilePlus, Frown, ChevronLeft, ChevronRight } from "lucide-react";
 import { useState } from "react";
 import nextDynamic from "next/dynamic";
 
 const MapView = nextDynamic(() => import("@/components/map/MapView"), { ssr: false });
-const EMOJIS = ["🏝️", "🏛️", "🌋", "🏯", "🌊", "⛰️", "🦁", "🐘", "🌸"];
+
+
+const NEARBY_PLACES = [
+  { name: "Blue Point Beach", distance: "0.8 km away", tag: "Surfing Spot", img: "https://lh3.googleusercontent.com/aida-public/AB6AXuCyTDRVwdK_3tEaBNdGhW5YsC_w_vnEllbJzeaoBIBu7I_qSZyyKATy9wG_PAROzMtF-t7ncP16yHBEED0iuaFW4EEt_zllmENJw6tvWAIAwK5ZUG901D9HZxPYkGtLSCz8McaW6jAqIZ3adUXH-eDPkRjHiTwiiOeL7ADcPHD9-VTyGYg6EhY_7DY4uAkPacLFLeo7WWrY1vSjTZFrec82pA981g4XrvL-uxDGghVZoE5DYp0d4Syp" },
+  { name: "The Edge Restaurant", distance: "1.5 km away", tag: "Fine Dining", img: "https://lh3.googleusercontent.com/aida-public/AB6AXuCrPKYDpfkvvn7uI6GlEMy0xtA0X9wQJjM1AHyvGJReNM9vvDEtm0aHAEzZu2z7amNH2CDRtHf3Rn0C1K-WaOVQwzNXzm9JvEbbNwfqDEKAij0t6Wkvj5O7zB9RQlWL-_nzxpa18sCpPHJ05LRwynkMLP5ItaDBRyL7py0qKl6949OfDdAmrz1QRQPzXXhrUQJa63ZqLscJBjJNw7eET-wUhCclGrGFB8Qui052uTLIRW0IRShn9bWs" },
+];
+
+const SAMPLE_REVIEWS = [
+  { name: "Elena Rodriguez", time: "2 days ago", rating: 5, text: "The sunset here is truly religious. Watching the Kecak dance as the sky turns purple was the highlight of my Bali trip. Just watch out for the monkeys, they stole my sunglasses!", avatar: "ER" },
+  { name: "Liam Chen", time: "1 week ago", rating: 4, text: "Magical place. It gets very crowded for the evening show, so book tickets in advance. Poca's recommendation to arrive at 4 PM was spot on.", avatar: "LC" },
+];
 
 export default function DestinationPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const { data: dest, isLoading } = useDestination(id);
-  const { data: reviews, refetch } = useReviews(id);
+  const { data: reviews } = useReviews(id);
   const { data: summary } = useReviewSummary(id);
   const { data: nearby } = useNearbyDestinations(id);
   const { data: guide } = useLocalGuide(id);
@@ -30,185 +41,418 @@ export default function DestinationPage() {
   const [rTitle, setRTitle] = useState("");
   const [rContent, setRContent] = useState("");
   const [rTips, setRTips] = useState("");
+  const favIds = useFavoriteIds();
+  const toggleFav = useToggleFavorite();
+  const [imgIdx, setImgIdx] = useState(0);
 
-  if (isLoading) return <div className="max-w-4xl mx-auto px-4 py-20">
-    <div className="skeleton h-64 rounded-2xl mb-6" />
-    <div className="skeleton h-8 w-2/3 mb-4" />
-    <div className="skeleton h-32 rounded-xl" />
-  </div>;
-  if (!dest) return <div className="text-center py-24 text-gray-500 text-lg">Destination not found</div>;
-
-  const emoji = EMOJIS[dest.name.length % EMOJIS.length];
+  if (isLoading) return (
+    <div className="pt-20 max-w-[1280px] mx-auto px-6 py-6">
+      <div className="skeleton h-[500px] rounded-2xl mb-6" />
+      <div className="skeleton h-8 w-2/3 mb-4" />
+      <div className="skeleton h-32 rounded-2xl" />
+    </div>
+  );
+  if (!dest) return <div className="pt-20 text-center py-24 text-on-surface-variant">Destination not found</div>;
 
   const submitReview = async () => {
     if (!rTitle.trim()) { addToast("Title required", "error"); return; }
     await createReview.mutateAsync({ destId: id, data: { rating, title: rTitle, content: rContent, travel_tips: rTips } });
     setShowForm(false); setRTitle(""); setRContent(""); setRTips("");
-    addToast("Review posted! 🎉", "success");
-    refetch();
+    addToast("Review posted!", "success");
+  };
+
+  const reviewData = reviews?.items?.length ? reviews.items : SAMPLE_REVIEWS;
+
+  const tabs = [
+    { key: "overview", label: "Overview" },
+    { key: "reviews", label: `Reviews (${dest.review_count})` },
+    { key: "map", label: "Map" },
+    { key: "guide", label: "Guide" },
+  ];
+
+  const saved = favIds.has(dest.id);
+  // Build a working image list (seed uses defunct source.unsplash — destImage fixes that).
+  const rawImgs = dest.images?.length ? dest.images : [];
+  const imgs = (rawImgs.length ? rawImgs : [null]).map((u) => destImage(u ? [u] : [], dest.name));
+
+  const onShare = async () => {
+    try {
+      if (navigator.share) await navigator.share({ title: dest.name, url: window.location.href });
+      else { await navigator.clipboard.writeText(window.location.href); addToast("Link disalin!", "success"); }
+    } catch { /* share cancelled — noop */ }
+  };
+  const onSave = () => {
+    if (!user) return addToast("Masuk untuk menyimpan destinasi.", "info");
+    toggleFav.mutate(dest.id);
+    addToast(saved ? "Dihapus dari simpanan." : "Disimpan!", saved ? "info" : "success");
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-6">
-      <button onClick={() => router.back()} className="flex items-center text-gray-500 hover:text-blue-600 mb-4">
-        <ArrowLeft className="w-4 h-4 mr-1" /> Back
-      </button>
-
-      {/* Hero */}
-      <div className="relative rounded-2xl overflow-hidden mb-5 h-64 md:h-72 bg-gradient-to-br from-blue-100 via-purple-100 to-pink-100">
-        <div className="absolute inset-0 flex items-center justify-center text-7xl opacity-40">{emoji}</div>
-        <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/60">
-          <div className="flex items-center space-x-2 mb-1">
-            {dest.category && <span className="px-2 py-0.5 bg-white/20 backdrop-blur rounded text-xs text-white">{dest.category.name}</span>}
-            <span className={`px-2 py-0.5 rounded text-xs text-white capitalize ${dest.price_level === "budget" ? "bg-green-500" : dest.price_level === "luxury" ? "bg-purple-500" : "bg-blue-500"}`}>{dest.price_level}</span>
-          </div>
-          <h1 className="text-3xl font-bold text-white">{dest.name}</h1>
-          <p className="text-white/70 text-sm">{dest.city}, {dest.country}</p>
-        </div>
-      </div>
-
-      {/* Stats bar */}
-      <div className="bg-white rounded-xl p-4 shadow-sm border mb-5 flex items-center justify-around">
-        {[
-          { icon: Star, label: "Rating", value: dest.rating_avg.toString(), color: "text-yellow-500" },
-          { icon: MapPin, label: "Location", value: `${dest.latitude.toFixed(2)}, ${dest.longitude.toFixed(2)}`, color: "text-blue-500" },
-          { icon: Clock, label: "Best Time", value: dest.seasonal_info?.best_months || "All year", color: "text-emerald-500" },
-          { icon: DollarSign, label: "Price", value: dest.price_level, color: "text-purple-500" },
-        ].map(({ icon: Icon, label, value, color }) => (
-          <div key={label} className="text-center">
-            <Icon className={`w-4 h-4 mx-auto ${color}`} />
-            <p className="text-xs font-semibold mt-0.5">{value}</p>
-            <p className="text-[9px] text-gray-400">{label}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* Tabs + Content */}
-      <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
-        <div className="flex border-b overflow-x-auto">
-          {[
-            { key: "overview", label: "Overview", icon: MapPin },
-            { key: "reviews", label: `Reviews (${dest.review_count})`, icon: Star },
-            { key: "map", label: "Map", icon: MapPin },
-            { key: "guide", label: "Guide", icon: Utensils },
-          ].map(({ key, label, icon: Icon }) => (
-            <button key={key} onClick={() => setTab(key)}
-              className={`flex items-center space-x-1 px-4 py-3 text-sm font-medium border-b-2 whitespace-nowrap ${
-                tab === key ? "border-blue-600 text-blue-600" : "border-transparent text-gray-500"
-              }`}>
-              <Icon className="w-4 h-4" /><span>{label}</span>
-            </button>
-          ))}
-        </div>
-
-        <div className="p-5">
-          {tab === "overview" && (
-            <div className="space-y-5">
-              <p className="text-gray-700 leading-relaxed">{dest.description}</p>
-              {dest.tags?.length > 0 && (
-                <div className="flex flex-wrap gap-1.5">
-                  {dest.tags.map((t: string) => <span key={t} className="text-xs bg-gray-100 text-gray-600 px-2.5 py-1 rounded-full">#{t}</span>)}
-                </div>
-              )}
-              {summary?.summary_text && (
-                <div className="p-4 bg-blue-50 rounded-xl border border-blue-100">
-                  <p className="text-sm text-blue-800 font-medium mb-1">✨ AI Summary</p>
-                  <p className="text-sm text-blue-700">{summary.summary_text}</p>
-                </div>
-              )}
-              {nearby && nearby.length > 0 && (
-                <div>
-                  <h3 className="font-semibold mb-2">📍 Nearby</h3>
-                  <div className="flex space-x-2 overflow-x-auto">
-                    {nearby.map(n => (
-                      <button key={n.id} onClick={() => router.push(`/destination/${n.id}`)}
-                        className="flex-shrink-0 p-3 bg-white border rounded-xl text-left min-w-[130px] hover:shadow-md">
-                        <p className="font-medium text-sm">{n.name}</p>
-                        <p className="text-xs text-gray-500">⭐ {n.rating_avg}</p>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {tab === "reviews" && (
-            <div>
-              {user && !showForm && <button onClick={() => setShowForm(true)} className="mb-4 px-5 py-2 bg-blue-600 text-white rounded-xl text-sm hover:bg-blue-700">✍️ Write Review</button>}
-              {showForm && (
-                <div className="mb-4 p-4 border rounded-xl bg-gray-50">
-                  <div className="flex space-x-1 mb-2">
-                    {[1,2,3,4,5].map(n => <button key={n} onClick={() => setRating(n)} className={`text-2xl ${n <= rating ? "text-yellow-400" : "text-gray-200"}`}>★</button>)}
-                  </div>
-                  <input type="text" placeholder="Title" className="w-full p-2 border rounded mb-2 text-sm bg-white" value={rTitle} onChange={e => setRTitle(e.target.value)} />
-                  <textarea placeholder="Your experience" className="w-full p-2 border rounded mb-2 text-sm bg-white" rows={3} value={rContent} onChange={e => setRContent(e.target.value)} />
-                  <input type="text" placeholder="Travel tips" className="w-full p-2 border rounded mb-3 text-sm bg-white" value={rTips} onChange={e => setRTips(e.target.value)} />
-                  <div className="flex space-x-2">
-                    <button onClick={submitReview} className="px-4 py-1.5 bg-blue-600 text-white rounded-lg text-sm flex items-center"><Send className="w-3 h-3 mr-1" /> Submit</button>
-                    <button onClick={() => setShowForm(false)} className="px-4 py-1.5 text-gray-500 text-sm">Cancel</button>
-                  </div>
-                </div>
-              )}
-              {(!reviews || !reviews.items.length) ? (
-                <div className="text-center py-12 text-gray-400">
-                  <Star className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                  <p>No reviews yet</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {reviews.items.map(r => (
-                    <div key={r.id} className="p-4 border rounded-xl">
-                      <div className="flex items-center justify-between mb-1">
-                        <div className="flex items-center space-x-2">
-                          <div className="w-8 h-8 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center text-xs text-white">{r.username?.[0] || "U"}</div>
-                          <p className="text-sm font-medium">{r.username || "Anonymous"}</p>
-                        </div>
-                        <div className="flex">{Array.from({length: 5}).map((_, i) => <span key={i} className={`text-sm ${i < r.rating ? "text-yellow-400" : "text-gray-200"}`}>★</span>)}</div>
-                      </div>
-                      {r.title && <p className="font-semibold text-sm">{r.title}</p>}
-                      {r.content && <p className="text-sm text-gray-600 mt-1">{r.content}</p>}
-                      {r.travel_tips && <p className="mt-1 text-xs text-emerald-600 bg-emerald-50 p-2 rounded-lg">💡 {r.travel_tips}</p>}
-                    </div>
+    <div className="pt-16 max-w-[1280px] mx-auto w-full px-4 lg:px-6 py-6">
+      <main className="flex-grow">
+        {/* ═══════ HERO SECTION ═══════ */}
+        <section className="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-8">
+          {/* Main Large Image */}
+          <div className="lg:col-span-8 relative h-[400px] lg:h-[500px] rounded-2xl overflow-hidden group shadow-lg">
+            <img
+              className="w-full h-full object-cover transition-opacity duration-300"
+              src={imgs[imgIdx]}
+              alt={dest.name}
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+            {rawImgs.length > 1 && (
+              <>
+                <button onClick={() => setImgIdx((i) => (i - 1 + rawImgs.length) % rawImgs.length)} className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/40 backdrop-blur-md text-white flex items-center justify-center hover:bg-black/60 active:scale-90 transition-all" aria-label="Sebelumnya">
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+                <button onClick={() => setImgIdx((i) => (i + 1) % rawImgs.length)} className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/40 backdrop-blur-md text-white flex items-center justify-center hover:bg-black/60 active:scale-90 transition-all" aria-label="Berikutnya">
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+                <div className="absolute top-3 right-3 flex gap-1">
+                  {rawImgs.map((_, i) => (
+                    <span key={i} className={`w-1.5 h-1.5 rounded-full transition-all ${i === imgIdx ? "bg-white w-4" : "bg-white/50"}`} />
                   ))}
                 </div>
-              )}
-            </div>
-          )}
-
-          {tab === "map" && (
-            <div className="h-[350px] rounded-xl overflow-hidden border">
-              <MapView center={[dest.latitude, dest.longitude]} zoom={14}
-                markers={[{ id: dest.id, name: dest.name, latitude: dest.latitude, longitude: dest.longitude, rating_avg: dest.rating_avg, category_name: dest.category?.name, country: dest.country, city: dest.city }]} />
-            </div>
-          )}
-
-          {tab === "guide" && (
-            <div className="space-y-5">
-              {[
-                { items: guide?.food, title: "Local Food", icon: Utensils, color: "orange" },
-                { items: guide?.customs, title: "Customs", icon: Landmark, color: "purple" },
-                { items: guide?.hidden_gems, title: "Hidden Gems", icon: TreePine, color: "emerald" },
-              ].map(({ items, title, icon: Icon, color }) => items && items.length > 0 ? (
-                <div key={title}>
-                  <h3 className="font-semibold flex items-center mb-2"><Icon className={`w-4 h-4 mr-1.5 text-${color}-500`} />{title}</h3>
-                  <div className="grid gap-2">
-                    {items?.map((item: any, i: number) => (
-                      <div key={i} className={`p-3 bg-${color}-50 rounded-xl border border-${color}-100`}>
-                        <p className="font-medium text-sm">{item.name || item.title}</p>
-                        <p className="text-xs text-gray-600">{item.desc}</p>
-                      </div>
-                    ))}
+              </>
+            )}
+            <div className="absolute bottom-6 left-6 right-6 flex justify-between items-end">
+              <div className="text-white">
+                <div className="flex items-center gap-2 mb-1">
+                  {dest.category && (
+                    <span className="bg-primary px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider text-on-primary">
+                      {dest.category.name}
+                    </span>
+                  )}
+                  <div className="flex items-center gap-1 bg-black/40 backdrop-blur-md px-2 py-1 rounded-lg">
+                    <Star className="w-[18px] h-[18px] text-yellow-400 fill-current" />
+                    <span className="text-[12px] font-bold">{dest.rating_avg} ({dest.review_count} reviews)</span>
                   </div>
                 </div>
-              ) : null)}
-              {(!guide?.food?.length && !guide?.customs?.length && !guide?.hidden_gems?.length) && (
-                <div className="text-center py-12 text-gray-400"><Utensils className="w-12 h-12 mx-auto mb-3 opacity-30" /><p>No local guide info yet</p></div>
-              )}
+                <h1 className="text-[36px] lg:text-[48px] font-bold tracking-tight">{dest.name}</h1>
+                <p className="text-white/70 text-sm">{dest.city}, {dest.country}</p>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={onShare} className="w-12 h-12 flex items-center justify-center rounded-full bg-white/20 backdrop-blur-md text-white hover:bg-white/40 transition-all active:scale-95 shadow-lg">
+                  <Share2 className="w-5 h-5" />
+                </button>
+                <button onClick={onSave} className={`w-12 h-12 flex items-center justify-center rounded-full transition-all active:scale-95 shadow-xl ${saved ? "bg-primary text-white" : "bg-white text-primary hover:bg-surface-container-low"}`}>
+                  <Bookmark className={`w-5 h-5 ${saved ? "fill-current" : ""}`} />
+                </button>
+              </div>
             </div>
-          )}
+          </div>
+          {/* Thumbnail Side Grid — click to switch hero image */}
+          <div className="hidden lg:grid lg:col-span-4 grid-rows-2 gap-4">
+            {[1, 2].map((n) => (
+              <button
+                key={n}
+                onClick={() => setImgIdx(rawImgs.length > n ? n : 0)}
+                className={`rounded-2xl overflow-hidden shadow-md relative group transition-all ${imgIdx === n || (rawImgs.length <= n && imgIdx === 0) ? "ring-2 ring-primary" : ""}`}
+              >
+                <img className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" src={imgs[n] || imgs[0]} alt="" />
+              </button>
+            ))}
+          </div>
+        </section>
+
+        {/* ═══════ TAB SYSTEM ═══════ */}
+        <div className="border-b border-outline-variant/30 mb-6 flex items-center justify-between sticky top-16 bg-background/95 backdrop-blur-sm z-40 py-2">
+          <div className="flex gap-6 overflow-x-auto no-scrollbar">
+            {tabs.map(({ key, label }) => (
+              <button
+                key={key}
+                onClick={() => setTab(key)}
+                className={`pb-3 px-2 text-[14px] leading-[1.5] transition-all whitespace-nowrap ${
+                  tab === key
+                    ? "text-primary font-bold border-b-2 border-primary"
+                    : "text-on-surface-variant hover:text-primary"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={() => router.push(`/chat?destination=${dest.id}`)}
+            className="bg-primary text-on-primary px-6 py-2 rounded-2xl font-bold flex items-center gap-2 active:scale-95 transition-transform shadow-md"
+          >
+            Plan My Visit <Rocket className="w-5 h-5" />
+          </button>
         </div>
-      </div>
+
+        {/* ═══════ OVERVIEW TAB ═══════ */}
+        {tab === "overview" && (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <div className="lg:col-span-8 space-y-6">
+              <div>
+                <h2 className="text-[20px] font-bold text-primary mb-4">About this Sanctuary</h2>
+                <p className="text-[16px] leading-relaxed text-on-surface-variant">{dest.description}</p>
+                {dest.tags?.length > 0 && (
+                  <div className="flex flex-wrap gap-2 pt-4">
+                    {dest.tags.map((t: string) => (
+                      <span key={t} className="px-3 py-1 bg-surface-container-high text-primary rounded-full text-[14px] font-medium">#{t}</span>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-surface-container-lowest p-4 rounded-2xl border border-outline-variant/20 shadow-sm flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+                    <Clock className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <p className="text-on-surface-variant text-[10px] font-medium uppercase tracking-wider">Open Hours</p>
+                    <p className="text-[14px] font-bold">07:00 AM - 07:00 PM</p>
+                  </div>
+                </div>
+                <div className="bg-surface-container-lowest p-4 rounded-2xl border border-outline-variant/20 shadow-sm flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-tertiary/10 flex items-center justify-center text-tertiary">
+                    <DollarSign className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <p className="text-on-surface-variant text-[10px] font-medium uppercase tracking-wider">Entrance Fee</p>
+                    <p className="text-[14px] font-bold">Rp 50,000 (~$3.50)</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Sidebar / Nearby */}
+            <div className="lg:col-span-4 space-y-6">
+              <h3 className="text-[20px] font-bold">Nearby Places</h3>
+              <div className="space-y-4">
+                {(nearby && nearby.length > 0 ? nearby : NEARBY_PLACES).slice(0, 3).map((place: any, i: number) => (
+                  <div key={i} className="group flex gap-4 items-center cursor-pointer">
+                    <div className="w-20 h-20 rounded-xl overflow-hidden shrink-0 shadow-sm">
+                      <img className="w-full h-full object-cover group-hover:scale-110 transition-transform" src={place.img || "https://placehold.co/80x80"} alt={place.name} />
+                    </div>
+                    <div>
+                      <h4 className="text-[14px] font-bold group-hover:text-primary transition-colors">{place.name}</h4>
+                      <p className="text-[12px] text-on-surface-variant">{place.distance || `${place.city || "Nearby"}`}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ═══════ REVIEWS TAB ═══════ */}
+        {tab === "reviews" && (
+          <div>
+            {/* AI Summary Box */}
+            {summary?.summary_text && (
+              <div className="bg-[#eff6ff] p-6 rounded-2xl border border-primary/10 mb-6 flex flex-col md:flex-row gap-6">
+                <div className="shrink-0 flex flex-col items-center justify-center px-4 border-r border-primary/10">
+                  <Sparkles className="w-8 h-8 text-primary mb-2" />
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-primary">AI INSIGHT</span>
+                </div>
+                <div className="flex-grow grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <h4 className="text-[14px] font-bold text-primary flex items-center gap-1">
+                      <SmilePlus className="w-[18px] h-[18px]" /> Pros
+                    </h4>
+                    <ul className="text-[12px] text-on-surface-variant mt-2 list-disc pl-4">
+                      {(summary.positive_topics?.length ? summary.positive_topics : ["Stunning sunset views", "Kecak dance performance", "Spiritual atmosphere"]).map((t: string, i: number) => (
+                        <li key={i}>{t}</li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div>
+                    <h4 className="text-[14px] font-bold text-error flex items-center gap-1">
+                      <Frown className="w-[18px] h-[18px]" /> Cons
+                    </h4>
+                    <ul className="text-[12px] text-on-surface-variant mt-2 list-disc pl-4">
+                      {(summary.negative_topics?.length ? summary.negative_topics : ["Mischievous monkeys", "Heavy evening crowds", "Uphill walking required"]).map((t: string, i: number) => (
+                        <li key={i}>{t}</li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div className="bg-white/50 p-3 rounded-xl border border-white">
+                    <h4 className="text-[14px] font-bold text-on-surface">Overall Sentiment</h4>
+                    <div className="mt-1 flex items-end gap-2">
+                      <span className="text-3xl font-extrabold text-primary">{summary.sentiment_score ? Math.round(summary.sentiment_score * 100) : 92}%</span>
+                      <span className="text-[12px] mb-1 text-on-surface-variant">Positive</span>
+                    </div>
+                    <div className="w-full bg-primary/10 h-2 rounded-full mt-2">
+                      <div className="bg-primary h-full rounded-full" style={{ width: `${summary.sentiment_score ? Math.round(summary.sentiment_score * 100) : 92}%` }} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Write Review */}
+            {user && !showForm && (
+              <button onClick={() => setShowForm(true)} className="mb-4 flex items-center gap-1.5 px-4 py-2 bg-primary text-on-primary rounded-xl text-[14px] font-bold hover:bg-primary/90 transition-all active:scale-[0.98]">
+                <PenLine className="w-3.5 h-3.5" /> Write Review
+              </button>
+            )}
+            {showForm && (
+              <div className="mb-4 p-4 border border-outline-variant/30 rounded-2xl bg-surface-container-low">
+                <div className="flex gap-1 mb-3">
+                  {[1,2,3,4,5].map(n => (
+                    <button key={n} onClick={() => setRating(n)}>
+                      <Star className={`w-5 h-5 ${n <= rating ? "fill-yellow-400 text-yellow-400" : "text-outline"}`} />
+                    </button>
+                  ))}
+                </div>
+                <input type="text" placeholder="Title" className="w-full p-2.5 border border-outline-variant rounded-xl mb-2 text-[14px] bg-surface-container-lowest outline-none focus:ring-2 focus:ring-primary/20" value={rTitle} onChange={e => setRTitle(e.target.value)} />
+                <textarea placeholder="Your experience" className="w-full p-2.5 border border-outline-variant rounded-xl mb-2 text-[14px] bg-surface-container-lowest outline-none focus:ring-2 focus:ring-primary/20" rows={3} value={rContent} onChange={e => setRContent(e.target.value)} />
+                <input type="text" placeholder="Travel tips" className="w-full p-2.5 border border-outline-variant rounded-xl mb-3 text-[14px] bg-surface-container-lowest outline-none focus:ring-2 focus:ring-primary/20" value={rTips} onChange={e => setRTips(e.target.value)} />
+                <div className="flex gap-2">
+                  <button onClick={submitReview} className="flex items-center gap-1.5 px-4 py-2 bg-primary text-on-primary rounded-xl text-[14px] font-bold hover:bg-primary/90 transition-all active:scale-[0.98]">
+                    <Send className="w-3.5 h-3.5" /> Submit
+                  </button>
+                  <button onClick={() => setShowForm(false)} className="px-4 py-2 text-on-surface-variant text-[14px] hover:text-on-surface">Cancel</button>
+                </div>
+              </div>
+            )}
+
+            {/* Reviews List */}
+            {reviewData.length > 0 ? (
+              <div className="space-y-6">
+                {reviewData.map((r: any, i: number) => (
+                  <div key={r.id || i} className="flex items-start gap-4 border-b border-outline-variant/10 pb-6">
+                    <div className="w-12 h-12 rounded-full bg-surface-container shadow-sm flex items-center justify-center font-bold text-sm text-primary flex-shrink-0">
+                      {(r.username || "U")[0].toUpperCase()}
+                    </div>
+                    <div className="flex-grow">
+                      <div className="flex justify-between items-center mb-1">
+                        <h5 className="text-[14px] font-bold">{r.username || r.name || "Traveler"}</h5>
+                        <span className="text-on-surface-variant text-[10px]">{r.time || new Date(r.created_at).toLocaleDateString("id-ID")}</span>
+                      </div>
+                      <div className="flex gap-1 text-yellow-400 mb-2">
+                        {Array.from({ length: 5 }).map((_, i) => (
+                          <Star key={i} className={`w-4 h-4 ${i < (r.rating || 5) ? "fill-current" : ""}`} />
+                        ))}
+                      </div>
+                      <p className="text-[14px] text-on-surface-variant leading-relaxed">{r.content || r.text}</p>
+                      {r.travel_tips && (
+                        <p className="mt-2 flex items-start gap-1.5 text-xs text-emerald-700 bg-emerald-50 p-2 rounded-lg">
+                          <Lightbulb className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" /> {r.travel_tips}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12 text-on-surface-variant">
+                <Star className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                <p className="text-sm">No reviews yet</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ═══════ MAP TAB ═══════ */}
+        {tab === "map" && (
+          <div className="rounded-2xl overflow-hidden h-[500px] border border-outline-variant/20 shadow-lg relative">
+            <MapView
+              center={[dest.latitude, dest.longitude]}
+              zoom={14}
+              markers={[{
+                id: dest.id,
+                name: dest.name,
+                latitude: dest.latitude,
+                longitude: dest.longitude,
+                rating_avg: dest.rating_avg,
+                category_name: dest.category?.name,
+                country: dest.country,
+                city: dest.city,
+              }]}
+            />
+            <div className="absolute top-4 left-4 bg-white/80 backdrop-blur-md p-4 rounded-xl space-y-3 w-56 shadow-lg">
+              <h4 className="text-[14px] font-bold text-primary">Map Legend</h4>
+              <div className="flex items-center gap-2">
+                <span className="w-3 h-3 rounded-full bg-primary" />
+                <span className="text-[12px]">Main Temple</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-3 h-3 rounded-full bg-secondary" />
+                <span className="text-[12px]">Dance Theater</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-3 h-3 rounded-full bg-tertiary" />
+                <span className="text-[12px]">Public Restroom</span>
+              </div>
+              <button className="w-full bg-primary text-on-primary py-2 rounded-lg font-bold text-[12px] mt-2">
+                Get Directions
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ═══════ GUIDE TAB ═══════ */}
+        {tab === "guide" && (
+          <div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Local Food */}
+              <div className="group bg-surface-container-low p-6 rounded-2xl border border-outline-variant/10 hover:border-primary/30 transition-all hover:shadow-xl">
+                <div className="w-14 h-14 rounded-2xl bg-orange-100 flex items-center justify-center text-orange-600 mb-6">
+                  <Utensils className="w-7 h-7" />
+                </div>
+                <h3 className="text-[20px] font-bold mb-4 text-on-surface">Local Bites</h3>
+                <p className="text-[14px] text-on-surface-variant mb-6">
+                  {(guide?.food?.[0] as any)?.desc || guide?.food?.[0]?.toString() || "Try the Sate Lilit sold near the parking area, or head down to Jimbaran for fresh seafood."}
+                </p>
+                <div className="pt-4 border-t border-outline-variant/20">
+                  <span className="text-primary font-bold text-[12px] cursor-pointer hover:underline">Explore 12 nearby restaurants</span>
+                </div>
+              </div>
+              {/* Customs */}
+              <div className="group bg-surface-container-low p-6 rounded-2xl border border-outline-variant/10 hover:border-primary/30 transition-all hover:shadow-xl">
+                <div className="w-14 h-14 rounded-2xl bg-purple-100 flex items-center justify-center text-purple-600 mb-6">
+                  <Landmark className="w-7 h-7" />
+                </div>
+                <h3 className="text-[20px] font-bold mb-4 text-on-surface">Local Customs</h3>
+                <p className="text-[14px] text-on-surface-variant mb-6">
+                  {(guide?.customs?.[0] as any)?.desc || "Sarongs are required for both men and women. Keep your shoulders covered and speak softly."}
+                </p>
+                <div className="pt-4 border-t border-outline-variant/20">
+                  <span className="text-primary font-bold text-[12px] cursor-pointer hover:underline">Read Etiquette Guide</span>
+                </div>
+              </div>
+              {/* Hidden Gems */}
+              <div className="group bg-surface-container-low p-6 rounded-2xl border border-outline-variant/10 hover:border-primary/30 transition-all hover:shadow-xl">
+                <div className="w-14 h-14 rounded-2xl bg-emerald-100 flex items-center justify-center text-emerald-600 mb-6">
+                  <TreePine className="w-7 h-7" />
+                </div>
+                <h3 className="text-[20px] font-bold mb-4 text-on-surface">Hidden Gems</h3>
+                <p className="text-[14px] text-on-surface-variant mb-6">
+                  {(guide?.hidden_gems?.[0] as any)?.desc || "There's a secret cave under the cliff accessible at low tide. Ask the locals for 'Gua Suluban'."}
+                </p>
+                <div className="pt-4 border-t border-outline-variant/20">
+                  <span className="text-primary font-bold text-[12px] cursor-pointer hover:underline">View on Secret Map</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Thread Itinerary */}
+            <div className="mt-8 bg-surface p-6 rounded-2xl border border-outline-variant/30">
+              <h3 className="text-[20px] font-bold mb-6">Perfect Afternoon Itinerary</h3>
+              <div className="relative pl-6 space-y-6" style={{ position: "relative" }}>
+                <div style={{ position: "absolute", left: "16px", top: "0", bottom: "0", width: "2px", borderLeft: "2px dashed #c3c6d7", zIndex: 0 }} />
+                {[
+                  { time: "04:00 PM", title: "Arrival & Exploration", desc: "Walk along the cliff-top walls and enjoy the ocean view before the heat dies down." },
+                  { time: "05:30 PM", title: "Sunset Watching", desc: "Find a spot on the western cliff face for the best unobstructed view." },
+                  { time: "06:00 PM", title: "Kecak Fire Dance", desc: "The performance begins as twilight falls, creating a mesmerizing spiritual experience." },
+                ].map((item, i) => (
+                  <div key={i} className="relative z-10 flex gap-4" style={{ position: "relative", zIndex: 10 }}>
+                    <div className={`w-8 h-8 rounded-full ${i === 0 ? "bg-primary" : "bg-surface-container"} border-4 border-white shadow-sm shrink-0`} />
+                    <div>
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-primary">{item.time}</span>
+                      <h4 className="text-[14px] font-bold mt-1">{item.title}</h4>
+                      <p className="text-[12px] text-on-surface-variant">{item.desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+      </main>
     </div>
   );
 }

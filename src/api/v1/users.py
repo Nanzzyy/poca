@@ -93,3 +93,25 @@ async def update_preferences(
     repo = UserRepository(db)
     await repo.update(user)
     return UserResponse.model_validate(user)
+
+
+# Favorites stored on user.preferences.favorite_ids (zero-migration, account-bound).
+@router.post("/users/me/favorites/{dest_id}")
+async def toggle_favorite(
+    dest_id: str,
+    user: User = Depends(require_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    prefs: dict = dict(user.preferences or {})
+    favs: list[str] = list(prefs.get("favorite_ids") or [])
+    if dest_id in favs:
+        favs = [f for f in favs if f != dest_id]
+        favorited = False
+    else:
+        favs.append(dest_id)
+        favorited = True
+    prefs["favorite_ids"] = favs
+    user.preferences = prefs
+    repo = UserRepository(db)
+    await repo.update(user)
+    return {"favorited": favorited, "favorite_ids": favs}

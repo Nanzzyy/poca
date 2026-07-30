@@ -22,9 +22,9 @@ export function categoryIcon(name?: string): LucideIcon {
   return ICON_MAP[name.toLowerCase()] || MapPin;
 }
 
+import React from "react";
 export function CategoryIcon({
   name, className = "w-6 h-6",
 }: { name?: string; className?: string }) {
-  const Icon = categoryIcon(name);
-  return <Icon className={className} />;
+  return React.createElement(categoryIcon(name), { className });
 }

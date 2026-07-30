@@ -318,7 +318,7 @@ class AIConversationService:
             "- Kalau user menyebut lokasi/daerah, pastikan setiap destinasi yang kamu sebut benar-benar "
             f"berada di lokasi tersebut{f' (user menulis: {loc})' if loc else ''}. Kalau daftar tidak cocok dengan lokasi yang user minta, bilang jujur bahwa kandidat di database terbatas, jangan pura-pura cocok.\n"
             "- Jangan mengarang angka spesifik (harga/jarak/jadwal pasti). Gunakan kata 'perkiraan' atau sarankan cek info terkini.\n"
-            "- Jawab harus lengkap dan terpotong di tengah kalimat."
+            "- Jawab harus lengkap dan jangan terpotong di tengah kalimat."
         )
         if destinations:
             lines = []
