@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Calendar, Users, Wallet, Clock, MapPin, Bookmark, Check, ArrowDown, Sparkles } from "lucide-react";
-import { useSavePlan } from "@/lib/queries";
+import { Calendar, Users, Wallet, Clock, MapPin, Bookmark, Check, ArrowDown, Sparkles, CheckCircle2, XCircle, Pencil } from "lucide-react";
+import { useSavePlan, useUpdateTrip } from "@/lib/queries";
 import type { TripPlan } from "@/types";
 
 const FIT_STYLES: Record<string, string> = {
@@ -26,13 +26,25 @@ const BAR_COLORS: Record<string, string> = {
 export function PlanCard({ plan }: { plan: TripPlan }) {
   const router = useRouter();
   const save = useSavePlan();
+  const updateTrip = useUpdateTrip();
   const [savedId, setSavedId] = useState<string | null>(null);
+  const [state, setState] = useState<"idle" | "saving" | "approved">("idle");
   const be = plan.budget_estimate;
   const total = be.total || 1;
 
-  const onSave = async () => {
+  const onApprove = async () => {
+    if (state === "approved") return;
+    setState("saving");
     const id = await save.mutateAsync(plan);
+    // Mark as planned so it shows in trip history.
+    await updateTrip.mutateAsync({ tripId: id, data: { status: "planned" } });
     setSavedId(id);
+    setState("approved");
+  };
+
+  const onCancel = () => {
+    // Discard plan — no trip is created. Stay in chat to refine or ask again.
+    setState("idle");
   };
 
   return (
@@ -129,27 +141,40 @@ export function PlanCard({ plan }: { plan: TripPlan }) {
         ))}
       </div>
 
-      {/* save */}
+      {/* actions: approve / edit / cancel */}
       <div className="p-3 border-t border-gray-100">
-        {savedId ? (
-          <button
-            onClick={() => router.push(`/trips/${savedId}`)}
-            className="w-full flex items-center justify-center gap-1 py-2 rounded-xl bg-green-50 text-green-700 text-xs font-semibold hover:bg-green-100 transition-colors"
-          >
-            <Check className="w-3.5 h-3.5" /> Tersimpan · Lihat trip
-          </button>
+        {state === "approved" ? (
+          <div className="flex flex-col gap-2">
+            <button
+              onClick={() => router.push(`/trips/${savedId}`)}
+              className="w-full flex items-center justify-center gap-1 py-2 rounded-xl bg-green-50 text-green-700 text-xs font-semibold hover:bg-green-100 transition-colors"
+            >
+              <CheckCircle2 className="w-3.5 h-3.5" /> Disetujui · Lihat di Trip Saya
+            </button>
+          </div>
         ) : (
-          <button
-            onClick={onSave}
-            disabled={save.isPending}
-            className="w-full flex items-center justify-center gap-1 py-2 rounded-xl bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 disabled:opacity-50 transition-colors"
-          >
-            {save.isPending ? (
-              <><Clock className="w-3.5 h-3.5 animate-spin" /> Menyimpan...</>
-            ) : (
-              <><Bookmark className="w-3.5 h-3.5" /> Simpan ke Trips</>
-            )}
-          </button>
+          <div className="grid grid-cols-3 gap-2">
+            <button
+              onClick={onApprove}
+              disabled={state === "saving"}
+              className="flex flex-col items-center justify-center gap-1 py-2.5 rounded-xl bg-blue-600 text-white text-[11px] font-bold hover:bg-blue-700 disabled:opacity-50 transition-colors"
+            >
+              {state === "saving" ? <><Clock className="w-4 h-4 animate-spin" /> Menyimpan...</> : <><Check className="w-4 h-4" /> Setujui</>}
+            </button>
+            <button
+              onClick={() => router.push("/chat")}
+              className="flex flex-col items-center justify-center gap-1 py-2.5 rounded-xl bg-amber-50 text-amber-700 text-[11px] font-bold hover:bg-amber-100 transition-colors"
+              title="Ubah rencana di chat"
+            >
+              <Pencil className="w-4 h-4" /> Edit
+            </button>
+            <button
+              onClick={onCancel}
+              className="flex flex-col items-center justify-center gap-1 py-2.5 rounded-xl bg-red-50 text-red-600 text-[11px] font-bold hover:bg-red-100 transition-colors"
+            >
+              <XCircle className="w-4 h-4" /> Cancel
+            </button>
+          </div>
         )}
       </div>
     </div>

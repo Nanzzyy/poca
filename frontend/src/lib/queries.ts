@@ -179,6 +179,26 @@ export function useTripBudget(tripId: string) {
   });
 }
 
+export function useUpdateTrip() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ tripId, data }: { tripId: string; data: Partial<Trip> }) =>
+      api.put<Trip>(`/trips/${tripId}`, data),
+    onSuccess: (trip) => {
+      qc.invalidateQueries({ queryKey: keys.trips.list });
+      qc.invalidateQueries({ queryKey: keys.trips.detail(trip.id) });
+    },
+  });
+}
+
+export function useDeleteTrip() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (tripId: string) => api.delete(`/trips/${tripId}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.trips.list }),
+  });
+}
+
 // Auth
 export function useLogin() {
   return useMutation({

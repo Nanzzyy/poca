@@ -117,7 +117,20 @@ async def update_trip(
     if body.is_public is not None:
         trip.is_public = body.is_public
 
+    was_planned = trip.status == "planned"
     await repo.update(trip)
+
+    # Notify when an AI plan is approved (status -> planned).
+    if trip.status == "planned" and not was_planned:
+        await create_notification(
+            db,
+            user_id=str(user.id),
+            type="trip",
+            title=f"Trip disetujui: {trip.name}",
+            subtitle="Rencana perjalananmu tersimpan di riwayat trip.",
+            meta={"trip_id": str(trip.id)},
+        )
+
     return TripResponse.model_validate(trip)
 
 
