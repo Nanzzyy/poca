@@ -19,12 +19,13 @@ GREETINGS = {
 }
 
 INTRO = (
-    "Hai! Aku Poca, temen liburan kamu. 🌴\n\n"
-    "Tinggal cerita aja mau liburan kayak gimana — aku bisa bantu:\n"
-    "• nyari destinasi yang cocok sama kamu\n"
-    "• perkirakan budget & rute\n"
-    "• kasih tips lokal & kuliner\n\n"
-    "Gimana, ada tempat yang lagi kepikiran?"
+    "Hai! Aku Poca, asisten perencana liburan kamu. 🗺️✨\n\n"
+    "Gampang banget — kamu tinggal cerita aja:\n"
+    "• mau ke mana? (Bali, Jogja, Bandung...)\n"
+    "• budget berapa? (200rb, 2 juta, terserah!)\n"
+    "• berapa orang & berapa hari?\n\n"
+    "Aku bakal susunin itinerary lengkap + estimasi biaya + tips lokal. "
+    "Langsung aja ngobrol — gak perlu ribet! 😊"
 )
 
 KW_ALIASES = {
@@ -174,7 +175,7 @@ class AIConversationService:
         if not conv:
             raise ValueError("Conversation not found")
 
-        history = conv.messages[-10:] if conv.messages else []
+        history = conv.messages[-5:] if conv.messages else []
         context_data = conv.context_data or {}
         msg_lower = user_message.lower().strip()
 
@@ -219,13 +220,13 @@ class AIConversationService:
             if used:
                 meta["plan"] = plan
                 meta["recommendations"] = [_dest_card(d) for d in used]
-                intro = await self._llm_wrap(history, user_message, prefs, destinations=used, plan=plan)
-                # Remember the plan so follow-up edits can modify it.
+                # Save LLM token: use template intro directly, no LLM wrap needed
+                # for plan narration (the plan card itself carries all details).
                 await self.conv_repo.update_context(conversation_id, {
                     **context_data, "preferences": prefs, "last_topic": user_message[:80],
                     "last_plan": plan,
                 })
-                return (intro or _plan_intro_fallback(plan, prefs)), meta
+                return _plan_intro_fallback(plan, prefs), meta
             # not enough destinations for the region -> fall through; the LLM/
             # fallback will honestly ask the user to confirm/narrow the region.
 
@@ -268,12 +269,11 @@ class AIConversationService:
                 if used:
                     meta["plan"] = plan
                     meta["recommendations"] = [_dest_card(d) for d in used]
-                    intro = await self._llm_wrap(history, user_message, prefs, destinations=used, plan=plan)
                     await self.conv_repo.update_context(conversation_id, {
                         **context_data, "preferences": prefs, "last_topic": user_message[:80],
                         "last_plan": plan,
                     })
-                    return (intro or _plan_intro_fallback(plan, prefs)), meta
+                    return _plan_intro_fallback(plan, prefs), meta
                 # Not enough destinations for the new params -> fall through.
             else:
                 # No previous plan — tell user to make one first.
@@ -391,20 +391,21 @@ class AIConversationService:
             return None
         loc = (prefs or {}).get("location")
         system_prompt = (
-            "Kamu adalah Poca, teman liburan AI yang asik, ramah, dan ngerti gaya bicara anak "
-            "Indonesia. Jawab pakai Bahasa Indonesia yang santai tapi sopan, hangat, tidak kaku. "
-            "Emoji secukupnya. Pahami konteks percakapan sebelumnya dan maksud user. "
-            "Fokus cuma di travel, liburan, destinasi, budget, kuliner, budaya, dan transport. "
-            "Di luar itu, tolak ramah dan arahkan balik ke topik liburan. "
-            "Jawaban ringkas (maksimal ~150 kata).\n"
-            "ATURAN ANTI-HALUSINASI (sangat penting):\n"
-            "- Kalau ada daftar destinasi di bawah, dasari jawabanmu HANYA pada tempat di daftar "
-            "itu. Sebut dan deskripsikan hanya tempat yang ADA di daftar — JANGAN namakan destinasi "
-            "lain yang tidak ada di daftar, seakan-akan itu bagian dari rekomendasi.\n"
-            "- Kalau user menyebut lokasi/daerah, pastikan setiap destinasi yang kamu sebut benar-benar "
-            f"berada di lokasi tersebut{f' (user menulis: {loc})' if loc else ''}. Kalau daftar tidak cocok dengan lokasi yang user minta, bilang jujur bahwa kandidat di database terbatas, jangan pura-pura cocok.\n"
-            "- Jangan mengarang angka spesifik (harga/jarak/jadwal pasti). Gunakan kata 'perkiraan' atau sarankan cek info terkini.\n"
-            "- Jawab harus lengkap dan jangan terpotong di tengah kalimat."
+            "Kamu Poca — teman seperjalanan yang hangat, ngobrol santai kayak temen deket. "
+            "Pahami keresahan user: mereka bingung cari destinasi, budget terbatas, "
+            "nggak tau itinerary. Bantu dengan empati, bukan robot. "
+            "Jawab pakai Bahasa Indonesia santai tapi sopan, hangat, gak kaku. "
+            "Emoji secukupnya biar hidup. Pahami konteks sebelumnya. "
+            "Fokus: travel, destinasi, budget, kuliner, budaya, transport, penginapan. "
+            "Di luar itu, tolak ramah — arahkan balik ke liburan. "
+            "Jawaban ringkas maksimal ~150 kata.\n"
+            "ATURAN PENTING — JANGAN MENGARANG:\n"
+            "- Jika ada daftar destinasi di bawah, HANYA sebut tempat dari daftar itu. "
+            "JANGAN tambah destinasi lain.\n"
+            f"- Jika user menyebut lokasi{f' (user tulis: {loc})' if loc else ''}, pastikan rekomendasi "
+            "benar-benar di lokasi itu. Jika data terbatas, jujur bilang — jangan pura-pura.\n"
+            "- Jangan mengarang harga/jarak/jadwal pasti — gunakan kata 'perkiraan'.\n"
+            "- Jawab lengkap, jangan terpotong di tengah."
         )
         if destinations:
             lines = []
@@ -446,7 +447,7 @@ class AIConversationService:
             # ikut memakan budget, jadi 300 memotong jawaban asli di tengah.
             resp = await acompletion(
                 model=settings.ai_model, api_key=settings.ai_api_key,
-                messages=llm_messages, max_tokens=1200, temperature=0.5,
+                messages=llm_messages, max_tokens=600, temperature=0.3,
             )
             return (resp.choices[0].message.content or "").strip() or None
         except Exception:
@@ -490,6 +491,24 @@ def _topic_response(msg_lower: str) -> str | None:
             "🟡 **Sedang**: Rp500-900rb/hari — hotel mid, restoran, sewa motor/gojek.\n"
             "🔴 **Mewah**: Rp1,5jt+/hari — resort, fine dining, private transport.\n\n"
             "Mau aku perkirakan lebih spesifik untuk destinasi tertentu? Sebut aja tempatnya. 😊"
+        )
+    if any(w in msg_lower for w in ("penginapan", "hotel", "villa", "resort", "akomodasi", "tempat tinggal", "homestay", "losmen")):
+        return (
+            "Ngomongin penginapan nih! 🏨\n\n"
+            "Di setiap daerah biasanya ada pilihan:\n"
+            "• **Budget** (Rp100-300rb/malam) — homestay, losmen, guest house lokal.\n"
+            "• **Mid-range** (Rp400-800rb/malam) — hotel bintang 3-4, butik, villa kecil.\n"
+            "• **Luxury** (Rp1jt+/malam) — resort bintang 5, private villa, glamping.\n\n"
+            "Mau aku bantu cari penginapan di daerah tertentu? Sebutin lokasinya ya! 🌴"
+        )
+    if any(w in msg_lower for w in ("resto", "restaurant", "makan", "kuliner", "sarapan", "makan siang", "makan malam", "lapar", "warung")):
+        return (
+            "Cari tempat makan enak ya? 🍜\n\n"
+            "Aku bisa rekomendasiin kuliner berdasarkan:\n"
+            "• **Daerah** (misal: kuliner di Ubud, resto seafood Jimbaran)\n"
+            "• **Budget** (warung hemat, resto mid, fine dining)\n"
+            "• **Jenis** (halal, vegetarian, seafood, masakan lokal/internasional)\n\n"
+            "Tinggal bilang aja lagi ngidam apa dan di mana — aku rekomendasiin! 😋"
         )
     if any(w in msg_lower for w in ("transport", "transportasi", "cara ke", "naik apa", "rute")):
         return (

@@ -4,7 +4,7 @@ export const dynamic = "force-dynamic";
 
 import { useState, useRef, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useConversations, useConversation, useCreateConversation, useSendMessage, useRenameConversation, useDeleteConversation, useProfile } from "@/lib/queries";
+import { useConversations, useConversation, useCreateConversation, useSendMessage, useRenameConversation, useDeleteConversation, useProfile, useDestination } from "@/lib/queries";
 import { MessageCircle, Send, Plus, Sparkles, Pencil, Trash2, Check, X, ChevronLeft, Menu, History, Paperclip, Bookmark, Share2, Printer, Edit, Hotel, Lightbulb, ChevronRight, Maximize2, Compass, RefreshCw, Sliders, Wand2 } from "lucide-react";
 import { RecommendationCards } from "@/components/chat/RecommendationCards";
 import { PlanCard } from "@/components/chat/PlanCard";
@@ -14,10 +14,10 @@ import { Loading } from "@/components/ui";
 import type { PlanFormData } from "@/components/chat/PlanInputForm";
 
 const QUICK_PROMPTS = [
-  "Rekomendasi pantai di Bali",
-  "Budget 3 hari di Yogyakarta",
-  "Kuliner khas Bandung",
-  "Candi terbaik di Indonesia",
+  "Rencana 2 hari di Bali budget 2 juta",
+  "3 hari di Jogja untuk 2 orang",
+  "Backpacker ke Bandung 500rb",
+  "Kuliner + wisata sejarah Jogja",
 ];
 
 const REFINEMENT_PROMPTS = [
@@ -75,6 +75,21 @@ export default function ChatPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, user, activeConv]);
+
+  // ?destination=<id> (from destination detail "Plan My Visit") → auto-create
+  // conversation, send a contextual first message, and show the planner form.
+  const planVisitStarted = useRef(false);
+  const destId = searchParams.get("destination");
+  const { data: planDest } = useDestination(destId || "");
+  useEffect(() => {
+    if (planVisitStarted.current) return;
+    if (destId && planDest && user && !activeConv) {
+      planVisitStarted.current = true;
+      setShowPlanner(true);
+      startNewChat(`Aku tertarik ke ${planDest.name}${planDest.city ? ` di ${planDest.city}` : ""}. Bantu aku rencanain ya!`);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [destId, planDest, user, activeConv]);
 
   const pickImage = (files: FileList | null) => {
     const f = files?.[0];

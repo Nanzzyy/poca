@@ -25,6 +25,30 @@ const QUICK_TEMPLATES = [
   { label: "🎒 Backpacker Nusantara", location: "Indonesia", days: 5, people: 1, budget: 3000000, interest: "alam" },
 ];
 
+// Parse natural budget input: 200k, 200rb, 200.000, 2jt, 2 juta, Rp 2.500.000, 200000
+function parseBudget(raw: string): number {
+  const s = raw.toLowerCase().trim().replace(/\s+/g, " ");
+  // "2 juta" / "2 jt"
+  let m = s.match(/^(\d+(?:[.,]\d+)?)\s*(juta|jt)$/);
+  if (m) return Math.round(parseFloat(m[1].replace(",", ".")) * 1_000_000);
+  // "200 ribu" / "200 rb" / "200k"
+  m = s.match(/^(\d+(?:[.,]\d+)?)\s*(ribu|rb|ratus|k)$/);
+  if (m) return Math.round(parseFloat(m[1].replace(",", ".")) * 1_000);
+  // "Rp 200.000" / "Rp200.000" / "200.000"
+  m = s.match(/^(?:rp\.?\s*)?(\d{1,3}(?:[.,]\d{3})+)$/);
+  if (m) return parseInt(m[1].replace(/[.,]/g, ""));
+  // "200000" (raw number)
+  m = s.match(/^(?:rp\.?\s*)?(\d+)$/);
+  if (m) return parseInt(m[1]);
+  return 0;
+}
+
+// Format a number with Indonesian thousand separators: 2000000 → "2.000.000"
+function fmtRupiah(n: number): string {
+  if (!n) return "";
+  return n.toLocaleString("id-ID");
+}
+
 const INTERESTS = [
   { key: "pantai", label: "🏖️ Pantai" },
   { key: "gunung", label: "🏔️ Gunung" },
@@ -39,6 +63,24 @@ export function PlanInputForm({ onGenerate, loading }: Props) {
   const [form, setForm] = useState<PlanFormData>({
     location: "", days: 2, people: 2, budget: 2000000, interest: "",
   });
+  const [budgetText, setBudgetText] = useState("2.000.000");
+  const [budgetErr, setBudgetErr] = useState("");
+
+  const onBudgetChange = (raw: string) => {
+    setBudgetText(raw);
+    const parsed = parseBudget(raw);
+    if (raw.trim() && parsed === 0) {
+      setBudgetErr("Format: 500rb, 200.000, 2jt, atau 2000000");
+      setForm({ ...form, budget: 0 });
+    } else {
+      setBudgetErr("");
+      setForm({ ...form, budget: parsed });
+    }
+  };
+
+  const onBudgetBlur = () => {
+    if (form.budget > 0) setBudgetText(fmtRupiah(form.budget));
+  };
 
   const buildPrompt = (data: PlanFormData) => {
     let prompt = `Buatkan rencana perjalanan ${data.days} hari`;
@@ -118,8 +160,10 @@ export function PlanInputForm({ onGenerate, loading }: Props) {
             <label className="text-[11px] font-medium text-on-surface-variant mb-1 block">Budget Total (Rp)</label>
             <div className="relative">
               <Wallet className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-outline" />
-              <input type="number" step={500000} className="w-full pl-9 pr-3 py-2.5 border border-outline-variant/50 rounded-xl text-[13px] bg-surface-container-lowest outline-none focus:ring-2 focus:ring-primary/20" value={form.budget} onChange={(e) => setForm({ ...form, budget: parseInt(e.target.value) || 0 })} />
+              <input type="text" inputMode="numeric" placeholder="Misal: 2jt, 500rb, 2.000.000" className="w-full pl-9 pr-3 py-2.5 border border-outline-variant/50 rounded-xl text-[13px] bg-surface-container-lowest outline-none focus:ring-2 focus:ring-primary/20" value={budgetText} onChange={(e) => onBudgetChange(e.target.value)} onBlur={onBudgetBlur} />
             </div>
+            {form.budget > 0 && !budgetErr && <p className="text-[10px] text-outline mt-1">→ Rp{fmtRupiah(form.budget)}</p>}
+            {budgetErr && <p className="text-[10px] text-amber-600 mt-1">{budgetErr}</p>}
           </div>
           <div>
             <label className="text-[11px] font-medium text-on-surface-variant mb-1 block">Minat (opsional)</label>
