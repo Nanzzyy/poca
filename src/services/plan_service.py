@@ -62,6 +62,12 @@ class PlanService:
         num_days = max(1, min(int(num_days or 2), 7))
         people = max(1, int(people or 1))
         plan_level = _level_from_budget(budget, num_days, people)
+        # Honour a tight budget: if the user forces a lower budget than what the
+        # level heuristic suggests, clamp everything to budget tier.
+        if budget and plan_level == "mid":
+            per_day_person = budget / num_days / people
+            if per_day_person < 300_000:
+                plan_level = "budget"
         cities = cities_for(location)
 
         cats = {c.name.lower(): c.id for c in await self.dest_repo.get_categories()}
@@ -101,10 +107,17 @@ class PlanService:
             return None
 
         for d in range(1, num_days + 1):
-            morning = take(attractions)
-            lunch = take(food)
-            afternoon = take(attractions)
-            dinner = take(food)
+            # Budget tier: fewer paid activities, more free/cheap defaults.
+            if plan_level == "budget":
+                morning = take(attractions)
+                afternoon = take(attractions)
+                lunch = take(food) if food else None
+                dinner = None  # free-form meal at the end
+            else:
+                morning = take(attractions)
+                lunch = take(food)
+                afternoon = take(attractions)
+                dinner = take(food)
 
             slots: list[tuple[Any, str]] = []  # (dest_or_None, time)
             if morning:
@@ -138,8 +151,11 @@ class PlanService:
             if not lunch:
                 activities.append(self._generic_meal("Makan siang (kuliner lokal)", "12:00", plan_level, people))
                 activities_total += activities[-1]["cost"]
-            if not dinner:
+            if not dinner and plan_level != "budget":
                 activities.append(self._generic_meal("Makan malam (kuliner lokal)", "18:30", plan_level, people))
+                activities_total += activities[-1]["cost"]
+            elif not dinner and plan_level == "budget":
+                activities.append(self._generic_meal("Makan malam (cari sendiri)", "18:30", "budget", people))
                 activities_total += activities[-1]["cost"]
 
             # order by time, then attach travel-time hints between consecutive stops

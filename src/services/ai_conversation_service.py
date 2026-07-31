@@ -156,11 +156,43 @@ def _detect_edit_intent(msg: str) -> bool:
 def _plan_intro_fallback(plan: dict, prefs: dict) -> str:
     loc = plan.get("location") or "Indonesia"
     total = int(plan["budget_estimate"]["total"])
-    return (
-        f"Ini dia rencana liburan {plan['num_days']} hari di {loc} buat {plan['people']} orang! 🗺️ "
-        f"Total perkiraan biaya sekitar Rp{total:,} ({plan['budget_fit']}). "
-        "Cek alur tiap hari di kartu di bawah — bisa langsung kamu simpan jadi trip. 😉"
+    bd = plan["budget_estimate"]["breakdown"]
+    acts = int(bd.get("activities", 0))
+    acc = int(bd.get("accommodation", 0))
+    trans = int(bd.get("transport", 0))
+    requested = plan.get("budget_requested")
+    fit = plan["budget_fit"]
+
+    base = (
+        f"Ini dia rencana liburan {plan['num_days']} hari di {loc} buat {plan['people']} orang! 🗺️\n\n"
+        f"💸 **Estimasi biaya**: Rp{total:,}\n"
+        f"• Aktivitas + makan: Rp{acts:,}\n"
+        f"• Penginapan: Rp{acc:,}\n"
+        f"• Transport lokal: Rp{trans:,}\n"
     )
+
+    if requested and fit == "over":
+        over_by = total - int(requested)
+        base += (
+            f"\n⚠️ **Over budget** Rp{over_by:,} dari yang kamu minta (Rp{int(requested):,}). "
+            "Itu karena biaya penginapan dan transport adalah biaya minimal yang realistis.\n\n"
+            "💡 **Biar sesuai budget, kamu bisa**:\n"
+            "• Kurangi durasi (hari lebih sedikit = lebih hemat)\n"
+            "• Pilih destinasi yang budget-friendly\n"
+            "• Ubah budget jadi lebih besar\n\n"
+            "Cek alur tiap hari di kartu di bawah, lalu edit rencana sesuai kebutuhan. "
+            "Simpan kalau sudah cocok! 😉"
+        )
+    elif requested:
+        delta = int(requested) - total
+        base += (
+            f"\n✅ Masih **hemat Rp{delta:,}** dari budget kamu. "
+            "Cek alur tiap hari di kartu di bawah — bisa langsung kamu simpan jadi trip. 😉"
+        )
+    else:
+        base += "Cek alur tiap hari di kartu di bawah — bisa langsung kamu simpan jadi trip. 😉"
+
+    return base
 
 
 class AIConversationService:
