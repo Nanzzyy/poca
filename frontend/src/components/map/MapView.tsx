@@ -38,8 +38,8 @@ function getIcon(type: string, categoryName?: string): L.DivIcon {
   const icon = L.divIcon({
     className: "poca-marker",
     html: `<div style="
-      width:36px;height:36px;background:${color};border:3px solid white;
-      border-radius:12px;box-shadow:0 3px 10px rgba(0,0,0,0.25);
+      width:36px;height:36px;background:${color};border:2px solid white;
+      border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,0.15);
       display:flex;align-items:center;justify-content:center;
       color:white;cursor:pointer;padding:4px;
     ">${svg}</div>`,
