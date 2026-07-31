@@ -5,8 +5,8 @@ export const dynamic = "force-dynamic";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLogin } from "@/lib/queries";
-import { useAuthStore } from "@/stores";
-import { useUIStore } from "@/stores";
+import { useAuthStore, useUIStore } from "@/stores";
+import { useQueryClient } from "@tanstack/react-query";
 import { Compass, LogIn, Eye, EyeOff } from "lucide-react";
 import { GoogleButton } from "@/components/ui/GoogleButton";
 
@@ -15,6 +15,7 @@ export default function LoginPage() {
   const login = useLogin();
   const setToken = useAuthStore((s) => s.setToken);
   const addToast = useUIStore((s) => s.addToast);
+  const qc = useQueryClient();
   const [email, setEmail] = useState("demo@poca.app");
   const [password, setPassword] = useState("demo123");
   const [showPw, setShowPw] = useState(false);
@@ -24,6 +25,9 @@ export default function LoginPage() {
     try {
       const result = await login.mutateAsync({ email, password });
       setToken(result.access_token);
+      // Flush all query caches so user-specific data (profile, favorites,
+      // liked posts, notifications) re-fetches with the new auth context.
+      qc.clear();
       addToast("Berhasil masuk!", "success");
       router.push("/");
     } catch (err: any) {

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useGoogleLogin } from "@/lib/queries";
 import { useAuthStore, useUIStore } from "@/stores";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 
 declare global {
   interface Window {
@@ -18,6 +19,7 @@ export function GoogleButton({ label = "Lanjutkan dengan Google" }: { label?: st
   const googleLogin = useGoogleLogin();
   const setToken = useAuthStore((s) => s.setToken);
   const addToast = useUIStore((s) => s.addToast);
+  const qc = useQueryClient();
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
@@ -80,6 +82,7 @@ export function GoogleButton({ label = "Lanjutkan dengan Google" }: { label?: st
     try {
       const result = await googleLogin.mutateAsync(response.credential);
       setToken(result.access_token);
+      qc.clear();
       addToast("Berhasil masuk dengan Google!", "success");
       router.push("/");
     } catch {

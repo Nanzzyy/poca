@@ -5,8 +5,8 @@ export const dynamic = "force-dynamic";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useRegister } from "@/lib/queries";
-import { useAuthStore } from "@/stores";
-import { useUIStore } from "@/stores";
+import { useAuthStore, useUIStore } from "@/stores";
+import { useQueryClient } from "@tanstack/react-query";
 import { Compass, UserPlus, Eye, EyeOff } from "lucide-react";
 import { GoogleButton } from "@/components/ui/GoogleButton";
 
@@ -15,6 +15,7 @@ export default function RegisterPage() {
   const register = useRegister();
   const setToken = useAuthStore((s) => s.setToken);
   const addToast = useUIStore((s) => s.addToast);
+  const qc = useQueryClient();
   const [form, setForm] = useState({ email: "", username: "", password: "" });
   const [showPw, setShowPw] = useState(false);
 
@@ -23,6 +24,7 @@ export default function RegisterPage() {
     try {
       const result = await register.mutateAsync(form);
       setToken(result.access_token);
+      qc.clear();
       addToast("Akun berhasil dibuat!", "success");
       router.push("/");
     } catch (err: any) {

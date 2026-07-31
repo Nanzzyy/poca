@@ -16,6 +16,9 @@ export const useAuthStore = create<AuthState>((set) => ({
   logout: () => {
     localStorage.removeItem("auth_token");
     set({ token: null });
+    // Force full reload so all React Query caches, zustand stores,
+    // and component state reset — avoids stale authed data sticking around.
+    window.location.href = "/";
   },
 }));
 
