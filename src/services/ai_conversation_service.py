@@ -126,6 +126,25 @@ def _extract_plan_params(msg: str) -> dict:
     return {"num_days": min(max(days, 1), 7), "people": max(people, 1), "budget": _parse_budget(msg)}
 
 
+EDIT_MARKERS = ("ubah", "edit", "ganti", "revisi", "perbaiki", "tambah", "kurangi", "sesuaikan", "modif", "susun ulang")
+
+
+def _detect_edit_intent(msg: str) -> bool:
+    """User wants to change an EXISTING plan (not create a new one)."""
+    m = msg.lower()
+    has_edit = any(marker in m for marker in EDIT_MARKERS)
+    # "buat rencana" etc. means new plan, not edit — plan-word alone doesn't count.
+    has_plan_ref = bool(re.search(r"\b(rencana|plan|itinerary|jadwal|trip|rute)\b", m))
+    # Concrete change without the word "rencana": "tambah 1 hari", "kurangi budget",
+    # "ganti ke kuliner". Only meaningful when a plan already exists (checked by caller).
+    has_concrete_change = has_edit and (
+        re.search(r"\d+\s*(hari|malam|days?|nights?)", m)   # tambah/kurangi N hari
+        or re.search(r"\d+\s*(juta|jt|ribu|rb|juta|jt)", m) # budget value
+        or re.search(r"\b(lokasi|budget|hari|minat|interest|orang|pax)\b", m)
+    )
+    return (has_edit and has_plan_ref) or has_concrete_change
+
+
 def _plan_intro_fallback(plan: dict, prefs: dict) -> str:
     loc = plan.get("location") or "Indonesia"
     total = int(plan["budget_estimate"]["total"])
@@ -194,9 +213,69 @@ class AIConversationService:
                 meta["plan"] = plan
                 meta["recommendations"] = [_dest_card(d) for d in used]
                 intro = await self._llm_wrap(history, user_message, prefs, destinations=used, plan=plan)
+                # Remember the plan so follow-up edits can modify it.
+                await self.conv_repo.update_context(conversation_id, {
+                    **context_data, "preferences": prefs, "last_topic": user_message[:80],
+                    "last_plan": plan,
+                })
                 return (intro or _plan_intro_fallback(plan, prefs)), meta
             # not enough destinations for the region -> fall through; the LLM/
             # fallback will honestly ask the user to confirm/narrow the region.
+
+        # 1.6) Edit intent on an existing plan -> modify it, asking what changed
+        #      if the request is ambiguous, otherwise rebuild with new params.
+        if _detect_edit_intent(user_message):
+            last_plan = context_data.get("last_plan")
+            if last_plan:
+                prev = dict(last_plan)
+                params = _extract_plan_params(user_message)
+                # Only override what the user actually changed; keep the rest from
+                # the previous plan (defaults like num_days=2 / people=1 would
+                # otherwise clobber the existing values).
+                prev_days = prev.get("num_days") or params["num_days"]
+                has_days = bool(re.search(r"\d+\s*(hari|malam|days?|nights?)", msg_lower))
+                # "tambah 1 hari" / "tambah 2 hari lagi" → add to existing duration.
+                add_match = re.search(r"(?:tambah|tambahkan|add)\s+(\d+)\s*(?:hari|malam|days?|nights?)", msg_lower)
+                if add_match:
+                    new_days = min(prev_days + int(add_match.group(1)), 7)
+                else:
+                    new_days = params["num_days"] if has_days else prev_days
+                has_people = bool(re.search(r"\d+\s*(orang|people|person|pax)", msg_lower))
+                new_people = params["people"] if has_people else prev.get("people", params["people"])
+                new_budget = params["budget"]
+                new_loc = loc or prev.get("location")
+
+                # Ambiguous edit (e.g. "ubah rencana" with no concrete change) -> ask.
+                if new_budget is None and new_loc == prev.get("location") and new_days == prev.get("num_days"):
+                    return (
+                        "Tentu! Mau diubah bagian apa dari rencana ini? 😊\n"
+                        "Misalnya: *\"ubah budget jadi Rp5 juta\"*, *\"tambah 1 hari\"*, "
+                        "*\"ganti lokasi ke Lombok\"*, atau *\"ganti minat ke kuliner\"*.",
+                        meta,
+                    )
+
+                plan, used = await PlanService(self.db).build_plan(
+                    num_days=new_days, location=new_loc, budget=new_budget,
+                    people=new_people, kw=kw, excluded=excluded_cats,
+                )
+                if used:
+                    meta["plan"] = plan
+                    meta["recommendations"] = [_dest_card(d) for d in used]
+                    intro = await self._llm_wrap(history, user_message, prefs, destinations=used, plan=plan)
+                    await self.conv_repo.update_context(conversation_id, {
+                        **context_data, "preferences": prefs, "last_topic": user_message[:80],
+                        "last_plan": plan,
+                    })
+                    return (intro or _plan_intro_fallback(plan, prefs)), meta
+                # Not enough destinations for the new params -> fall through.
+            else:
+                # No previous plan — tell user to make one first.
+                return (
+                    "Belum ada rencana yang bisa diedit. Buat dulu rencananya — "
+                    "misalnya *\"buatkan rencana 2 hari di Bali\"* — lalu bilang "
+                    "*\"ubah budgetnya\"* atau *\"tambah 1 hari\"*. 😊",
+                    meta,
+                )
 
         # 2) Recommendation intent -> attach destination cards from DB
         wants_reco = any(w in msg_lower for w in ("rekomendasi", "rekomend", "recommend", "usul", "saran", "ajak", "ide", "tempat", "wisata"))

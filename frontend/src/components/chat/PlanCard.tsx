@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Calendar, Users, Wallet, Clock, MapPin, Bookmark, Check, ArrowDown, Sparkles, CheckCircle2, XCircle, Pencil } from "lucide-react";
+import { Calendar, Users, Wallet, Clock, MapPin, Check, ArrowDown, Sparkles, CheckCircle2, XCircle, Pencil } from "lucide-react";
 import { useSavePlan, useUpdateTrip } from "@/lib/queries";
 import type { TripPlan } from "@/types";
 
@@ -23,7 +23,7 @@ const BAR_COLORS: Record<string, string> = {
   transport: "bg-cyan-400",
 };
 
-export function PlanCard({ plan }: { plan: TripPlan }) {
+export function PlanCard({ plan, onEdit }: { plan: TripPlan; onEdit?: () => void }) {
   const router = useRouter();
   const save = useSavePlan();
   const updateTrip = useUpdateTrip();
@@ -162,9 +162,9 @@ export function PlanCard({ plan }: { plan: TripPlan }) {
               {state === "saving" ? <><Clock className="w-4 h-4 animate-spin" /> Menyimpan...</> : <><Check className="w-4 h-4" /> Setujui</>}
             </button>
             <button
-              onClick={() => router.push("/chat")}
+              onClick={onEdit}
               className="flex flex-col items-center justify-center gap-1 py-2.5 rounded-xl bg-amber-50 text-amber-700 text-[11px] font-bold hover:bg-amber-100 transition-colors"
-              title="Ubah rencana di chat"
+              title="Ubah rencana — AI akan menanyakan perubahannya"
             >
               <Pencil className="w-4 h-4" /> Edit
             </button>

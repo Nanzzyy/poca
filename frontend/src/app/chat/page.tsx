@@ -135,6 +135,14 @@ export default function ChatPage() {
     setTimeout(() => handleSend(prompt), 100);
   };
 
+  // Edit plan → tell AI to modify the current plan; it will ask what changed
+  // (ambiguous) or apply the concrete change directly.
+  const handleEditPlan = (aiMsgId: string) => {
+    if (!activeConv) return;
+    setInput("Ubah rencana ini");
+    setTimeout(() => handleSend("Ubah rencana ini"), 100);
+  };
+
   const startRename = (id: string, summary?: string | null) => {
     setEditingId(id);
     setEditText(summary || "Percakapan baru");
@@ -287,7 +295,7 @@ export default function ChatPage() {
                   </div>
                   <div className="flex flex-col gap-3 w-full">
                     <div className="text-[14px] leading-relaxed text-on-surface"><FormattedText text={m.content} /></div>
-                    {m.msg_metadata?.plan && <PlanCard plan={m.msg_metadata.plan} />}
+                    {m.msg_metadata?.plan && <PlanCard plan={m.msg_metadata.plan} onEdit={() => handleEditPlan(m.id)} />}
                     {m.msg_metadata?.recommendations?.length > 0 && <RecommendationCards items={m.msg_metadata.recommendations} />}
 
                     {/* Refinement actions — show after plan */}
