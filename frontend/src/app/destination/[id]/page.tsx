@@ -14,10 +14,6 @@ import nextDynamic from "next/dynamic";
 const MapView = nextDynamic(() => import("@/components/map/MapView"), { ssr: false });
 
 
-const NEARBY_PLACES = [
-  { name: "Blue Point Beach", distance: "0.8 km away", tag: "Surfing Spot", img: "https://lh3.googleusercontent.com/aida-public/AB6AXuCyTDRVwdK_3tEaBNdGhW5YsC_w_vnEllbJzeaoBIBu7I_qSZyyKATy9wG_PAROzMtF-t7ncP16yHBEED0iuaFW4EEt_zllmENJw6tvWAIAwK5ZUG901D9HZxPYkGtLSCz8McaW6jAqIZ3adUXH-eDPkRjHiTwiiOeL7ADcPHD9-VTyGYg6EhY_7DY4uAkPacLFLeo7WWrY1vSjTZFrec82pA981g4XrvL-uxDGghVZoE5DYp0d4Syp" },
-  { name: "The Edge Restaurant", distance: "1.5 km away", tag: "Fine Dining", img: "https://lh3.googleusercontent.com/aida-public/AB6AXuCrPKYDpfkvvn7uI6GlEMy0xtA0X9wQJjM1AHyvGJReNM9vvDEtm0aHAEzZu2z7amNH2CDRtHf3Rn0C1K-WaOVQwzNXzm9JvEbbNwfqDEKAij0t6Wkvj5O7zB9RQlWL-_nzxpa18sCpPHJ05LRwynkMLP5ItaDBRyL7py0qKl6949OfDdAmrz1QRQPzXXhrUQJa63ZqLscJBjJNw7eET-wUhCclGrGFB8Qui052uTLIRW0IRShn9bWs" },
-];
 
 const SAMPLE_REVIEWS = [
   { name: "Elena Rodriguez", time: "2 days ago", rating: 5, text: "The sunset here is truly religious. Watching the Kecak dance as the sky turns purple was the highlight of my Bali trip. Just watch out for the monkeys, they stole my sunglasses!", avatar: "ER" },
@@ -220,14 +216,14 @@ export default function DestinationPage() {
             <div className="lg:col-span-4 space-y-6">
               <h3 className="text-[20px] font-bold">Nearby Places</h3>
               <div className="space-y-4">
-                {(nearby && nearby.length > 0 ? nearby : NEARBY_PLACES).slice(0, 3).map((place: any, i: number) => (
-                  <div key={i} className="group flex gap-4 items-center cursor-pointer">
+                {(nearby && nearby.length > 0 ? nearby : []).slice(0, 3).map((place: any, i: number) => (
+                  <div key={i} onClick={() => router.push(`/destination/${place.id}`)} className="group flex gap-4 items-center cursor-pointer">
                     <div className="w-20 h-20 rounded-xl overflow-hidden shrink-0 shadow-sm">
-                      <img className="w-full h-full object-cover group-hover:scale-110 transition-transform" src={place.img || "https://placehold.co/80x80"} alt={place.name} />
+                      <img className="w-full h-full object-cover group-hover:scale-110 transition-transform" src={destImage(place.images, place.name)} alt={place.name} />
                     </div>
                     <div>
                       <h4 className="text-[14px] font-bold group-hover:text-primary transition-colors">{place.name}</h4>
-                      <p className="text-[12px] text-on-surface-variant">{place.distance || `${place.city || "Nearby"}`}</p>
+                      <p className="text-[12px] text-on-surface-variant">{place.distance || place.city || "Nearby"}</p>
                     </div>
                   </div>
                 ))}

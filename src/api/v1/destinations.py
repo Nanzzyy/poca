@@ -63,10 +63,25 @@ async def get_nearby(
     dest_id: str,
     radius: float = Query(10, ge=1),
     db: AsyncSession = Depends(get_db),
-) -> list[DestinationList]:
+) -> list[dict]:
     repo = DestinationRepository(db)
     dests = await repo.get_nearby(dest_id, radius)
-    return [DestinationList.model_validate(d) for d in dests]
+    # Get source coordinates for distance calculation
+    source = await repo.get_by_id(dest_id)
+    src_lat, src_lng = (source.latitude, source.longitude) if source else (0, 0)
+    from math import radians, cos, sin, asin, sqrt
+    def haversine(lat1, lng1, lat2, lng2):
+        R = 6371
+        dlat, dlng = radians(lat2-lat1), radians(lng2-lng1)
+        a = sin(dlat/2)**2 + cos(radians(lat1))*cos(radians(lat2))*sin(dlng/2)**2
+        return round(R * 2 * asin(sqrt(a)), 1)
+
+    result = []
+    for d in dests:
+        item = DestinationList.model_validate(d).model_dump()
+        item["distance"] = f"{haversine(src_lat, src_lng, d.latitude, d.longitude)} km"
+        result.append(item)
+    return result
 
 
 @router.get("/{dest_id}/local-guide")
