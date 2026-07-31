@@ -1,14 +1,15 @@
 from datetime import datetime, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from jose import jwt
 import bcrypt
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.api.deps import get_db, require_user
+from src.api.deps import get_db, get_current_user, require_user
 from src.core.config import settings
 from src.domain.models.user import User
 from src.domain.schemas.user import (
+    PublicProfileResponse,
     TokenResponse,
     UserCreate,
     UserLogin,
@@ -18,6 +19,15 @@ from src.domain.schemas.user import (
 from src.domain.schemas.destination import DestinationList, PaginatedResponse
 from src.repositories.destination_repo import DestinationRepository
 from src.repositories.user_repo import UserRepository
+from src.domain.models.follower import Follower
+from src.domain.models.notification import Notification
+from src.domain.models.post import Post
+from src.domain.models.trip import Trip
+from src.domain.models.review import Review
+from src.domain.schemas.notification import NotificationResponse
+from src.repositories.notification_repo import NotificationRepository
+from src.services.notification_service import create_notification
+from sqlalchemy import func, select, delete
 
 def hash_password(password: str) -> str:
     return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
@@ -132,3 +142,154 @@ async def get_my_favorites(
     repo = DestinationRepository(db)
     dests = await repo.get_by_ids(fav_ids)
     return [DestinationList.model_validate(d) for d in dests]
+
+
+# ═══════════ PUBLIC PROFILES + FOLLOW ═══════════
+
+@router.get("/users/{user_id}")
+async def get_public_profile(
+    user_id: str,
+    viewer: User | None = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> PublicProfileResponse:
+    repo = UserRepository(db)
+    target = await repo.get_by_id(user_id)
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    counts = {}
+    for tbl, col in [(Follower, Follower.followee_id), (Follower, Follower.follower_id)]:
+        c = (await db.execute(select(func.count()).select_from(tbl).where(col == user_id))).scalar() or 0
+        if col is Follower.followee_id:
+            counts["followers_count"] = c
+        else:
+            counts["following_count"] = c
+    counts["posts_count"] = (await db.execute(select(func.count()).select_from(Post).where(Post.user_id == user_id))).scalar() or 0
+    counts["trips_count"] = (await db.execute(select(func.count()).select_from(Trip).where(Trip.user_id == user_id))).scalar() or 0
+    counts["reviews_count"] = (await db.execute(select(func.count()).select_from(Review).where(Review.user_id == user_id))).scalar() or 0
+
+    is_following = False
+    if viewer:
+        if str(viewer.id) == user_id:
+            is_following = False  # self — meaningless
+        else:
+            edge = await db.execute(
+                select(Follower).where(Follower.follower_id == viewer.id, Follower.followee_id == user_id)
+            )
+            is_following = edge.scalar_one_or_none() is not None
+
+    return PublicProfileResponse(
+        id=target.id,
+        username=target.username,
+        avatar_url=target.avatar_url,
+        level=target.level,
+        xp_total=target.xp_total,
+        created_at=target.created_at,
+        followers_count=counts["followers_count"],
+        following_count=counts["following_count"],
+        posts_count=counts["posts_count"],
+        trips_count=counts["trips_count"],
+        reviews_count=counts["reviews_count"],
+        is_following=is_following,
+        is_self=bool(viewer and str(viewer.id) == user_id),
+    )
+
+
+@router.post("/users/{user_id}/follow")
+async def toggle_follow(
+    user_id: str,
+    user: User = Depends(require_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    if str(user.id) == user_id:
+        raise HTTPException(status_code=400, detail="Cannot follow yourself")
+    repo = UserRepository(db)
+    target = await repo.get_by_id(user_id)
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    edge = await db.execute(
+        select(Follower).where(Follower.follower_id == user.id, Follower.followee_id == user_id)
+    )
+    existing = edge.scalar_one_or_none()
+    if existing:
+        await db.delete(existing)
+        await db.flush()
+        following = False
+    else:
+        db.add(Follower(follower_id=user.id, followee_id=user_id))
+        await db.flush()
+        following = True
+        await create_notification(
+            db,
+            user_id=user_id,
+            type="follow",
+            title=f"{user.username} mulai mengikutimu",
+            actor_id=user.id,
+            meta={"follower_id": str(user.id)},
+        )
+    return {"following": following}
+
+
+@router.get("/users/{user_id}/posts")
+async def get_user_posts(
+    user_id: str,
+    page: int = 1,
+    size: int = Query(10, ge=1, le=50),
+    db: AsyncSession = Depends(get_db),
+) -> PaginatedResponse:
+    repo = UserRepository(db)
+    if not await repo.get_by_id(user_id):
+        raise HTTPException(status_code=404, detail="User not found")
+    stmt = (
+        select(Post)
+        .where(Post.user_id == user_id)
+        .order_by(Post.created_at.desc())
+        .offset((page - 1) * size)
+        .limit(size)
+    )
+    items = list((await db.execute(stmt)).scalars().all())
+    total = (await db.execute(select(func.count()).select_from(Post).where(Post.user_id == user_id))).scalar() or 0
+    return PaginatedResponse(
+        items=[{"id": str(p.id), "content": p.content, "media": p.media, "like_count": p.like_count, "created_at": p.created_at} for p in items],
+        total=total, page=page, size=size, pages=(total + size - 1) // size,
+    )
+
+
+# ═══════════ NOTIFICATIONS ═══════════
+
+@router.get("/notifications")
+async def list_notifications(
+    limit: int = Query(50, ge=1, le=100),
+    user: User = Depends(require_user),
+    db: AsyncSession = Depends(get_db),
+) -> list[NotificationResponse]:
+    repo = NotificationRepository(db)
+    items = await repo.list_for_user(str(user.id), limit)
+    result = []
+    for n in items:
+        resp = NotificationResponse.model_validate(n)
+        if n.actor:
+            resp.actor_username = n.actor.username
+            resp.actor_avatar_url = n.actor.avatar_url
+        result.append(resp)
+    return result
+
+
+@router.get("/notifications/unread-count")
+async def get_unread_count(
+    user: User = Depends(require_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    repo = NotificationRepository(db)
+    return {"count": await repo.unread_count(str(user.id))}
+
+
+@router.post("/notifications/read-all")
+async def mark_all_read(
+    user: User = Depends(require_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    repo = NotificationRepository(db)
+    await repo.mark_all_read(str(user.id))
+    return {"ok": True}

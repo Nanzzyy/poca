@@ -2,9 +2,11 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api-client";
+import { useAuthStore } from "@/stores";
 import type {
   Destination, Category, Review, ReviewSummary, Trip, BudgetEstimate,
   Conversation, Message, User, UserStats, Achievement, PaginatedResponse, LocalGuide, TripPlan,
+  PublicProfile, AppNotification,
 } from "@/types";
 
 // Query key factory — keeps keys consistent across hooks
@@ -34,6 +36,12 @@ export const keys = {
     me: ["user", "me"] as const,
     stats: ["user", "stats"] as const,
     achievements: ["user", "achievements"] as const,
+    profile: (id: string) => ["user", "profile", id] as const,
+    userPosts: (id: string) => ["user", "posts", id] as const,
+  },
+  notifications: {
+    list: ["notifications"] as const,
+    unread: ["notifications", "unread"] as const,
   },
   leaderboard: ["leaderboard"] as const,
   map: (sw: string, ne: string) => ["map", sw, ne] as const,
@@ -187,9 +195,11 @@ export function useRegister() {
 }
 
 export function useProfile() {
+  const token = useAuthStore((s) => s.token);
   return useQuery({
     queryKey: keys.user.me,
     queryFn: () => api.get<User>("/users/me"),
+    enabled: !!token,
     staleTime: 300_000,
     gcTime: 600_000,
     retry: false,
@@ -233,6 +243,66 @@ export function useUpdatePreferences() {
     mutationFn: (preferences: Record<string, any>) =>
       api.put<User>("/users/me/preferences", { preferences }),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.user.me }),
+  });
+}
+
+// Public profile + follow
+export function usePublicProfile(userId: string) {
+  return useQuery({
+    queryKey: keys.user.profile(userId),
+    queryFn: () => api.get<PublicProfile>(`/users/${userId}`),
+    enabled: !!userId,
+    staleTime: 60_000,
+  });
+}
+
+export function useToggleFollow() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (userId: string) =>
+      api.post<{ following: boolean }>(`/users/${userId}/follow`),
+    onSuccess: (_, userId) => {
+      qc.invalidateQueries({ queryKey: keys.user.profile(userId) });
+      qc.invalidateQueries({ queryKey: keys.notifications.list });
+    },
+  });
+}
+
+export function useUserPosts(userId: string) {
+  return useQuery({
+    queryKey: keys.user.userPosts(userId),
+    queryFn: () => api.get<PaginatedResponse<any>>(`/users/${userId}/posts`),
+    enabled: !!userId,
+    staleTime: 60_000,
+  });
+}
+
+// Notifications
+export function useNotifications() {
+  return useQuery({
+    queryKey: keys.notifications.list,
+    queryFn: () => api.get<AppNotification[]>("/notifications"),
+    staleTime: 30_000,
+  });
+}
+
+export function useUnreadCount() {
+  return useQuery({
+    queryKey: keys.notifications.unread,
+    queryFn: () => api.get<{ count: number }>("/notifications/unread-count"),
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+  });
+}
+
+export function useMarkAllRead() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.post<{ ok: boolean }>("/notifications/read-all"),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: keys.notifications.list });
+      qc.invalidateQueries({ queryKey: keys.notifications.unread });
+    },
   });
 }
 

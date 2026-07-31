@@ -29,6 +29,22 @@ class UserResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class PublicProfileResponse(BaseModel):
+    id: UUID
+    username: str
+    avatar_url: Optional[str] = None
+    level: int = 1
+    xp_total: int = 0
+    created_at: datetime
+    followers_count: int = 0
+    following_count: int = 0
+    posts_count: int = 0
+    trips_count: int = 0
+    reviews_count: int = 0
+    is_following: bool = False
+    is_self: bool = False
+
+
 class UserPreferencesUpdate(BaseModel):
     preferences: dict[str, Any]
 

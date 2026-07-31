@@ -142,6 +142,36 @@ export interface User {
   created_at: string;
 }
 
+export interface PublicProfile {
+  id: string;
+  username: string;
+  avatar_url?: string;
+  level: number;
+  xp_total: number;
+  created_at: string;
+  followers_count: number;
+  following_count: number;
+  posts_count: number;
+  trips_count: number;
+  reviews_count: number;
+  is_following: boolean;
+  is_self: boolean;
+}
+
+export interface AppNotification {
+  id: string;
+  user_id: string;
+  actor_id?: string;
+  type: string;
+  title: string;
+  subtitle?: string;
+  meta: Record<string, any>;
+  is_read: boolean;
+  created_at: string;
+  actor_username?: string;
+  actor_avatar_url?: string;
+}
+
 export interface UserStats {
   level: number;
   xp_total: number;

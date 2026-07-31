@@ -6,6 +6,7 @@ import { Bell, User, Menu, X, Sparkles, Search } from "lucide-react";
 import { useState, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useAuthStore } from "@/stores";
+import { useUnreadCount } from "@/lib/queries";
 
 const links = [
   { href: "/", label: "Home" },
@@ -32,6 +33,7 @@ export function TopNav() {
   const showAuthed = mounted && token;
   // Map page has its own in-sidebar search — hide the global one there.
   const onMap = path?.startsWith("/map") ?? false;
+  const { data: unread } = useUnreadCount();
 
   return (
     <header className="fixed top-0 left-0 w-full z-50 bg-surface/80 backdrop-blur-md shadow-sm">
@@ -79,10 +81,15 @@ export function TopNav() {
 
           <Link
             href="/notifications"
-            className="p-2 text-on-surface-variant hover:bg-surface-container-low rounded-lg transition-transform active:scale-95"
+            className="relative p-2 text-on-surface-variant hover:bg-surface-container-low rounded-lg transition-transform active:scale-95"
             aria-label="Notifications"
           >
             <Bell className="w-5 h-5" />
+            {!!(unread?.count) && (
+              <span className="absolute top-0.5 right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-error text-white text-[9px] font-bold flex items-center justify-center">
+                {unread.count > 9 ? "9+" : unread.count}
+              </span>
+            )}
           </Link>
           <div className="h-8 w-px bg-outline-variant/30 mx-1 hidden sm:block" />
           {showAuthed ? (
