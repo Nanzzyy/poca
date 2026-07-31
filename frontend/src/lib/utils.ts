@@ -44,8 +44,8 @@ export function timeAgo(date: string | Date) {
 // cards never show a broken image. ponytail: replace with real photography when
 // the seed/DB ships curated image URLs.
 export function destImage(images?: string[] | null, name?: string | null): string {
-  const raw = images?.[0];
-  if (raw && !raw.includes("source.unsplash") && !raw.includes("placehold.co")) return raw;
+  // Avoid external image sources (all known CDN URLs are blocked by ORB / may be
+  // dead). Always serve a branded placeholder.
   const text = encodeURIComponent((name || "Poca").slice(0, 24));
   return `https://placehold.co/800x600/004ac6/ffffff?text=${text}`;
 }

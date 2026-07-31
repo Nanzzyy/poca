@@ -299,17 +299,21 @@ export function useUserPosts(userId: string) {
 
 // Notifications
 export function useNotifications() {
+  const token = useAuthStore((s) => s.token);
   return useQuery({
     queryKey: keys.notifications.list,
     queryFn: () => api.get<AppNotification[]>("/notifications"),
+    enabled: !!token,
     staleTime: 30_000,
   });
 }
 
 export function useUnreadCount() {
+  const token = useAuthStore((s) => s.token);
   return useQuery({
     queryKey: keys.notifications.unread,
     queryFn: () => api.get<{ count: number }>("/notifications/unread-count"),
+    enabled: !!token,
     staleTime: 30_000,
     refetchInterval: 60_000,
   });

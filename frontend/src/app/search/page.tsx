@@ -11,17 +11,17 @@ import { Star, MapPin, Sparkles, Heart, Compass } from "lucide-react";
 import { GridSkeleton, Loading } from "@/components/ui";
 
 const TRENDING = [
-  { name: "Mount Bromo, East Java", location: "Probolinggo, ID", img: "https://lh3.googleusercontent.com/aida-public/AB6AXuBSg2XQro9jhHhQVbs6F_j8KrwtZGjlhv6wJopLU107uPXPSsTq6jXaFZweTocpteIQz5OBUnXattz_q1z5u7ok0JD8BZo7exiqmwV9ROfuVxaYBNxbkD1WD-jqmWr0FavFCeXghimF-eg012zSGm0TFJQ4vSbuPHH76LIRC0yyZ9sD8huPdy3SIhlEMDTOXq-3RMmfSKWNoPkGXrNLxwhRQS9yjb1Vc-svOVVKpyLxSSmvu80kXKV9" },
-  { name: "Ubud Terraces, Bali", location: "Gianyar, ID", img: "https://lh3.googleusercontent.com/aida-public/AB6AXuC0INKx7CVH1vQe3lnrxIFI_2xS2aDXZwOAu-wHVtSNYAIcaj2hm-QtQTfkwnBA8sqAtpUsK1icTAeN7G6z6QokSmOfT60RtkdMPmITnLDin2_FxU4eQ2Z5u2P-bX3SX4wtAIASkUpf6EuTsrR3wHdO8htyPrg17qKmSwGE_-CEBcRpcQtIAfIRBLRYat76BuXkQ1Q3UnbiFs3NuxLUqHimrCHB89ijAQWYwoecsSjx1bpFhiIQFULz" },
+  { name: "Mount Bromo, East Java", location: "Probolinggo, ID" },
+  { name: "Ubud Terraces, Bali", location: "Gianyar, ID" },
 ];
 
 const AI_RECOS = [
-  { name: "Samosir, Danau Toba", location: "Sumatera Utara", price: "Rp 1.2jt", rating: 4.9, reviews: "1.2k", tags: ["BUDAYA", "ALAM"], desc: "Eksplorasi budaya Batak di tengah danau vulkanik terbesar di dunia.", img: "https://lh3.googleusercontent.com/aida-public/AB6AXuDAz0IiUMKNv3Ixs4IVzrsm7LxTm1vXc-8AV8Dt9B6bKLUVTm4T8HJaQxFf1NXiS3ihqmOMS0-VruTXQjFBRngZfWz5zo9kQAWHzAtKrkV3xyuganxuM4MDv6HYYd5nDtMphuLUCMkjHMLI2dp8K-fAz4yvQfAs0CdXIgLRoulV2ToKYKVsjYkG3sUcbwgAnIhUHGTsaKUianNBARooQaEP-3qZ_hF5n6xutH3n7AZCLSNXCH7M4uP0" },
-  { name: "Modern District, Tokyo", location: "Tokyo, JP", price: "Rp 8.5jt", rating: 4.8, reviews: "850", tags: ["URBAN", "TEKNOLOGI"], desc: "Perpaduan futuristik antara tradisi dan teknologi.", img: "https://lh3.googleusercontent.com/aida-public/AB6AXuCfwiX7zPHsnUmGwTmPU0OByYdbTNtFnovxk4Zq0xt5kLCKCJLLPu3hKT3fGHiunM0Qh2IC8IMmJod-TxZ_GJJxjvJqonmkTZ8HPhKqVPc8wF_yi1GtECh6kFtjPH4fDruJOUNobo8yCjYJwfAAf3bdb-g-cDJbmhVW0x5ogke2m_u9D0c3HORua2Bp6nK8_A8CRBpfkTtF4ql50VTXSJbU3UVDwlQyV1eKAxC_SqBXnZpGfRtrvLY" },
-  { name: "Secret Cove, El Nido", location: "Palawan, PH", price: "Rp 5.4jt", rating: 5.0, reviews: "340", tags: ["ADVENTURE", "RELAX"], desc: "Permata tersembunyi bagi pencari ketenangan total.", img: "https://lh3.googleusercontent.com/aida-public/AB6AXuD9KKuxj8C1fXc4xddqKiLn-LAiWTA2DHvuCx69oLyisFRaBNaONHB7jnO7QjeNSCoga7hI-EfLrJSMtvPcNzp2ENjIIe-Q873CJ8U_WkSzN3utU1Zv3HFrNpsE-Du5XjVrFW9HmLSdP_fEwp_Y7j6LvgS_JD9P2FVEMemFNlkSEkMl3lmNLADgeDW16dnNobuQueXYqWEjYTpmD5zgBg2qdYu5XNrCngr_A-VpCDFjO0wuyd1Eue6b" },
+  { name: "Samosir, Danau Toba", location: "Sumatera Utara", price: "Rp 1.2jt", rating: 4.9, reviews: "1.2k", tags: ["BUDAYA", "ALAM"], desc: "Eksplorasi budaya Batak di tengah danau vulkanik terbesar di dunia." },
+  { name: "Modern District, Tokyo", location: "Tokyo, JP", price: "Rp 8.5jt", rating: 4.8, reviews: "850", tags: ["URBAN", "TEKNOLOGI"], desc: "Perpaduan futuristik antara tradisi dan teknologi." },
+  { name: "Secret Cove, El Nido", location: "Palawan, PH", price: "Rp 5.4jt", rating: 5.0, reviews: "340", tags: ["ADVENTURE", "RELAX"], desc: "Permata tersembunyi bagi pencari ketenangan total." },
 ];
 
-const cardImg = (item: any) => (item.images ? destImage(item.images, item.name) : (item.img || destImage([], item.name)));
+const cardImg = (item: any) => destImage(item.images, item.name);
 
 function SearchContent() {
   const searchParams = useSearchParams();
@@ -70,7 +70,7 @@ function SearchContent() {
       <section className="relative rounded-none md:rounded-[2rem] overflow-hidden h-[500px] flex items-center justify-center text-center px-4 group mx-0 md:mx-4 md:mt-4">
         <div className="absolute inset-0 z-0">
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20 z-10" />
-          <img className="w-full h-full object-cover scale-105 group-hover:scale-100 transition-transform duration-1000" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDMgmqWl0KYFsPsXUHfbH6pzJZ3Q2rymEw31HOQXdslY7X66EMZXt03I_NNUlQ7xGyGR3Ozl8Qtk6DdzqaP6eupR0uL621GqDbADXF8jBs-5yVr2ta-lAi8cAGwq4q3LcW3wehwRv2N8wRnu4OW7OZBp7m5pw_Hc114ncFKo_vcWp1bAD9vRhMbRffx2rXI9c-8X7bEJnzzsFN7tqeS3SF_Lqjp5A50ymHiQ3XfgzM0-Pmn5Iq2vIQz" alt="" />
+          <div className="w-full h-full bg-gradient-to-br from-primary via-primary-container to-secondary" />
         </div>
         <div className="relative z-20 max-w-2xl text-white">
           <h1 className="text-[36px] font-bold mb-4 drop-shadow-lg">Temukan Destinasi Impian</h1>

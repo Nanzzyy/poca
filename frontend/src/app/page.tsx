@@ -9,8 +9,8 @@ import { Loading } from "@/components/ui";
 import type { Destination } from "@/types";
 
 const HERO_SLIDES = [
-  { src: "https://lh3.googleusercontent.com/aida-public/AB6AXuA06FlgT9AkfHd2LSz0WTSnf2KXdUrBJoBzTBN5HhERWbrTbFXsNwgUv-TrpSkvvJDzBG8d72RuQiWBow-avIMbOqZtXZ3YxqVFHOpj0ulAHNNSRjZWya2QtH2_I58hFAKLwwbXSvlZHarlIAUuye7Q-qHOXBSSl6b7FqGFgph4-o1aZcoj60QDrybMo8QomxNh3VVLVjZhJrI71nF5fP3hyTTzisb3dkWF11YSYhunFMJutJvrZyi", badge: "Trending", rating: "4.9 (2.4k reviews)", title: "Candi Borobudur, Magelang", desc: "Warisan dunia UNESCO yang megah." },
-  { src: "https://lh3.googleusercontent.com/aida-public/AB6AXuBcoLVNXwMErlwUAQVTKnjNBkdqJzBLhKyT7jTSTw4Y0DCvulcTY6eJKxUC_BMLk6fgJRXOxAsLJ6uggKYTQk-bykaonaARkCzy_2d0TTezEML27pbQ1kzgdUbolOKYVpF0_2g7sEp2F9rWRN71PQ47I1GHIOlpkR8Ahsh6KRd2xh_DB04OXfXgCa5mwe1KG3xbYfpkuRGXk4bEKOTOC5HHqG0Ekq-xG8UJdXP9nPlvrq6npyNPF7ht", badge: "RECOMMENDED", rating: "4.8 (1.2k reviews)", title: "Uluwatu, Bali", desc: "Pura megah di atas tebing dengan pemandangan sunset terbaik." },
+  { src: "", badge: "Trending", rating: "4.9 (2.4k reviews)", title: "Candi Borobudur, Magelang", desc: "Warisan dunia UNESCO yang megah." },
+  { src: "", badge: "RECOMMENDED", rating: "4.8 (1.2k reviews)", title: "Uluwatu, Bali", desc: "Pura megah di atas tebing dengan pemandangan sunset terbaik." },
 ];
 
 export default function Home() {
@@ -58,7 +58,13 @@ export default function Home() {
           <div className="relative group h-[480px]">
             <div className="absolute inset-0 bg-gradient-to-tr from-primary/10 to-secondary/10 rounded-2xl -rotate-2" />
             <div className="relative h-full w-full bg-white rounded-2xl shadow-lg overflow-hidden border border-outline-variant/30">
-              <img className="w-full h-full object-cover transition-opacity duration-500" src={slide.src} alt={slide.title} />
+              {slide.src ? (
+                <img className="w-full h-full object-cover transition-opacity duration-500" src={slide.src} alt={slide.title} />
+              ) : (
+                <div className="w-full h-full bg-gradient-to-br from-primary/80 via-primary to-secondary/80 flex items-center justify-center text-white">
+                  <Sparkles className="w-16 h-16 fill-current opacity-50" />
+                </div>
+              )}
               <div className="absolute bottom-0 left-0 w-full p-6 bg-gradient-to-t from-black/80 via-black/40 to-transparent">
                 <div className="flex items-center gap-2 mb-2">
                   <span className="px-2 py-0.5 bg-primary text-white text-[10px] font-bold rounded uppercase">{slide.badge}</span>

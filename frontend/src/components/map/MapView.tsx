@@ -30,31 +30,42 @@ const MARKER_COLORS: Record<string, string> = {
 
 // Memoized icon factory — cached by marker type
 const iconCache = new Map<string, L.DivIcon>();
-function getIcon(type: string, label?: string): L.DivIcon {
-  const key = `${type}-${label}`;
-  if (iconCache.has(key)) return iconCache.get(key)!;
+function getIcon(type: string, categoryName?: string): L.DivIcon {
   const color = MARKER_COLORS[type] || "#6b7280";
+  const key = `${type}-${categoryName}`;
+  if (iconCache.has(key)) return iconCache.get(key)!;
+  const svg = getIconSvg(categoryName || "");
   const icon = L.divIcon({
-    className: "",
+    className: "poca-marker",
     html: `<div style="
-      width:30px;height:30px;background:${color};border:3px solid white;
-      border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,0.3);
+      width:36px;height:36px;background:${color};border:3px solid white;
+      border-radius:12px;box-shadow:0 3px 10px rgba(0,0,0,0.25);
       display:flex;align-items:center;justify-content:center;
-      color:white;font-size:12px;font-weight:bold;cursor:pointer;
-    ">${label || "📍"}</div>`,
-    iconSize: [30, 30],
-    iconAnchor: [15, 30],
-    popupAnchor: [0, -34],
+      color:white;cursor:pointer;padding:4px;
+    ">${svg}</div>`,
+    iconSize: [36, 36],
+    iconAnchor: [18, 36],
+    popupAnchor: [0, -38],
   });
   iconCache.set(key, icon);
   return icon;
 }
 
-const ICON_MAP: Record<string, string> = {
-  pantai: "🏖", candi: "🏛", gunung: "⛰", kuliner: "🍽",
-  budaya: "🎭", alam: "🌲", belanja: "🛍", hiburan: "🎪",
+// Minimal SVG icons per category — unique, clean geometric shapes, no emoji.
+const ICON_SVG: Record<string, string> = {
+  pantai: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 16c2-1 5-2 8-1s6 1 9 0"/><path d="M5 12c3-1 5 0 8-1s6 1 8 0"/><circle cx="8" cy="8" r="1.5"/></svg>`,
+  candi: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="6" width="18" height="14" rx="2"/><line x1="9" y1="2" x2="9" y2="6"/><line x1="15" y1="2" x2="15" y2="6"/><line x1="4" y1="13" x2="20" y2="13"/></svg>`,
+  gunung: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 20L8 6l4 7 3-4 5 11H2z"/></svg>`,
+  kuliner: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><line x1="8" y1="12" x2="16" y2="12"/></svg>`,
+  budaya: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="4"/><circle cx="10" cy="10" r="2"/><circle cx="14" cy="14" r="2"/></svg>`,
+  alam: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22V8"/><path d="M5 12c0-5 3-10 7-10s7 5 7 10c0 3-3 7-7 7s-7-4-7-7z"/><circle cx="12" cy="8" r="3"/></svg>`,
+  belanja: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="6" width="12" height="14" rx="2"/><path d="M9 6V4a2 2 0 012-2h2a2 2 0 012 2v2"/></svg>`,
+  hiburan: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15 9 22 9 16 14 18 21 12 17 6 21 8 14 2 9 9 9"/></svg>`,
+  penginapan: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="12" width="18" height="8" rx="2"/><path d="M5 12V7a3 3 0 016 0v5"/></svg>`,
+  wisata: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="10" r="7"/><path d="M12 3v4"/><path d="M12 17v4"/><line x1="5" y1="10" x2="7" y2="10"/><line x1="17" y1="10" x2="19" y2="10"/></svg>`,
+  default: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="10" r="3"/><path d="M12 2v4"/><path d="M12 13v9"/></svg>`,
 };
-function getLabel(name: string) { return ICON_MAP[name.toLowerCase()] || "📍"; }
+function getIconSvg(name: string): string { return ICON_SVG[name.toLowerCase()] || ICON_SVG.default; }
 
 interface MapMarkerData {
   id: string; name: string; latitude: number; longitude: number;
@@ -271,7 +282,7 @@ export default function MapView({
           <Marker
             key={m.id}
             position={[m.latitude, m.longitude]}
-            icon={getIcon(m.marker_type || m.category_name || "default", getLabel(m.category_name || ""))}
+            icon={getIcon(m.marker_type || m.category_name || "default", m.category_name || "")}
             eventHandlers={onMarkerClick ? { click: () => onMarkerClick(m) } : undefined}
           />
         ))}
