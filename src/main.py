@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from src.core.config import settings
 from src.core.redis import init_redis, close_redis
 from src.api.v1 import (
+    admin,
     destinations,
     map,
     users,
@@ -59,3 +60,4 @@ app.include_router(ai_conversation.router, prefix=settings.api_prefix)
 app.include_router(gamification.router, prefix=settings.api_prefix)
 app.include_router(places.router, prefix=settings.api_prefix)
 app.include_router(posts.router, prefix=settings.api_prefix)
+app.include_router(admin.router, prefix=settings.api_prefix)
