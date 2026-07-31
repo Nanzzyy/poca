@@ -15,6 +15,8 @@ from src.domain.schemas.review import (
 from src.domain.schemas.destination import PaginatedResponse
 from src.repositories.review_repo import ReviewRepository
 from src.services.review_service import ReviewService
+from src.services.gamification_service import GamificationService
+from src.services.notification_service import create_notification
 
 router = APIRouter(tags=["reviews"])
 
@@ -109,6 +111,20 @@ async def create_review(
 
     svc = ReviewService(db)
     await svc.on_review_created(dest_id)
+
+    # XP + achievement check on review creation.
+    user.xp_total = (user.xp_total or 0) + 10
+    gam = GamificationService(db)
+    unlocked = await gam.check_achievements(str(user.id))
+    for ach in unlocked:
+        await create_notification(
+            db,
+            user_id=str(user.id),
+            type="achievement",
+            title=f"Achievement dibuka: {ach.name}",
+            subtitle=ach.description or "",
+            meta={"achievement_code": ach.code},
+        )
 
     result = ReviewResponse.model_validate(review)
     result.username = user.username

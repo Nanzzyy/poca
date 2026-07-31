@@ -18,6 +18,8 @@ from src.repositories.trip_repo import TripRepository
 from src.repositories.destination_repo import DestinationRepository
 from src.services.budget_service import BudgetService
 from src.services.trip_planner_service import TripPlannerService
+from src.services.gamification_service import GamificationService
+from src.services.notification_service import create_notification
 
 router = APIRouter(prefix="/trips", tags=["trips"])
 
@@ -39,6 +41,21 @@ async def create_trip(
     )
     repo = TripRepository(db)
     trip = await repo.create(trip)
+
+    # XP + achievement check on trip creation.
+    user.xp_total = (user.xp_total or 0) + 25
+    gam = GamificationService(db)
+    unlocked = await gam.check_achievements(str(user.id))
+    for ach in unlocked:
+        await create_notification(
+            db,
+            user_id=str(user.id),
+            type="achievement",
+            title=f"Achievement dibuka: {ach.name}",
+            subtitle=ach.description or "",
+            meta={"achievement_code": ach.code},
+        )
+
     return TripResponse.model_validate(trip)
 
 
