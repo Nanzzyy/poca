@@ -116,6 +116,13 @@ export default function ProfilePage() {
               <Share2 className="w-4 h-4" />
               <span className="text-[14px] font-semibold">Share</span>
             </button>
+            <button
+              onClick={() => { logout(); router.push("/"); }}
+              className="flex items-center gap-2 px-5 py-3 rounded-xl border border-error/30 bg-surface-container-lowest text-error hover:bg-error/5 transition-all active:scale-95 shadow-sm"
+            >
+              <LogOut className="w-4 h-4" />
+              <span className="text-[14px] font-semibold">Keluar</span>
+            </button>
           </div>
         </header>
 

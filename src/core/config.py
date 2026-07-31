@@ -25,6 +25,9 @@ class Settings(BaseSettings):
     ai_model: str = "gemini/gemini-2.0-flash"
     ai_api_key: str = ""
 
+    # Google OAuth
+    google_client_id: str = ""
+
     # Google Places
     google_places_api_key: str = ""
 

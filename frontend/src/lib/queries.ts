@@ -214,6 +214,13 @@ export function useRegister() {
   });
 }
 
+export function useGoogleLogin() {
+  return useMutation({
+    mutationFn: (credential: string) =>
+      api.post<{ access_token: string; user: User }>("/auth/google", { credential }),
+  });
+}
+
 export function useProfile() {
   const token = useAuthStore((s) => s.token);
   return useQuery({

@@ -8,6 +8,7 @@ import { useLogin } from "@/lib/queries";
 import { useAuthStore } from "@/stores";
 import { useUIStore } from "@/stores";
 import { Compass, LogIn, Eye, EyeOff } from "lucide-react";
+import { GoogleButton } from "@/components/ui/GoogleButton";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -72,6 +73,13 @@ export default function LoginPage() {
             <LogIn className="w-4 h-4" />
             {login.isPending ? "Masuk..." : "Masuk"}
           </button>
+
+          <div className="relative my-4">
+            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-outline-variant/30" /></div>
+            <div className="relative flex justify-center"><span className="bg-background px-3 text-[11px] text-on-surface-variant">atau</span></div>
+          </div>
+
+          <GoogleButton label="Lanjutkan dengan Google" />
         </form>
         <p className="text-center text-body-sm text-on-surface-variant mt-5">
           Belum punya akun?{" "}

@@ -2,11 +2,11 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Bell, User, Menu, X, Sparkles, Search } from "lucide-react";
-import { useState, useEffect } from "react";
+import { Bell, User, Menu, X, Sparkles, Search, LogOut } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useAuthStore } from "@/stores";
-import { useUnreadCount } from "@/lib/queries";
+import { useUnreadCount, useProfile } from "@/lib/queries";
 
 const links = [
   { href: "/", label: "Home" },
@@ -31,9 +31,22 @@ export function TopNav() {
   };
 
   const showAuthed = mounted && token;
+  const { data: user } = useProfile();
+  const logout = useAuthStore((s) => s.logout);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
   // Map page has its own in-sidebar search — hide the global one there.
   const onMap = path?.startsWith("/map") ?? false;
   const { data: unread } = useUnreadCount();
+
+  // Close menu on click outside
+  useEffect(() => {
+    const on = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setUserMenuOpen(false);
+    };
+    document.addEventListener("mousedown", on);
+    return () => document.removeEventListener("mousedown", on);
+  }, []);
 
   return (
     <header className="fixed top-0 left-0 w-full z-50 bg-surface/80 backdrop-blur-md shadow-sm">
@@ -93,26 +106,42 @@ export function TopNav() {
           </Link>
           <div className="h-8 w-px bg-outline-variant/30 mx-1 hidden sm:block" />
           {showAuthed ? (
-            <Link
-              href="/profile"
-              className="w-10 h-10 rounded-full bg-surface-container-high border border-outline-variant overflow-hidden flex items-center justify-center text-on-surface-variant"
-            >
-              <User className="w-5 h-5" />
-            </Link>
-          ) : (
-            <>
-              <Link
-                href="/auth/login"
-                className="hidden sm:block text-[14px] leading-[1.5] px-4 py-2 text-on-surface-variant hover:bg-surface-container-low rounded-lg transition-colors"
+            <div className="relative" ref={menuRef}>
+              <button
+                onClick={() => setUserMenuOpen(o => !o)}
+                className="w-10 h-10 rounded-full bg-surface-container-high border border-outline-variant overflow-hidden flex items-center justify-center text-on-surface-variant hover:border-primary/30 transition-colors"
               >
-                Login
-              </Link>
-              <div className="w-10 h-10 rounded-full bg-surface-container-high border border-outline-variant overflow-hidden">
-                <div className="w-full h-full flex items-center justify-center text-on-surface-variant">
-                  <User className="w-5 h-5" />
+                {(user?.username || "U")[0].toUpperCase()}
+              </button>
+              {userMenuOpen && (
+                <div className="absolute top-full right-0 mt-2 w-48 bg-surface-container-lowest rounded-xl shadow-xl border border-outline-variant/30 py-1 z-[200]">
+                  <div className="px-4 py-2 border-b border-outline-variant/20">
+                    <p className="text-[13px] font-bold text-on-surface">{user?.username || "User"}</p>
+                    <p className="text-[10px] text-on-surface-variant truncate">{user?.email}</p>
+                  </div>
+                  <Link
+                    href="/profile"
+                    onClick={() => setUserMenuOpen(false)}
+                    className="flex items-center gap-2 px-4 py-2.5 text-[13px] text-on-surface-variant hover:bg-surface-container-low transition-colors"
+                  >
+                    <User className="w-4 h-4" /> Profil Saya
+                  </Link>
+                  <button
+                    onClick={() => { logout(); setUserMenuOpen(false); router.push("/"); }}
+                    className="flex items-center gap-2 px-4 py-2.5 text-[13px] text-on-surface-variant hover:bg-error/10 hover:text-error transition-colors w-full"
+                  >
+                    <LogOut className="w-4 h-4" /> Keluar
+                  </button>
                 </div>
-              </div>
-            </>
+              )}
+            </div>
+          ) : (
+            <Link
+              href="/auth/login"
+              className="text-[14px] leading-[1.5] px-4 py-2 text-on-surface-variant hover:bg-surface-container-low rounded-lg transition-colors font-bold"
+            >
+              Masuk
+            </Link>
           )}
 
           <button
