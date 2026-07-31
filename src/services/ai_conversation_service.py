@@ -97,15 +97,22 @@ def _detect_plan_intent(msg: str) -> bool:
 
 def _parse_budget(msg: str) -> float | None:
     m = msg.lower()
+    # "5 juta" / "5 jt" → 5,000,000
     mj = re.search(r"(\d+(?:[.,]\d+)?)\s*(juta|jt)", m)
     if mj:
         return float(mj.group(1).replace(",", ".")) * 1_000_000
-    mr = re.search(r"(\d+(?:[.,]\d+)?)\s*(ribu|rb|ratus|k)", m)
+    # "200 ribu" / "200 rb" / "200k" → 200,000
+    mr = re.search(r"(\d+(?:[.,]\d+)?)\s*(ribu|rb|ratus|k)\b", m)
     if mr:
         return float(mr.group(1).replace(",", ".")) * 1_000
-    mrp = re.search(r"(?:rp\.?\s*)?(\d{6,})", m)
+    # "Rp 200.000" / "Rp200.000" / "200.000" (dot-separated rupiah)
+    mrp = re.search(r"(?:rp\.?\s*)?(\d{1,3}(?:[.,]\d{3})+)", m)
     if mrp:
-        return float(mrp.group(1))
+        return float(mrp.group(1).replace(".", "").replace(",", ""))
+    # "200000" (6+ consecutive digits — raw rupiah)
+    mraw = re.search(r"(?:rp\.?\s*)?(\d{4,})", m)
+    if mraw:
+        return float(mraw.group(1))
     return None
 
 
