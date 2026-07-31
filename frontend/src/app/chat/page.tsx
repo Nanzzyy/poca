@@ -59,6 +59,14 @@ export default function ChatPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // Auto-dismiss planner form once the conversation has real messages
+  // (the plan card or AI response appeared).
+  useEffect(() => {
+    if (messages.length > 0 && showPlanner) {
+      setShowPlanner(false);
+    }
+  }, [messages, showPlanner]);
+
   const prevConvRef = useRef<string | null>(activeConv);
   useEffect(() => {
     if (showSidebar && prevConvRef.current !== activeConv) setShowSidebar(false);
@@ -126,7 +134,8 @@ export default function ChatPage() {
     if (initialMsg) {
       await sendMessage(result.id, initialMsg);
     }
-    setShowPlanner(false);
+    // Don't dismiss the planner until the conversation visibly has messages
+    // (prevents the blank flash before the plan card appears).
   };
 
   // Handle plan generation from PlanInputForm
@@ -140,6 +149,10 @@ export default function ChatPage() {
     prompt += `. Berikan detail aktivitas per hari, estimasi biaya, dan rekomendasi tempat.`;
     await startNewChat(prompt);
     setPlanLoading(false);
+    // Stay in planner mode until the plan card appears — prevents
+    // the blank-screen gap between sending and rendering the plan.
+    // Dismissed by the sendMsg.isPending→!isPending transition
+    // (the typing indicator + plan card handle the visual).
   };
 
   // Handle refinement clicks

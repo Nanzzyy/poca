@@ -386,8 +386,8 @@ export function useSendMessage() {
   return useMutation({
     mutationFn: ({ convId, content, attachment }: { convId: string; content: string; attachment?: string }) =>
       api.post<Message>(`/ai/conversations/${convId}/messages`, { content, attachment }),
-    // Show the user's bubble instantly — don't wait for the AI reply (which is
-    // what the POST resolves to). Server reconciles on success.
+    // Show the user's bubble instantly, then insert the AI reply from the
+    // response directly (avoids a re-fetch gap that hides the plan card).
     onMutate: async ({ convId, content }) => {
       const key = keys.chat.messages(convId);
       await qc.cancelQueries({ queryKey: key });
@@ -405,15 +405,32 @@ export function useSendMessage() {
           messages: [...(prev.messages ?? []), optimistic],
         });
       }
-      return { prev };
+      return { prev, key };
     },
     onError: (_e, { convId }, ctx) => {
-      // Roll back the optimistic user bubble on failure
       if (ctx?.prev) qc.setQueryData(keys.chat.messages(convId), ctx.prev);
     },
-    onSuccess: (_data, { convId }) => {
-      // Refetch messages (picks up the AI reply) + refresh sidebar (summary/order)
-      qc.invalidateQueries({ queryKey: keys.chat.messages(convId) });
+    onSuccess: (aiMsg, { convId, content }, ctx) => {
+      // Keep the user message (replace optimistic ID with real) + append AI reply.
+      const key = (ctx as any)?.key || keys.chat.messages(convId);
+      const prev = qc.getQueryData<Conversation>(key);
+      if (prev) {
+        const real = prev.messages.filter((m: any) => !String(m.id).startsWith("opt-"));
+        // The optimistic user bubble is removed in the filter above;
+        // re-add a real-looking user message so it doesn't disappear.
+        const userMsg: Message = {
+          id: `user-${Date.now()}`,
+          conversation_id: convId,
+          role: "user",
+          content,
+          created_at: new Date().toISOString(),
+        };
+        qc.setQueryData<Conversation>(key, {
+          ...prev,
+          messages: [...real, userMsg, aiMsg],
+        });
+      }
+      // Refresh sidebar (summary/order) + eventual consistency.
       qc.invalidateQueries({ queryKey: keys.chat.conversations });
     },
   });
