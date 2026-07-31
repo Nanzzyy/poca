@@ -13,6 +13,15 @@ class DestinationRepository:
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
+    async def get_by_ids(self, dest_ids: list[str]) -> list[Destination]:
+        stmt = (
+            select(Destination)
+            .where(Destination.id.in_(dest_ids), Destination.is_active == True)
+            .options(selectinload(Destination.category))
+        )
+        result = await self.db.execute(stmt)
+        return list(result.scalars().all())
+
     async def get_by_slug(self, slug: str) -> Destination | None:
         stmt = select(Destination).where(Destination.slug == slug).options(selectinload(Destination.category))
         result = await self.db.execute(stmt)

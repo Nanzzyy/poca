@@ -27,8 +27,9 @@ export function PostCard({ post }: { post: Post }) {
   const isAiCurated = post.like_count > 1000;
 
   return (
-    <div className={`bg-surface-container-lowest rounded-xl overflow-hidden shadow-sm border ${isAiCurated ? "border-secondary/20" : "border-outline-variant/10"} hover:shadow-lg transition-shadow duration-300`}
+    <div className={`bg-surface-container-lowest rounded-xl overflow-hidden shadow-sm border ${isAiCurated ? "border-secondary/20" : "border-outline-variant/10"} hover:shadow-lg transition-shadow duration-300 cursor-pointer`}
       style={isAiCurated ? { boxShadow: "inset 0 0 12px rgba(113, 42, 226, 0.1), 0 4px 6px -1px rgba(0,0,0,0.1)" } : {}}
+      onClick={() => router.push(`/feed/${post.id}`)}
     >
       {/* AI Curated Badge */}
       {isAiCurated && (
@@ -49,7 +50,7 @@ export function PostCard({ post }: { post: Post }) {
             <p className="text-[10px] text-outline">{timeAgo(post.created_at)}{post.destination_id ? " • " + (post as any).location || "" : ""}</p>
           </div>
         </div>
-        <button className="text-outline hover:text-on-surface transition-colors">
+        <button onClick={(e) => e.stopPropagation()} className="text-outline hover:text-on-surface transition-colors">
           <MoreHorizontal className="w-5 h-5" />
         </button>
       </div>
@@ -78,16 +79,16 @@ export function PostCard({ post }: { post: Post }) {
         {/* Actions */}
         <div className="flex items-center justify-between border-t border-outline-variant/10 pt-3 mt-2">
           <div className="flex gap-4">
-            <button onClick={onLike} className={`flex items-center gap-1.5 transition-all active:scale-[0.95] ${liked ? "text-primary" : "text-on-surface-variant hover:text-primary"}`}>
+            <button onClick={(e) => { e.stopPropagation(); onLike(); }} className={`flex items-center gap-1.5 transition-all active:scale-[0.95] ${liked ? "text-primary" : "text-on-surface-variant hover:text-primary"}`}>
               <Heart className={`w-4 h-4 ${liked ? "fill-current" : ""}`} />
               <span className="text-[12px] font-bold">{post.like_count + (liked && !post.liked_by_me ? 1 : 0)}{post.like_count > 999 ? "k" : ""}</span>
             </button>
-            <button onClick={() => setShowComments((s) => !s)} className="flex items-center gap-1.5 text-on-surface-variant hover:text-primary transition-colors active:scale-[0.95]">
+            <button onClick={(e) => { e.stopPropagation(); setShowComments((s) => !s); }} className="flex items-center gap-1.5 text-on-surface-variant hover:text-primary transition-colors active:scale-[0.95]">
               <MessageSquare className="w-4 h-4" />
               <span className="text-[12px] font-bold">{post.comment_count}</span>
             </button>
           </div>
-          <button className="text-on-surface-variant hover:text-primary transition-colors active:scale-[0.95]">
+          <button onClick={(e) => { e.stopPropagation(); }} className="text-on-surface-variant hover:text-primary transition-colors active:scale-[0.95]">
             <Share2 className="w-4 h-4" />
           </button>
         </div>

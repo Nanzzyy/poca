@@ -44,6 +44,7 @@ export interface Review {
   created_at: string;
   username?: string;
   avatar_url?: string;
+  destination_name?: string;
 }
 
 export interface ReviewSummary {

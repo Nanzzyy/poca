@@ -6,7 +6,7 @@ import { useState, useEffect, useMemo } from "react";
 import nextDynamic from "next/dynamic";
 import { useMapMarkers, useSearchDestinations, useCategories } from "@/lib/queries";
 import { useRouter } from "next/navigation";
-import { Star, MapPin, X, Navigation, Bell, Plus, Minus, Layers, Search, Compass, Sparkles, ArrowRight, Locate } from "lucide-react";
+import { Star, MapPin, X, Navigation, Search, Compass, Sparkles, ArrowRight } from "lucide-react";
 import { CategoryIcon } from "@/components/ui";
 import type { Destination } from "@/types";
 
@@ -245,20 +245,6 @@ export default function MapPage() {
             className="h-full w-full"
           />
 
-          {/* Map Controls (Top Right) */}
-          <div className="absolute top-5 right-5 flex flex-col gap-2 z-20">
-            <div className="bg-white/80 backdrop-blur-md rounded-xl p-1 flex flex-col shadow-lg border border-white/30">
-              <button className="p-2 hover:bg-surface-container-high rounded-lg text-on-surface-variant transition-colors"><Plus className="w-5 h-5" /></button>
-              <div className="h-px bg-outline-variant/30 mx-2" />
-              <button className="p-2 hover:bg-surface-container-high rounded-lg text-on-surface-variant transition-colors"><Minus className="w-5 h-5" /></button>
-            </div>
-            <button className="bg-white/80 backdrop-blur-md w-12 h-12 rounded-xl shadow-lg border border-white/30 flex items-center justify-center text-on-surface-variant hover:text-primary transition-all active:scale-95">
-              <Locate className="w-5 h-5" />
-            </button>
-            <button className="bg-white/80 backdrop-blur-md w-12 h-12 rounded-xl shadow-lg border border-white/30 flex items-center justify-center text-on-surface-variant hover:text-primary transition-all active:scale-95">
-              <Layers className="w-5 h-5" />
-            </button>
-          </div>
 
           {/* AI Insight Floating Badge */}
           <div className="absolute bottom-5 left-1/2 -translate-x-1/2 z-20 max-w-[600px] w-full px-4">

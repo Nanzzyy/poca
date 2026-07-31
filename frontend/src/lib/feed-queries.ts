@@ -65,6 +65,15 @@ export function useComments(postId: string, enabled = true) {
   });
 }
 
+export function usePost(postId: string) {
+  return useQuery({
+    queryKey: ["posts", postId],
+    queryFn: () => api.get<Post>(`/posts/${postId}`),
+    enabled: !!postId,
+    staleTime: 30_000,
+  });
+}
+
 export function useCreateComment(postId: string) {
   const qc = useQueryClient();
   return useMutation({

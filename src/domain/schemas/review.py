@@ -39,6 +39,7 @@ class ReviewResponse(BaseModel):
     created_at: datetime
     username: Optional[str] = None
     avatar_url: Optional[str] = None
+    destination_name: Optional[str] = None
 
     model_config = {"from_attributes": True}
 

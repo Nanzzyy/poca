@@ -15,6 +15,8 @@ from src.domain.schemas.user import (
     UserPreferencesUpdate,
     UserResponse,
 )
+from src.domain.schemas.destination import DestinationList, PaginatedResponse
+from src.repositories.destination_repo import DestinationRepository
 from src.repositories.user_repo import UserRepository
 
 def hash_password(password: str) -> str:
@@ -115,3 +117,18 @@ async def toggle_favorite(
     repo = UserRepository(db)
     await repo.update(user)
     return {"favorited": favorited, "favorite_ids": favs}
+
+
+# Return full destination data for user's saved (favorited) destinations.
+@router.get("/users/me/favorites")
+async def get_my_favorites(
+    user: User = Depends(require_user),
+    db: AsyncSession = Depends(get_db),
+) -> list[DestinationList]:
+    prefs: dict = dict(user.preferences or {})
+    fav_ids: list[str] = list(prefs.get("favorite_ids") or [])
+    if not fav_ids:
+        return []
+    repo = DestinationRepository(db)
+    dests = await repo.get_by_ids(fav_ids)
+    return [DestinationList.model_validate(d) for d in dests]

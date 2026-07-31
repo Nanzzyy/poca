@@ -211,6 +211,22 @@ export function useToggleFavorite() {
   });
 }
 
+export function useMyFavorites() {
+  return useQuery({
+    queryKey: ["user", "favorites"],
+    queryFn: () => api.get<Destination[]>("/users/me/favorites"),
+    staleTime: 60_000,
+  });
+}
+
+export function useMyReviews(page = 1) {
+  return useQuery({
+    queryKey: ["reviews", "my", page],
+    queryFn: () => api.get<PaginatedResponse<Review>>("/reviews/my", { params: { page } }),
+    staleTime: 60_000,
+  });
+}
+
 export function useUpdatePreferences() {
   const qc = useQueryClient();
   return useMutation({
@@ -343,6 +359,14 @@ export function useAchievements() {
     queryKey: keys.user.achievements,
     queryFn: () => api.get<Achievement[]>("/gamification/achievements"),
     staleTime: 300_000,
+  });
+}
+
+export function useMyAchievements() {
+  return useQuery({
+    queryKey: ["user", "my-achievements"],
+    queryFn: () => api.get<any[]>("/gamification/users/me/achievements"),
+    staleTime: 120_000,
   });
 }
 

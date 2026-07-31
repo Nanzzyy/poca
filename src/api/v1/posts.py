@@ -24,6 +24,18 @@ def _to_post_response(p: Post) -> PostResponse:
     return resp
 
 
+@router.get("/posts/{post_id}")
+async def get_post(
+    post_id: str,
+    db: AsyncSession = Depends(get_db),
+) -> PostResponse:
+    repo = PostRepository(db)
+    post = await repo.get_by_id(post_id)
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    return _to_post_response(post)
+
+
 @router.get("/posts")
 async def list_posts(
     page: int = Query(1, ge=1),

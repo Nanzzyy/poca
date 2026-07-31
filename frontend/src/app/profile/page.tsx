@@ -3,9 +3,9 @@
 export const dynamic = "force-dynamic";
 
 import { useRouter } from "next/navigation";
-import { useProfile, useUserStats, useTrips, useAchievements, useLeaderboard } from "@/lib/queries";
+import { useProfile, useUserStats, useTrips, useAchievements, useLeaderboard, useMyFavorites, useMyReviews, useMyAchievements } from "@/lib/queries";
 import { useAuthStore } from "@/stores";
-import { User, Trophy, Star, LogOut, MapPin, Sparkles, Compass, TrendingUp, Edit3, Share2, Search, Bell, Settings, Calendar, Lock, Plane, Medal, Heart } from "lucide-react";
+import { User, Trophy, Star, LogOut, MapPin, Sparkles, Compass, TrendingUp, Edit3, Share2, Search, Bell, Settings, Calendar, Lock, Plane, Medal, Heart, MapIcon } from "lucide-react";
 import { useState } from "react";
 
 const BADGES = [
@@ -40,7 +40,17 @@ export default function ProfilePage() {
   const { data: trips } = useTrips();
   const { data: achievements } = useAchievements();
   const { data: leaderboard } = useLeaderboard();
+  const { data: savedDests } = useMyFavorites();
+  const { data: myReviews } = useMyReviews();
+  const { data: myAchievements } = useMyAchievements();
   const [tab, setTab] = useState("trips");
+  const [showAllAchievements, setShowAllAchievements] = useState(false);
+
+  // Map achievement code -> unlocked_at
+  const earnedMap = new Map<string, string>();
+  myAchievements?.forEach((ua: any) => {
+    if (ua.achievement?.code) earnedMap.set(ua.achievement.code, ua.unlocked_at);
+  });
 
   if (!user) {
     return (
@@ -216,9 +226,71 @@ export default function ProfilePage() {
                   ))}
                 </div>
               )}
-              {tab !== "trips" && (
-                <div className="text-center py-12 text-on-surface-variant">
-                  <span className="text-[14px]">Belum ada data</span>
+
+              {tab === "saved" && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {savedDests && savedDests.length > 0 ? savedDests.map((d) => (
+                    <div
+                      key={d.id}
+                      onClick={() => router.push(`/destination/${d.id}`)}
+                      className="bg-surface-container-lowest rounded-2xl overflow-hidden hover:-translate-y-1 transition-all cursor-pointer group shadow-sm border border-outline-variant/20"
+                    >
+                      <div className="h-36 overflow-hidden">
+                        {d.images?.[0] ? (
+                          <img className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" src={d.images[0]} alt={d.name} />
+                        ) : (
+                          <div className="w-full h-full bg-gradient-to-br from-primary/10 to-secondary/10 flex items-center justify-center">
+                            <MapPin className="w-8 h-8 text-outline/30" />
+                          </div>
+                        )}
+                      </div>
+                      <div className="p-4">
+                        <h3 className="text-[16px] font-semibold group-hover:text-primary transition-colors">{d.name}</h3>
+                        <p className="text-[12px] text-on-surface-variant">{d.city}{d.city && d.country ? ", " : ""}{d.country}</p>
+                        <div className="flex items-center gap-2 mt-2">
+                          <span className="text-[12px] text-yellow-600">★ {d.rating_avg.toFixed(1)}</span>
+                          <span className="text-[10px] text-outline">({d.review_count} reviews)</span>
+                        </div>
+                      </div>
+                    </div>
+                  )) : (
+                    <div className="col-span-2 text-center py-12 text-on-surface-variant">
+                      <Heart className="w-10 h-10 mx-auto mb-3 text-outline/40" />
+                      <p className="text-[14px]">Belum ada destinasi tersimpan</p>
+                      <button onClick={() => router.push("/search")} className="mt-2 text-primary text-[12px] font-bold hover:underline">Jelajahi destinasi</button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {tab === "reviews" && (
+                <div className="space-y-4">
+                  {myReviews && myReviews.items?.length > 0 ? myReviews.items.map((r) => (
+                    <div
+                      key={r.id}
+                      className="bg-surface-container-lowest rounded-xl p-4 flex gap-4 hover:shadow-md transition-shadow border border-outline-variant/10"
+                    >
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-[12px] text-yellow-600">
+                            {"★".repeat(r.rating)}{"☆".repeat(5 - r.rating)}
+                          </span>
+                          <span className="text-[10px] text-outline">{r.rating}/5</span>
+                        </div>
+                        {r.destination_name && (
+                          <p className="text-[10px] text-primary font-bold mb-1">{r.destination_name}</p>
+                        )}
+                        {r.title && <h4 className="text-[16px] font-semibold mb-1">{r.title}</h4>}
+                        {r.content && <p className="text-[12px] text-on-surface-variant line-clamp-2">{r.content}</p>}
+                        <p className="text-[10px] text-outline mt-2">{new Date(r.created_at).toLocaleDateString("id-ID")}</p>
+                      </div>
+                    </div>
+                  )) : (
+                    <div className="text-center py-12 text-on-surface-variant">
+                      <Star className="w-10 h-10 mx-auto mb-3 text-outline/40" />
+                      <p className="text-[14px]">Belum ada review</p>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -233,22 +305,35 @@ export default function ProfilePage() {
                 Badges & Achievements
               </h2>
               <div className="grid grid-cols-2 gap-3">
-                {(achievements && achievements.length > 0 ? achievements.slice(0, 4) : BADGES).map((a: any, i) => {
-                  const locked = a.locked;
+                {(achievements && achievements.length > 0
+                  ? (showAllAchievements ? achievements : achievements.slice(0, 4))
+                  : BADGES
+                ).map((a: any, i) => {
+                  const code = a.code || "";
+                  const unlocked = earnedMap.has(code);
                   return (
-                    <div key={i} className={`flex flex-col items-center text-center p-3 bg-surface-container-low rounded-xl gap-1 group cursor-default ${locked ? "opacity-50 grayscale" : "hover:bg-primary/5 transition-colors"}`}>
-                      <div className={`w-14 h-14 rounded-full ${locked ? "bg-surface-container-highest" : "bg-primary/10"} flex items-center justify-center mb-1 ring-4 ring-white shadow-sm ${!locked && "group-hover:scale-110 transition-transform"}`}>
-                        {locked ? <Lock className="w-5 h-5 text-on-surface-variant" /> : <Trophy className="w-6 h-6 text-primary" />}
+                    <div
+                      key={code || i}
+                      className={`flex flex-col items-center text-center p-3 bg-surface-container-low rounded-xl gap-1 group cursor-default ${unlocked ? "" : "opacity-50 grayscale"}`}
+                    >
+                      <div className={`w-14 h-14 rounded-full ${unlocked ? "bg-primary/10" : "bg-surface-container-highest"} flex items-center justify-center mb-1 ring-4 ring-white shadow-sm ${unlocked && "group-hover:scale-110 transition-transform"}`}>
+                        {unlocked ? <Trophy className="w-6 h-6 text-primary" /> : <Lock className="w-5 h-5 text-on-surface-variant" />}
                       </div>
                       <span className="text-[14px] font-bold">{a.name}</span>
-                      <span className="text-[10px] text-on-surface-variant">{a.desc || a.description}</span>
+                      <span className="text-[10px] text-on-surface-variant">{a.description}</span>
+                      {unlocked && <span className="text-[8px] text-primary font-bold">✓ Diperoleh</span>}
                     </div>
                   );
                 })}
               </div>
-              <button className="w-full mt-4 py-3 rounded-xl border border-dashed border-outline text-on-surface-variant text-[12px] hover:bg-surface-container-low hover:text-primary hover:border-primary transition-all">
-                View All {(achievements?.length || "15")} Achievements
-              </button>
+              {achievements && achievements.length > 4 && (
+                <button
+                  onClick={() => setShowAllAchievements(!showAllAchievements)}
+                  className="w-full mt-4 py-3 rounded-xl border border-dashed border-outline text-on-surface-variant text-[12px] hover:bg-surface-container-low hover:text-primary hover:border-primary transition-all"
+                >
+                  {showAllAchievements ? "Tampilkan lebih sedikit" : `View All ${achievements.length} Achievements`}
+                </button>
+              )}
             </div>
 
             {/* Recent Activity */}

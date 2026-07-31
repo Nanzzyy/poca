@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef, memo } from "react";
-import { MapContainer, TileLayer, Marker, Popup, ZoomControl, useMap, useMapEvents, LayersControl } from "react-leaflet";
+import { useEffect, useRef, memo, useState } from "react";
+import { MapContainer, TileLayer, Marker, Popup, ZoomControl, useMap, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { Plus, Minus, Locate, Layers } from "lucide-react";
 
 // Fix default marker icons — run once outside component
 const defaultIcon = L.icon({
@@ -132,6 +133,113 @@ const PopupContent = memo(function PopupContent({ marker }: { marker: MapMarkerD
   );
 });
 
+// ─── MapControls ───────────────────────────────────────────
+// Working +/- zoom, locate, and layers toggle inside the map.
+const MapControls = memo(function MapControls({
+  onLocate,
+  layerOpen,
+  onToggleLayers,
+}: {
+  onLocate?: () => void;
+  layerOpen: boolean;
+  onToggleLayers: () => void;
+}) {
+  const map = useMap();
+
+  return (
+    <div className="absolute top-5 right-5 flex flex-col gap-2 z-[1000]">
+      {/* Zoom controls */}
+      <div className="bg-white/80 backdrop-blur-md rounded-xl p-1 flex flex-col shadow-lg border border-white/30">
+        <button
+          onClick={() => map.zoomIn()}
+          className="p-2 hover:bg-surface-container-high rounded-lg text-on-surface-variant transition-colors"
+          aria-label="Zoom in"
+        >
+          <Plus className="w-5 h-5" />
+        </button>
+        <div className="h-px bg-outline-variant/30 mx-2" />
+        <button
+          onClick={() => map.zoomOut()}
+          className="p-2 hover:bg-surface-container-high rounded-lg text-on-surface-variant transition-colors"
+          aria-label="Zoom out"
+        >
+          <Minus className="w-5 h-5" />
+        </button>
+      </div>
+      {/* Locate */}
+      <button
+        onClick={onLocate || (() => {
+          if ("geolocation" in navigator) {
+            navigator.geolocation.getCurrentPosition(
+              (pos) => map.flyTo([pos.coords.latitude, pos.coords.longitude], Math.max(map.getZoom(), 13), { duration: 0.8 }),
+              () => {},
+              { enableHighAccuracy: true, timeout: 8000 }
+            );
+          }
+        })}
+        className="bg-white/80 backdrop-blur-md w-12 h-12 rounded-xl shadow-lg border border-white/30 flex items-center justify-center text-on-surface-variant hover:text-primary transition-all active:scale-95"
+        aria-label="Locate me"
+      >
+        <Locate className="w-5 h-5" />
+      </button>
+      {/* Layers */}
+      <button
+        onClick={onToggleLayers}
+        className={`bg-white/80 backdrop-blur-md w-12 h-12 rounded-xl shadow-lg border flex items-center justify-center transition-all active:scale-95 ${layerOpen ? "text-primary border-primary/40" : "text-on-surface-variant border-white/30 hover:text-primary"}`}
+        aria-label="Toggle layers"
+      >
+        <Layers className="w-5 h-5" />
+      </button>
+    </div>
+  );
+});
+
+// ─── Layer Panel ──────────────────────────────────────────
+const LAYER_DEFS = [
+  { name: "Street (OSM)", checked: true, url: "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", attr: "&copy; CARTO" },
+  { name: "Light", url: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", attr: "&copy; CARTO" },
+  { name: "Satellite", url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", attr: "Tiles &copy; Esri" },
+  { name: "Terrain", url: "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png", attr: "&copy; OpenTopoMap" },
+];
+
+const LayerPanel = memo(function LayerPanel({ open, onSelect }: { open: boolean; onSelect?: (layer: string) => void }) {
+  const map = useMap();
+  const tileRef = useRef<L.TileLayer | null>(null);
+  const [active, setActive] = useState("Street (OSM)");
+
+  // Add default tile on mount
+  useEffect(() => {
+    if (!tileRef.current) {
+      tileRef.current = L.tileLayer(LAYER_DEFS[0].url, { attribution: LAYER_DEFS[0].attr }).addTo(map);
+    }
+  }, [map]);
+
+  if (!open) return null;
+
+  const switchLayer = (def: typeof LAYER_DEFS[0]) => {
+    if (tileRef.current) map.removeLayer(tileRef.current);
+    tileRef.current = L.tileLayer(def.url, { attribution: def.attr }).addTo(map);
+    setActive(def.name);
+    onSelect?.(def.name);
+  };
+
+  return (
+    <div className="absolute top-5 right-20 z-[1000] bg-white/95 backdrop-blur-md rounded-xl shadow-xl border border-outline-variant/30 p-2 min-w-[160px]">
+      {LAYER_DEFS.map((def) => (
+        <button
+          key={def.name}
+          onClick={() => switchLayer(def)}
+          className={`w-full text-left px-3 py-2 rounded-lg text-[12px] transition-colors ${
+            active === def.name ? "bg-primary/10 text-primary font-bold" : "text-on-surface-variant hover:bg-surface-container-low"
+          }`}
+        >
+          {def.name}
+        </button>
+      ))}
+    </div>
+  );
+});
+
 export default function MapView({
   center: initialCenter,
   zoom: initialZoom = 10,
@@ -143,6 +251,7 @@ export default function MapView({
   height = "100%",
 }: MapViewProps) {
   const center = initialCenter || [-2.5, 118.0];
+  const [layerOpen, setLayerOpen] = useState(false);
 
   return (
     <div style={{ height }} className={`${className} relative`}>
@@ -155,18 +264,6 @@ export default function MapView({
       >
         <ZoomControl position="bottomright" />
 
-        <LayersControl position="topright">
-          <LayersControl.BaseLayer checked name="Modern (CARTO)">
-            <TileLayer url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png" attribution="&copy; CARTO" />
-          </LayersControl.BaseLayer>
-          <LayersControl.BaseLayer name="Minimal (Light)">
-            <TileLayer url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png" attribution="&copy; CARTO" />
-          </LayersControl.BaseLayer>
-          <LayersControl.BaseLayer name="Satellite">
-            <TileLayer url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}" attribution="Tiles &copy; Esri" />
-          </LayersControl.BaseLayer>
-        </LayersControl>
-
         <MapController center={center} zoom={initialZoom} />
         <FocusController focus={focus} />
         {onBoundsChange && <BoundsListener onChange={(b: any) => onBoundsChange(b.sw, b.ne)} />}
@@ -178,6 +275,10 @@ export default function MapView({
             eventHandlers={onMarkerClick ? { click: () => onMarkerClick(m) } : undefined}
           />
         ))}
+
+        {/* Working map controls: +/- zoom, locate, layers */}
+        <MapControls layerOpen={layerOpen} onToggleLayers={() => setLayerOpen((o) => !o)} />
+        <LayerPanel open={layerOpen} onSelect={() => setLayerOpen(false)} />
       </MapContainer>
       {/* Legend */}
       <div className="absolute bottom-4 left-2 z-[1000] bg-white/90 backdrop-blur rounded-lg p-2 shadow text-[10px] space-y-0.5">
