@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.api.deps import get_db, require_user
+from src.api.deps import get_db, get_current_user, require_user
 from src.domain.models.post import Comment, Post
 from src.domain.models.user import User
 from src.domain.schemas.destination import PaginatedResponse
@@ -12,6 +12,7 @@ from src.domain.schemas.post import (
     PostResponse,
 )
 from src.repositories.post_repo import CommentRepository, PostRepository
+from src.services.notification_service import create_notification
 
 router = APIRouter(tags=["posts"])
 
@@ -27,10 +28,11 @@ def _to_post_response(p: Post) -> PostResponse:
 @router.get("/posts/{post_id}")
 async def get_post(
     post_id: str,
+    viewer: User | None = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> PostResponse:
     repo = PostRepository(db)
-    post = await repo.get_by_id(post_id)
+    post = await repo.get_by_id(post_id, str(viewer.id) if viewer else None)
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
     return _to_post_response(post)
@@ -40,10 +42,11 @@ async def get_post(
 async def list_posts(
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=50),
+    viewer: User | None = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> PaginatedResponse:
     repo = PostRepository(db)
-    items, total = await repo.list_feed(page, size)
+    items, total = await repo.list_feed(page, size, str(viewer.id) if viewer else None)
     return PaginatedResponse(
         items=[_to_post_response(p) for p in items],
         total=total, page=page, size=size,
@@ -71,16 +74,45 @@ async def create_post(
 
 
 @router.post("/posts/{post_id}/like")
-async def like_post(
+async def toggle_like_post(
     post_id: str,
+    user: User = Depends(require_user),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     repo = PostRepository(db)
     try:
-        count = await repo.like(post_id)
+        liked_now, count = await repo.toggle_like(post_id, str(user.id))
     except ValueError:
         raise HTTPException(status_code=404, detail="Post not found")
-    return {"like_count": count}
+
+    # Notify the post author when someone likes their post (not their own).
+    post = await repo.get_by_id(post_id)
+    if liked_now and post and str(post.user_id) != str(user.id):
+        await create_notification(
+            db,
+            user_id=str(post.user_id),
+            type="like",
+            title=f"{user.username} menyukai postinganmu",
+            subtitle=(post.content or "")[:80],
+            actor_id=user.id,
+            meta={"post_id": post_id},
+        )
+    return {"liked": liked_now, "like_count": count}
+
+
+@router.delete("/posts/{post_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_post(
+    post_id: str,
+    user: User = Depends(require_user),
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    repo = PostRepository(db)
+    post = await repo.get_by_id(post_id)
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    if str(post.user_id) != str(user.id):
+        raise HTTPException(status_code=403, detail="You can only delete your own posts")
+    await repo.delete(post)
 
 
 @router.get("/posts/{post_id}/comments")
@@ -109,7 +141,8 @@ async def create_comment(
     if not body.content.strip():
         raise HTTPException(status_code=400, detail="Comment cannot be empty")
     post_repo = PostRepository(db)
-    if not await post_repo.get_by_id(post_id):
+    post = await post_repo.get_by_id(post_id)
+    if not post:
         raise HTTPException(status_code=404, detail="Post not found")
     comment = Comment(post_id=post_id, user_id=user.id, content=body.content.strip())
     repo = CommentRepository(db)
@@ -117,4 +150,16 @@ async def create_comment(
     resp = CommentResponse.model_validate(comment)
     resp.username = user.username
     resp.avatar_url = user.avatar_url
+
+    # Notify post author on new comment (not their own).
+    if str(post.user_id) != str(user.id):
+        await create_notification(
+            db,
+            user_id=str(post.user_id),
+            type="comment",
+            title=f"{user.username} berkomentar di postinganmu",
+            subtitle=comment.content[:80],
+            actor_id=user.id,
+            meta={"post_id": post_id, "comment_id": str(comment.id)},
+        )
     return resp

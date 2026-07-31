@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, Text
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSON, UUID
 from sqlalchemy.orm import relationship
 
@@ -24,13 +24,30 @@ class Post(Base):
     user = relationship("User", back_populates="posts")
     destination = relationship("Destination")
     comments = relationship("Comment", back_populates="post", cascade="all, delete-orphan", order_by="Comment.created_at")
+    likes = relationship("PostLike", back_populates="post", cascade="all, delete-orphan")
+
+
+class PostLike(Base):
+    """One row per (user, post) — unique constraint makes likes idempotent."""
+    __tablename__ = "post_likes"
+    __table_args__ = (
+        UniqueConstraint("post_id", "user_id", name="uq_post_likes_post_user"),
+    )
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    post_id = Column(UUID(as_uuid=True), ForeignKey("posts.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    post = relationship("Post", back_populates="likes")
+    user = relationship("User", back_populates="post_likes")
 
 
 class Comment(Base):
     __tablename__ = "comments"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    post_id = Column(UUID(as_uuid=True), ForeignKey("posts.id"), nullable=False, index=True)
+    post_id = Column(UUID(as_uuid=True), ForeignKey("posts.id", ondelete="CASCADE"), nullable=False, index=True)
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     content = Column(Text, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)

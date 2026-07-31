@@ -29,3 +29,9 @@ class User(Base):
     achievements = relationship("UserAchievement", back_populates="user", cascade="all, delete-orphan")
     posts = relationship("Post", back_populates="user", cascade="all, delete-orphan")
     comments = relationship("Comment", back_populates="user", cascade="all, delete-orphan")
+    post_likes = relationship("PostLike", back_populates="user", cascade="all, delete-orphan")
+    notifications = relationship("Notification", back_populates="user", cascade="all, delete-orphan", foreign_keys="Notification.user_id")
+
+    # follow relationships (self-referential, resolved by Follower model)
+    following = relationship("Follower", foreign_keys="Follower.follower_id", back_populates="follower_user", cascade="all, delete-orphan")
+    followers = relationship("Follower", foreign_keys="Follower.followee_id", back_populates="followee_user", cascade="all, delete-orphan")

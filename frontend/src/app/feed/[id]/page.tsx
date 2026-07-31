@@ -2,12 +2,12 @@
 
 export const dynamic = "force-dynamic";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { usePost, useComments, useCreateComment, useLikePost } from "@/lib/feed-queries";
+import { usePost, useComments, useCreateComment, useLikePost, useDeletePost } from "@/lib/feed-queries";
 import { useProfile } from "@/lib/queries";
 import { timeAgo } from "@/lib/utils";
-import { Heart, MessageSquare, Send, ArrowLeft, Share2, MoreHorizontal } from "lucide-react";
+import { Heart, MessageSquare, Send, ArrowLeft, Share2, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
 
 export default function PostDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -15,15 +15,38 @@ export default function PostDetailPage() {
   const { data: post, isLoading } = usePost(id);
   const { data: comments } = useComments(id, !!id);
   const like = useLikePost();
+  const del = useDeletePost();
   const create = useCreateComment(id);
   const { data: user } = useProfile();
   const [text, setText] = useState("");
+  const [mediaIdx, setMediaIdx] = useState(0);
+
+  const onDelete = async () => {
+    if (!window.confirm("Hapus postingan ini?")) return;
+    await del.mutateAsync(id);
+    router.push("/feed");
+  };
 
   const [liked, setLiked] = useState(false);
-  const onLike = () => {
-    if (liked) return;
-    setLiked(true);
-    like.mutate(id);
+  const [likeCount, setLikeCount] = useState(0);
+  useEffect(() => {
+    setLiked(post?.liked_by_me ?? false);
+    setLikeCount(post?.like_count ?? 0);
+  }, [post]);
+
+  const onLike = async () => {
+    if (!user) return router.push("/auth/login");
+    const next = !liked;
+    setLiked(next);
+    setLikeCount(c => Math.max(0, c + (next ? 1 : -1)));
+    try {
+      const res = await like.mutateAsync(id);
+      setLiked(res.liked);
+      setLikeCount(res.like_count);
+    } catch {
+      setLiked(post?.liked_by_me ?? false);
+      setLikeCount(post?.like_count ?? 0);
+    }
   };
 
   const submit = async () => {
@@ -73,15 +96,43 @@ export default function PostDetailPage() {
                 <p className="text-[10px] text-outline">{timeAgo(post.created_at)}</p>
               </div>
             </div>
-            <button className="text-outline hover:text-on-surface transition-colors">
-              <MoreHorizontal className="w-5 h-5" />
-            </button>
+            {user && post.user_id === user.id && (
+              <button onClick={onDelete} className="text-outline hover:text-error transition-colors flex items-center gap-1">
+                <Trash2 className="w-4 h-4" />
+                <span className="text-[11px] font-bold">Hapus</span>
+              </button>
+            )}
           </div>
 
-          {/* Media */}
-          {hasImage && (
-            <div className="w-full" style={{ aspectRatio: post.media.length === 1 ? "16/9" : "1" }}>
-              <img className="w-full h-full object-cover" src={post.media[0].url} alt="" />
+          {/* Media — slider for multi-photo/video posts */}
+          {post.media.length > 0 && (
+            <div className="relative w-full overflow-hidden" style={{ aspectRatio: post.media.length === 1 ? "16/9" : "1" }}>
+              <div className="flex h-full transition-transform duration-300" style={{ transform: `translateX(-${mediaIdx * 100}%)` }}>
+                {post.media.map((m, i) => (
+                  <div key={i} className="w-full h-full flex-shrink-0">
+                    {m.type === "video" ? (
+                      <video src={m.url} className="w-full h-full object-cover" muted loop controls={post.media.length > 1} />
+                    ) : (
+                      <img className="w-full h-full object-cover" src={m.url} alt="" />
+                    )}
+                  </div>
+                ))}
+              </div>
+              {post.media.length > 1 && (
+                <>
+                  <button onClick={() => setMediaIdx(i => (i - 1 + post.media.length) % post.media.length)} className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/40 text-white flex items-center justify-center hover:bg-black/60 active:scale-90 transition-all z-10">
+                    <ChevronLeft className="w-5 h-5" />
+                  </button>
+                  <button onClick={() => setMediaIdx(i => (i + 1) % post.media.length)} className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/40 text-white flex items-center justify-center hover:bg-black/60 active:scale-90 transition-all z-10">
+                    <ChevronRight className="w-5 h-5" />
+                  </button>
+                  <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1 z-10">
+                    {post.media.map((_, i) => (
+                      <span key={i} className={`w-1.5 h-1.5 rounded-full transition-colors ${i === mediaIdx ? "bg-white" : "bg-white/40"}`} />
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
           )}
 
@@ -94,7 +145,7 @@ export default function PostDetailPage() {
 
             {/* Stats */}
             <div className="flex items-center gap-6 text-[12px] text-on-surface-variant pb-3 border-b border-outline-variant/10">
-              <span>{post.like_count + (liked && !post.liked_by_me ? 1 : 0)} menyukai ini</span>
+              <span>{likeCount} menyukai ini</span>
               <span>{post.comment_count} komentar</span>
             </div>
 

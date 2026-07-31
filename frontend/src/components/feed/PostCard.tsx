@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Heart, MessageSquare, Send, MapPin, Share2, MoreHorizontal, Sparkles } from "lucide-react";
+import { Heart, MessageSquare, Send, MapPin, Share2, Trash2, ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useLikePost, useComments, useCreateComment } from "@/lib/feed-queries";
+import { useLikePost, useDeletePost, useComments, useCreateComment } from "@/lib/feed-queries";
 import { useProfile } from "@/lib/queries";
 import type { Post } from "@/types";
 import { timeAgo } from "@/lib/utils";
@@ -12,27 +12,52 @@ import { timeAgo } from "@/lib/utils";
 export function PostCard({ post }: { post: Post }) {
   const router = useRouter();
   const like = useLikePost();
+  const del = useDeletePost();
+  const { data: user } = useProfile();
   const [showComments, setShowComments] = useState(false);
-  const store = getLikedStore();
-  const [liked, setLiked] = useState(post.liked_by_me || store.has(post.id));
+  const [mediaIdx, setMediaIdx] = useState(0);
+  const [liked, setLiked] = useState(post.liked_by_me);
+  const [likeCount, setLikeCount] = useState(post.like_count);
 
-  const onLike = () => {
-    if (liked) return;
-    setLiked(true);
-    getLikedStore().add(post.id);
-    like.mutate(post.id);
+  // Slide to a neighboring index; loop at the ends.
+  const goMedia = useCallback((dir: number) => {
+    if (!post.media.length) return;
+    setMediaIdx(i => (i + dir + post.media.length) % post.media.length);
+  }, [post.media.length]);
+
+  const onLike = async () => {
+    if (!user) return router.push("/auth/login");
+    // Optimistic toggle; server is source of truth (toggle endpoint).
+    const next = !liked;
+    setLiked(next);
+    setLikeCount(c => Math.max(0, c + (next ? 1 : -1)));
+    try {
+      const res = await like.mutateAsync(post.id);
+      setLiked(res.liked);
+      setLikeCount(res.like_count);
+    } catch {
+      setLiked(post.liked_by_me);
+      setLikeCount(post.like_count);
+    }
   };
 
-  const hasImage = post.media?.[0]?.type === "image" && post.media[0].url;
-  const isAiCurated = post.like_count > 1000;
+  const onDelete = async () => {
+    if (!window.confirm("Hapus postingan ini?")) return;
+    try {
+      await del.mutateAsync(post.id);
+    } catch { /* toast handled by caller */ }
+  };
+
+  const canDelete = user && post.user_id === user.id;
+  const multi = post.media.length > 1;
+  const hasMedia = post.media.length > 0;
 
   return (
-    <div className={`bg-surface-container-lowest rounded-xl overflow-hidden shadow-sm border ${isAiCurated ? "border-secondary/20" : "border-outline-variant/10"} hover:shadow-lg transition-shadow duration-300 cursor-pointer`}
-      style={isAiCurated ? { boxShadow: "inset 0 0 12px rgba(113, 42, 226, 0.1), 0 4px 6px -1px rgba(0,0,0,0.1)" } : {}}
-      onClick={() => router.push(`/feed/${post.id}`)}
+    <div className={`bg-surface-container-lowest rounded-xl overflow-hidden shadow-sm border ${isAiCurated(post) ? "border-secondary/20" : "border-outline-variant/10"} hover:shadow-lg transition-shadow duration-300`}
+      style={isAiCurated(post) ? { boxShadow: "inset 0 0 12px rgba(113, 42, 226, 0.1), 0 4px 6px -1px rgba(0,0,0,0.1)" } : {}}
     >
       {/* AI Curated Badge */}
-      {isAiCurated && (
+      {isAiCurated(post) && (
         <div className="absolute top-3 right-3 z-10 bg-white/90 backdrop-blur-sm px-2 py-0.5 rounded-full flex items-center gap-1 shadow-sm">
           <Sparkles className="w-3.5 h-3.5 text-secondary fill-current" />
           <span className="text-[10px] font-bold text-secondary uppercase tracking-tight">AI Curated</span>
@@ -41,7 +66,7 @@ export function PostCard({ post }: { post: Post }) {
 
       {/* Header */}
       <div className="p-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 cursor-pointer" onClick={() => router.push(`/profile/${post.user_id}`)}>
           <div className="w-10 h-10 rounded-full overflow-hidden bg-gradient-to-br from-primary/10 to-secondary/10 flex items-center justify-center text-primary font-bold text-sm">
             {(post.username || "U")[0].toUpperCase()}
           </div>
@@ -50,28 +75,55 @@ export function PostCard({ post }: { post: Post }) {
             <p className="text-[10px] text-outline">{timeAgo(post.created_at)}{post.destination_id ? " • " + (post as any).location || "" : ""}</p>
           </div>
         </div>
-        <button onClick={(e) => e.stopPropagation()} className="text-outline hover:text-on-surface transition-colors">
-          <MoreHorizontal className="w-5 h-5" />
-        </button>
+        {canDelete && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onDelete(); }}
+            className="text-outline hover:text-error transition-colors p-1"
+            title="Hapus postingan"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        )}
       </div>
 
-      {/* Media */}
-      {hasImage ? (
-        <div className="w-full overflow-hidden" style={{ aspectRatio: post.media.length === 1 ? "4/5" : post.media.length <= 2 ? "1" : "3/4" }}>
-          <img
-            className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
-            src={post.media[0].url}
-            alt=""
-            loading="lazy"
-          />
+      {/* Media — slider for multi-photo/video posts */}
+      {hasMedia && (
+        <div className="relative w-full overflow-hidden" style={{ aspectRatio: post.media.length === 1 ? "4/5" : post.media.length <= 2 ? "1" : "3/4" }}
+          onClick={() => router.push(`/feed/${post.id}`)}>
+          <div className="flex h-full transition-transform duration-300" style={{ transform: `translateX(-${mediaIdx * 100}%)` }}>
+            {post.media.map((m, i) => (
+              <div key={i} className="w-full h-full flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                {m.type === "video" ? (
+                  <video src={m.url} className="w-full h-full object-cover" muted loop controls={multi} />
+                ) : (
+                  <img className="w-full h-full object-cover" src={m.url} alt="" loading="lazy" />
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Slider controls */}
+          {multi && (
+            <>
+              <button onClick={(e) => { e.stopPropagation(); goMedia(-1); }} className="absolute left-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-black/40 text-white flex items-center justify-center hover:bg-black/60 active:scale-90 transition-all z-10">
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <button onClick={(e) => { e.stopPropagation(); goMedia(1); }} className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-black/40 text-white flex items-center justify-center hover:bg-black/60 active:scale-90 transition-all z-10">
+                <ChevronRight className="w-4 h-4" />
+              </button>
+              <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1 z-10">
+                {post.media.map((_, i) => (
+                  <span key={i} className={`w-1.5 h-1.5 rounded-full transition-colors ${i === mediaIdx ? "bg-white" : "bg-white/40"}`} />
+                ))}
+              </div>
+            </>
+          )}
         </div>
-      ) : post.content ? null : (
-        <div className="aspect-[4/5] w-full bg-gradient-to-br from-surface-container to-surface-container-high" />
       )}
 
       {/* Content */}
       <div className="p-4">
-        <p className="text-[14px] mb-2 leading-relaxed">
+        <p className="text-[14px] mb-2 leading-relaxed cursor-pointer" onClick={() => router.push(`/feed/${post.id}`)}>
           <span className="font-bold">{post.username || "Traveler"}</span>{" "}
           {post.content}
         </p>
@@ -81,7 +133,7 @@ export function PostCard({ post }: { post: Post }) {
           <div className="flex gap-4">
             <button onClick={(e) => { e.stopPropagation(); onLike(); }} className={`flex items-center gap-1.5 transition-all active:scale-[0.95] ${liked ? "text-primary" : "text-on-surface-variant hover:text-primary"}`}>
               <Heart className={`w-4 h-4 ${liked ? "fill-current" : ""}`} />
-              <span className="text-[12px] font-bold">{post.like_count + (liked && !post.liked_by_me ? 1 : 0)}{post.like_count > 999 ? "k" : ""}</span>
+              <span className="text-[12px] font-bold">{likeCount}{likeCount > 999 ? "k" : ""}</span>
             </button>
             <button onClick={(e) => { e.stopPropagation(); setShowComments((s) => !s); }} className="flex items-center gap-1.5 text-on-surface-variant hover:text-primary transition-colors active:scale-[0.95]">
               <MessageSquare className="w-4 h-4" />
@@ -101,6 +153,8 @@ export function PostCard({ post }: { post: Post }) {
     </div>
   );
 }
+
+const isAiCurated = (post: Post) => post.like_count > 1000;
 
 function Comments({ postId }: { postId: string }) {
   const { data: comments, isLoading } = useComments(postId);
@@ -158,23 +212,3 @@ function Comments({ postId }: { postId: string }) {
     </motion.div>
   );
 }
-
-function getLikedStore() {
-  if (typeof window === "undefined") return new Set<string>();
-  if (!_likedStore) _likedStore = (() => {
-    const set = new Set<string>();
-    try {
-      JSON.parse(localStorage.getItem("poca_liked") || "[]").forEach((id: string) => set.add(id));
-    } catch { /* noop */ }
-    const origAdd = set.add.bind(set);
-    set.add = (v: string) => {
-      const r = origAdd(v);
-      try { localStorage.setItem("poca_liked", JSON.stringify([...set])); } catch { /* noop */ }
-      return r;
-    };
-    return set;
-  })();
-  return _likedStore!;
-}
-
-let _likedStore: Set<string> | null = null;

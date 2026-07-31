@@ -4,7 +4,9 @@ from src.domain.models.trip import Trip, TripActivity, TripDay
 from src.domain.models.review import Review, ReviewSummary
 from src.domain.models.conversation import Conversation, Message
 from src.domain.models.gamification import Achievement, Badge, UserAchievement, UserBadge
-from src.domain.models.post import Post, Comment
+from src.domain.models.post import Post, Comment, PostLike
+from src.domain.models.notification import Notification
+from src.domain.models.follower import Follower
 
 __all__ = [
     "User",
@@ -23,4 +25,7 @@ __all__ = [
     "UserBadge",
     "Post",
     "Comment",
+    "PostLike",
+    "Notification",
+    "Follower",
 ]

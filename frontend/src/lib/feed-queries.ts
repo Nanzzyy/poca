@@ -82,3 +82,14 @@ export function useCreateComment(postId: string) {
     onSuccess: () => qc.invalidateQueries({ queryKey: feedKeys.comments(postId) }),
   });
 }
+
+export function useDeletePost() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (postId: string) => api.delete(`/posts/${postId}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: feedKeys.all });
+      qc.invalidateQueries({ queryKey: ["posts"] });
+    },
+  });
+}
