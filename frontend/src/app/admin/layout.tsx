@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useAuthStore } from "@/stores";
 import { useProfile } from "@/lib/queries";
-import { LayoutDashboard, MapPin, Users, BarChart3, Tags, LogOut, Menu, X } from "lucide-react";
+import { LayoutDashboard, MapPin, Users, BarChart3, Tags, LogOut, Menu } from "lucide-react";
 
 const NAV = [
   { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -18,20 +19,28 @@ const NAV = [
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const path = usePathname();
+  const qc = useQueryClient();
   const token = useAuthStore((s) => s.token);
-  const logout = useAuthStore((s) => s.logout);
+  const setToken = useAuthStore((s) => s.setToken);
   const { data: user } = useProfile();
   const [sidebar, setSidebar] = useState(false);
 
   const isLogin = path === "/admin/login";
 
+  // Admin-scoped logout: clear token, stay in /admin (no full reload to "/").
+  const adminLogout = () => {
+    setToken(null);
+    qc.clear();
+    router.replace("/admin/login");
+  };
+
   useEffect(() => {
     if (!token && !isLogin) router.replace("/admin/login");
     if (token && user && user.role !== "admin" && !isLogin) {
-      logout();
+      setToken(null);
       router.replace("/admin/login");
     }
-  }, [token, user, isLogin, router, logout]);
+  }, [token, user, isLogin, router, setToken]);
 
   if (isLogin) return <>{children}</>;
 
@@ -62,7 +71,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </nav>
         <div className="p-3 border-t border-outline-variant/20">
           <button
-            onClick={logout}
+            onClick={adminLogout}
             className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-[13px] text-on-surface-variant hover:bg-error/10 hover:text-error w-full transition-colors"
           >
             <LogOut className="w-4 h-4" /> Keluar

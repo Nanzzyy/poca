@@ -24,6 +24,8 @@ class UserResponse(BaseModel):
     preferences: Optional[dict[str, Any]] = None
     level: int = 1
     xp_total: int = 0
+    role: str = "user"
+    is_active: bool = True
     created_at: datetime
 
     model_config = {"from_attributes": True}

@@ -37,8 +37,8 @@ async function request<T>(method: HttpMethod, path: string, config?: RequestConf
   if (!res.ok) {
     if (res.status === 401) {
       if (typeof window !== "undefined") localStorage.removeItem("auth_token");
-      if (typeof window !== "undefined" && !window.location.pathname.startsWith("/auth")) {
-        window.location.href = "/auth/login";
+      if (typeof window !== "undefined" && !window.location.pathname.startsWith("/auth") && !window.location.pathname.startsWith("/admin/login")) {
+        window.location.href = window.location.pathname.startsWith("/admin") ? "/admin/login" : "/auth/login";
       }
     }
 

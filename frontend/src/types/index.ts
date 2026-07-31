@@ -139,6 +139,8 @@ export interface User {
   preferences?: Record<string, any>;
   level: number;
   xp_total: number;
+  role: "user" | "admin";
+  is_active: boolean;
   created_at: string;
 }
 

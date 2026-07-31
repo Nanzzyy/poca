@@ -2,10 +2,9 @@ import type { Metadata, Viewport } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
-import { TopNav } from "@/components/layout/TopNav";
-import { BottomNav } from "@/components/layout/BottomNav";
 import { ToastContainer } from "@/components/ui/Toast";
 import { AnnouncementModal } from "@/components/ui/AnnouncementModal";
+import { AppShell } from "@/components/layout/AppShell";
 
 const plusJakarta = Plus_Jakarta_Sans({
   variable: "--font-plus-jakarta",
@@ -37,9 +36,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="id" className={`${plusJakarta.variable} h-full antialiased`}>
       <body className="min-h-dvh flex flex-col bg-background text-foreground font-sans">
         <Providers>
-          <TopNav />
-          <main className="flex-1 pb-[calc(var(--bottom-nav-h)+var(--safe-b))] md:pb-0">{children}</main>
-          <BottomNav />
+          <AppShell>{children}</AppShell>
           <ToastContainer />
           <AnnouncementModal />
         </Providers>

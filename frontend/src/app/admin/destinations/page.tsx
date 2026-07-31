@@ -32,6 +32,24 @@ export default function AdminDestinationsPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "destinations"] }),
   });
 
+  const bulk = useMutation({
+    mutationFn: (items: any[]) => api.post<any>("/admin/destinations/bulk", { items }),
+    onSuccess: (r: any) => { qc.invalidateQueries({ queryKey: ["admin", "destinations"] }); alert(`Imported ${r.imported ?? 0} destinasi`); },
+  });
+
+  const onFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    try {
+      const txt = await f.text();
+      const parsed = JSON.parse(txt);
+      const items = Array.isArray(parsed) ? parsed : parsed.items;
+      if (!Array.isArray(items) || !items.length) { alert("JSON harus array atau {items:[...]}"); return; }
+      bulk.mutate(items);
+    } catch { alert("File JSON tidak valid"); }
+    e.target.value = "";
+  };
+
   const openEdit = (item: any) => { setEditItem(item); setForm({ ...item }); };
   const openAdd = () => { setShowAdd(true); setEditItem(null); setForm({ name: "", category_id: "", city: "", country: "Indonesia", latitude: 0, longitude: 0, price_level: "mid", description: "" }); };
 
@@ -42,9 +60,15 @@ export default function AdminDestinationsPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-[24px] font-bold">Destinasi ({total})</h2>
+        <div className="flex items-center gap-2">
         <button onClick={openAdd} className="flex items-center gap-2 px-4 py-2 bg-primary text-on-primary rounded-xl text-[13px] font-bold active:scale-95">
           <Plus className="w-4 h-4" /> Tambah
         </button>
+        <label className="flex items-center gap-2 px-4 py-2 bg-secondary text-on-secondary rounded-xl text-[13px] font-bold active:scale-95 cursor-pointer">
+          <Upload className="w-4 h-4" /> {bulk.isPending ? "Mengimpor..." : "Import JSON"}
+          <input type="file" accept="application/json" className="hidden" onChange={onFile} disabled={bulk.isPending} />
+        </label>
+        </div>
       </div>
 
       {/* Search */}

@@ -1,12 +1,14 @@
 from datetime import datetime, timedelta
+import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from jose import jwt
 import bcrypt
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.deps import get_db, get_current_user, require_user
 from src.core.config import settings
+from src.domain.models.page_view import PageView
 from src.domain.models.user import User
 from src.domain.schemas.user import (
     PublicProfileResponse,
@@ -81,6 +83,24 @@ async def get_me(
     user: User = Depends(require_user),
 ) -> UserResponse:
     return UserResponse.model_validate(user)
+
+
+# ── TRAFFIC (public write path for /admin/traffic + dashboard) ──
+@router.post("/analytics/track")
+async def track_pageview(
+    body: dict,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Fire-and-forget page-view log. No auth — anonymous page hits allowed."""
+    path = (body.get("path") or "").strip()[:500]
+    if not path:
+        raise HTTPException(400, detail="path required")
+    ip = request.client.host if request.client else None
+    ua = request.headers.get("user-agent", "")[:500]
+    db.add(PageView(id=uuid.uuid4(), path=path, ip=ip, user_agent=ua, created_at=datetime.utcnow()))
+    await db.flush()
+    return {"ok": True}
 
 
 @router.put("/users/me")
