@@ -10,6 +10,7 @@ import { RecommendationCards } from "@/components/chat/RecommendationCards";
 import { PlanCard } from "@/components/chat/PlanCard";
 import { FormattedText } from "@/components/chat/FormattedText";
 import { PlanInputForm } from "@/components/chat/PlanInputForm";
+import { Loading } from "@/components/ui";
 import type { PlanFormData } from "@/components/chat/PlanInputForm";
 
 const QUICK_PROMPTS = [
@@ -310,6 +311,19 @@ export default function ChatPage() {
               )}
             </div>
           ))}
+          {/* AI typing indicator — interactive loading while waiting for response */}
+          {sendMsg.isPending && (
+            <div className="flex gap-4 max-w-4xl mb-6">
+              <div className="w-10 h-10 rounded-full bg-secondary text-on-secondary flex-shrink-0 flex items-center justify-center mt-1">
+                <Sparkles className="w-5 h-5 fill-current" />
+              </div>
+              <div className="flex flex-col gap-3 w-full pt-1">
+                <div className="bg-surface-container-low rounded-2xl rounded-tl-none px-4 py-3">
+                  <Loading variant="chat" className="py-2" />
+                </div>
+              </div>
+            </div>
+          )}
           <div ref={messagesEndRef} />
         </div>
 

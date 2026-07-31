@@ -5,6 +5,7 @@ import { Star, MapPin, Heart, ChevronLeft, ChevronRight, MessageCircle, Sparkles
 import { useState } from "react";
 import { useSearchDestinations, useProfile, useFavoriteIds, useToggleFavorite } from "@/lib/queries";
 import { destImage } from "@/lib/utils";
+import { Loading } from "@/components/ui";
 import type { Destination } from "@/types";
 
 const HERO_SLIDES = [
@@ -83,12 +84,11 @@ export default function Home() {
           <button onClick={() => router.push("/search")} className="text-primary text-[14px] font-bold hover:underline">Lihat Semua</button>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {isLoading && Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="bg-white rounded-2xl border border-outline-variant/30 overflow-hidden">
-              <div className="h-48 skeleton" />
-              <div className="p-4 space-y-2"><div className="h-4 w-2/3 skeleton" /><div className="h-3 w-1/2 skeleton" /></div>
+          {isLoading && (
+            <div className="col-span-full flex items-center justify-center py-8">
+              <Loading variant="search" />
             </div>
-          ))}
+          )}
           {dests.map(d => {
             const liked = favIds.has(d.id);
             return (

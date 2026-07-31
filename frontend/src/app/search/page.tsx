@@ -8,7 +8,7 @@ import { useSearchDestinations, useCategories, useQuickRecommendations, useProfi
 import { useUIStore } from "@/stores";
 import { destImage } from "@/lib/utils";
 import { Star, MapPin, Sparkles, Heart, Compass } from "lucide-react";
-import { GridSkeleton } from "@/components/ui";
+import { GridSkeleton, Loading } from "@/components/ui";
 
 const TRENDING = [
   { name: "Mount Bromo, East Java", location: "Probolinggo, ID", img: "https://lh3.googleusercontent.com/aida-public/AB6AXuBSg2XQro9jhHhQVbs6F_j8KrwtZGjlhv6wJopLU107uPXPSsTq6jXaFZweTocpteIQz5OBUnXattz_q1z5u7ok0JD8BZo7exiqmwV9ROfuVxaYBNxbkD1WD-jqmWr0FavFCeXghimF-eg012zSGm0TFJQ4vSbuPHH76LIRC0yyZ9sD8huPdy3SIhlEMDTOXq-3RMmfSKWNoPkGXrNLxwhRQS9yjb1Vc-svOVVKpyLxSSmvu80kXKV9" },
@@ -253,7 +253,7 @@ function SearchContent() {
 
 export default function SearchPage() {
   return (
-    <Suspense fallback={<div className="pt-16 bg-background min-h-screen"><div className="max-w-[1280px] mx-auto px-4 py-8"><GridSkeleton count={6} /></div></div>}>
+    <Suspense fallback={<div className="pt-16 bg-background min-h-screen"><div className="max-w-[1280px] mx-auto px-4 py-8"><Loading variant="search" /></div></div>}>
       <SearchContent />
     </Suspense>
   );

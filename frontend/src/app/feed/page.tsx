@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { useInfinitePosts, useCreatePost } from "@/lib/feed-queries";
 import { useProfile } from "@/lib/queries";
 import { useUIStore } from "@/stores";
-import { GridSkeleton, EmptyState } from "@/components/ui";
+import { GridSkeleton, EmptyState, Loading } from "@/components/ui";
 import { PostCard } from "@/components/feed/PostCard";
 import { Sparkles, Image as ImageIcon, Video, X, ArrowRight } from "lucide-react";
 import type { MediaItem } from "@/types";
@@ -155,7 +155,11 @@ export default function FeedPage() {
         </div>
 
         {/* ═══ MASONRY FEED ═══ */}
-        {isLoading && <GridSkeleton count={6} />}
+        {isLoading && (
+          <div className="flex flex-col items-center py-16">
+            <Loading variant="feed" />
+          </div>
+        )}
         {error && <EmptyState icon={Sparkles} title="Gagal memuat feed" description="Coba lagi nanti" />}
 
         {!isLoading && !error && posts.length === 0 && (

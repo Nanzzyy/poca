@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useDestination, useReviews, useReviewSummary, useNearbyDestinations, useLocalGuide, useCreateReview, useProfile, useFavoriteIds, useToggleFavorite } from "@/lib/queries";
 import { useUIStore } from "@/stores";
 import { destImage } from "@/lib/utils";
+import { Loading } from "@/components/ui";
 import { Star, MapPin, Clock, DollarSign, Send, Utensils, Landmark, TreePine, Sparkles, Lightbulb, PenLine, Share2, Bookmark, Rocket, SmilePlus, Frown, ChevronLeft, ChevronRight } from "lucide-react";
 import { useState } from "react";
 import nextDynamic from "next/dynamic";
@@ -46,10 +47,8 @@ export default function DestinationPage() {
   const [imgIdx, setImgIdx] = useState(0);
 
   if (isLoading) return (
-    <div className="pt-20 max-w-[1280px] mx-auto px-6 py-6">
-      <div className="skeleton h-[500px] rounded-2xl mb-6" />
-      <div className="skeleton h-8 w-2/3 mb-4" />
-      <div className="skeleton h-32 rounded-2xl" />
+    <div className="pt-16 min-h-screen bg-background flex items-center justify-center">
+      <Loading variant="profile" />
     </div>
   );
   if (!dest) return <div className="pt-20 text-center py-24 text-on-surface-variant">Destination not found</div>;
