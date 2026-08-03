@@ -40,12 +40,11 @@ export function timeAgo(date: string | Date) {
   return "baru saja";
 }
 
-// source.unsplash.com is defunct (503). Fall back to a branded placeholder so
-// cards never show a broken image. ponytail: replace with real photography when
-// the seed/DB ships curated image URLs.
+// source.unsplash.com is defunct (503). Use the destination's real image when
+// present; fall back to a branded placeholder only when empty/dead.
 export function destImage(images?: string[] | null, name?: string | null): string {
-  // Avoid external image sources (all known CDN URLs are blocked by ORB / may be
-  // dead). Always serve a branded placeholder.
+  const real = images?.find((u) => u && !u.includes("source.unsplash"));
+  if (real) return real;
   const text = encodeURIComponent((name || "Poca").slice(0, 24));
   return `https://placehold.co/800x600/004ac6/ffffff?text=${text}`;
 }

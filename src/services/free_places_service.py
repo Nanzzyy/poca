@@ -157,11 +157,12 @@ class FreePlacesService:
         img = data.get("originalimage", {}).get("source") or data.get("thumbnail", {}).get("source")
         return img, data.get("extract")
 
-    async def _wikipedia_search_title(self, name: str) -> str | None:
-        """Find the best id-Wikipedia article title for a freeform place name."""
+    async def _wikipedia_search_title(self, name: str, lang: str = "id") -> str | None:
+        """Find the best Wikipedia article title for a freeform place name."""
         client = await self._http()
+        base = f"https://{lang}.wikipedia.org/w/api.php"
         try:
-            r = await client.get(WIKIPEDIA_SEARCH, params={
+            r = await client.get(base, params={
                 "action": "query", "list": "search", "srsearch": name,
                 "srnamespace": "0", "srlimit": 1, "format": "json",
             })
@@ -172,22 +173,44 @@ class FreePlacesService:
         except Exception:
             return None
 
+    async def _wikipedia_image(self, title: str, lang: str = "id") -> tuple[str | None, str | None]:
+        """Return (lead_image_url, summary) from Wikipedia by exact article title."""
+        client = await self._http()
+        base = f"https://{lang}.wikipedia.org/api/rest_v1/page/summary/"
+        try:
+            r = await client.get(base + urllib.parse.quote(title))
+            if r.status_code != 200:
+                return None, None
+            data = r.json() or {}
+        except Exception:
+            return None, None
+        if data.get("type") == "disambiguation":
+            return None, None
+        img = data.get("originalimage", {}).get("source") or data.get("thumbnail", {}).get("source")
+        return img, data.get("extract")
+
     async def resolve_image(self, name: str, city: str | None = None) -> tuple[str | None, str | None]:
-        """Wikidata first, Wikipedia fallback (via search). Returns (image_url, description)."""
+        """Wikidata first, then id+en Wikipedia fallback (via search)."""
         img, desc = await self._wikidata_image(name)
         if img:
             return img, desc
         # Strip common suffixes and let Wikipedia search resolve the real article title.
-        clean = re.sub(r"\s+(temple|candi|beach|pantai|island|pulau|museum)$", "", name, flags=re.I)
-        for query in (name, clean, f"{name} {city}" if city else None):
-            if not query:
-                continue
-            title = await self._wikipedia_search_title(query)
-            if not title:
-                continue
-            img, desc = await self._wikipedia_image(title)
-            if img:
-                return img, desc
+        clean = re.sub(
+            r"\s+(temple|candi|beach|pantai|island|pulau|museum|volcano|waterfall|rice terrace|marine park)$",
+            "", name, flags=re.I,
+        )
+        queries = [name, clean, f"{name} {city}" if city else None]
+        for lang in ("id", "en"):
+            for query in queries:
+                if not query:
+                    continue
+                title = await self._wikipedia_search_title(query, lang)
+                if not title:
+                    continue
+                img, desc = await self._wikipedia_image(title, lang)
+                if img:
+                    return img, desc
+                await asyncio.sleep(0.3)
         return None, None
 
     # ── Admin search ───────────────────────────────────────────────────
