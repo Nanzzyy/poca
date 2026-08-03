@@ -8,17 +8,28 @@ import { destImage } from "@/lib/utils";
 import { Loading } from "@/components/ui";
 import type { Destination } from "@/types";
 
-const HERO_SLIDES = [
-  { src: "", badge: "Trending", rating: "4.9 (2.4k reviews)", title: "Candi Borobudur, Magelang", desc: "Warisan dunia UNESCO yang megah." },
-  { src: "", badge: "RECOMMENDED", rating: "4.8 (1.2k reviews)", title: "Uluwatu, Bali", desc: "Pura megah di atas tebing dengan pemandangan sunset terbaik." },
+// Hero is built dynamically from top destinations that have a real image.
+function buildHero(dests: Destination[]) {
+  const withImg = dests.filter(d => d.images?.some(u => u && !u.includes("source.unsplash")));
+  const picks = (withImg.length >= 2 ? withImg : dests).slice(0, 4);
+  return picks.map((d, i) => ({
+    src: destImage(d.images, d.name),
+    badge: i === 0 ? "Trending" : i === 1 ? "Recommended" : "Populer",
+    rating: `${d.rating_avg || 4.5} (${d.review_count || 0} reviews)`,
+    title: `${d.name}${d.city ? ", " + d.city : ""}`,
+    desc: d.description?.slice(0, 90) || `Destinasi ${d.category?.name || "favorit"} di ${d.city || "Indonesia"}.`,
+    id: d.id,
+  }));
+}
+
+const FALLBACK_HERO = [
+  { src: "", badge: "Trending", rating: "4.9", title: "Jelajahi Indonesia", desc: "Temukan destinasi terbaik dengan AI.", id: "" },
 ];
 
 export default function Home() {
   const router = useRouter();
   const [q, setQ] = useState("");
   const [heroIdx, setHeroIdx] = useState(0);
-  const slide = HERO_SLIDES[heroIdx];
-
   const { data: user } = useProfile();
   const favIds = useFavoriteIds();
   const toggleFav = useToggleFavorite();
@@ -26,6 +37,8 @@ export default function Home() {
 
   // Live data first; the curated list is only a fallback before hydration / on empty.
   const dests: Destination[] = data?.items?.length ? data.items.slice(0, 8) : [];
+  const heroSlides = buildHero(dests).length ? buildHero(dests) : FALLBACK_HERO;
+  const slide = heroSlides[Math.min(heroIdx, heroSlides.length - 1)];
 
   const onLike = (id: string) => {
     if (!user) return router.push("/auth/login");
@@ -59,7 +72,7 @@ export default function Home() {
             <div className="absolute inset-0 bg-gradient-to-tr from-primary/10 to-secondary/10 rounded-2xl -rotate-2" />
             <div className="relative h-full w-full bg-white rounded-2xl shadow-lg overflow-hidden border border-outline-variant/30">
               {slide.src ? (
-                <img className="w-full h-full object-cover transition-opacity duration-500" src={slide.src} alt={slide.title} />
+                <img className="w-full h-full object-cover transition-opacity duration-500 cursor-pointer" src={slide.src} alt={slide.title} onClick={() => slide.id && router.push(`/destination/${slide.id}`)} />
               ) : (
                 <div className="w-full h-full bg-gradient-to-br from-primary/80 via-primary to-secondary/80 flex items-center justify-center text-white">
                   <Sparkles className="w-16 h-16 fill-current opacity-50" />
@@ -75,8 +88,8 @@ export default function Home() {
               </div>
               {/* prev/next — always visible on touch, hover-reveal on desktop */}
               <div className="absolute top-1/2 -translate-y-1/2 w-full px-4 flex justify-between opacity-90 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                <button onClick={() => setHeroIdx(i => (i - 1 + HERO_SLIDES.length) % HERO_SLIDES.length)} className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-md border border-white/30 text-white hover:bg-white/40 active:scale-90 transition-all"><ChevronLeft className="w-5 h-5" /></button>
-                <button onClick={() => setHeroIdx(i => (i + 1) % HERO_SLIDES.length)} className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-md border border-white/30 text-white hover:bg-white/40 active:scale-90 transition-all"><ChevronRight className="w-5 h-5" /></button>
+                <button onClick={() => setHeroIdx(i => (i - 1 + heroSlides.length) % heroSlides.length)} className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-md border border-white/30 text-white hover:bg-white/40 active:scale-90 transition-all"><ChevronLeft className="w-5 h-5" /></button>
+                <button onClick={() => setHeroIdx(i => (i + 1) % heroSlides.length)} className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-md border border-white/30 text-white hover:bg-white/40 active:scale-90 transition-all"><ChevronRight className="w-5 h-5" /></button>
               </div>
             </div>
           </div>
