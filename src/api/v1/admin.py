@@ -268,38 +268,45 @@ async def admin_bulk_import(
         template = await db.get(PageTemplate, template_id)
 
     count = 0
-    for item in items:
-        name = item.get("name", "").strip()
+    errors: list[dict] = []
+    for i, item in enumerate(items):
+        name = (item.get("name") or "").strip() if isinstance(item, dict) else ""
         if not name:
+            errors.append({"index": i, "name": "", "error": "missing or empty 'name'"})
             continue
-        slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
-        existing = (await db.execute(select(Destination).where(Destination.slug == slug))).scalar_one_or_none()
-        if existing:
-            slug = f"{slug}-{_uuid.uuid4().hex[:6]}"
-        dest = Destination(
-            name=name, slug=slug,
-            category_id=item.get("category_id"),
-            latitude=item.get("latitude", 0), longitude=item.get("longitude", 0),
-            country=item.get("country", "Indonesia"), city=item.get("city"),
-            address=item.get("address"), description=item.get("description"),
-            images=item.get("images", []), tags=item.get("tags", []),
-            price_level=item.get("price_level", "mid"), rating_avg=item.get("rating_avg", 0),
-        )
-        db.add(dest)
-        await db.flush()
+        try:
+            slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+            existing = (await db.execute(select(Destination).where(Destination.slug == slug))).scalar_one_or_none()
+            if existing:
+                slug = f"{slug}-{_uuid.uuid4().hex[:6]}"
+            dest_id = _uuid.uuid4()
+            dest = Destination(
+                id=dest_id, name=name, slug=slug,
+                category_id=item.get("category_id"),
+                latitude=item.get("latitude", 0), longitude=item.get("longitude", 0),
+                country=item.get("country", "Indonesia"), city=item.get("city"),
+                address=item.get("address"), description=item.get("description"),
+                images=item.get("images", []), tags=item.get("tags", []),
+                price_level=item.get("price_level", "mid"), rating_avg=item.get("rating_avg", 0),
+            )
+            db.add(dest)
 
-        if template:
-            for s in template.sections:
-                section = DestinationSection(
-                    destination_id=dest.id,
-                    section_type=s.get("type", ""),
-                    title=s.get("title"),
-                    order=s.get("order", 0),
-                    data=s.get("defaults", {}),
-                )
-                db.add(section)
+            if template:
+                for s in template.sections:
+                    db.add(DestinationSection(
+                        destination_id=dest_id,
+                        section_type=s.get("type", ""),
+                        title=s.get("title"),
+                        order=s.get("order", 0),
+                        data=s.get("defaults", {}),
+                    ))
 
-        count += 1
+            count += 1
+        except Exception as e:  # per-item construction error — record, don't abort batch
+            errors.append({"index": i, "name": name, "error": str(e)})
+
+    await db.flush()
+    return {"imported": count, "skipped": len(errors), "errors": errors[:50]}
 
     await db.flush()
     return {"imported": count}

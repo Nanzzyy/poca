@@ -3,11 +3,13 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api-client";
+import { useUIStore } from "@/stores";
 import { Plus, Pencil, Trash2, Search, X, Upload, Layers, FileJson } from "lucide-react";
 import Link from "next/link";
 
 export default function AdminDestinationsPage() {
   const qc = useQueryClient();
+  const addToast = useUIStore(s => s.addToast);
   const [page, setPage] = useState(1);
   const [q, setQ] = useState("");
   const [editItem, setEditItem] = useState<any>(null);
@@ -31,17 +33,26 @@ export default function AdminDestinationsPage() {
       editItem?.id
         ? api.put(`/admin/destinations/${editItem.id}`, body)
         : api.post("/admin/destinations", body),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin", "destinations"] }); setEditItem(null); setShowAdd(false); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin", "destinations"] }); setEditItem(null); setShowAdd(false); addToast("Destinasi disimpan!", "success"); },
+    onError: (e: any) => addToast(e?.message || "Gagal menyimpan destinasi", "error"),
   });
 
   const del = useMutation({
     mutationFn: (id: string) => api.delete(`/admin/destinations/${id}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "destinations"] }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin", "destinations"] }); addToast("Destinasi dihapus.", "info"); },
+    onError: (e: any) => addToast(e?.message || "Gagal menghapus", "error"),
   });
 
   const bulk = useMutation({
     mutationFn: (items: any[]) => api.post<any>("/admin/destinations/bulk", { items }),
-    onSuccess: (r: any) => { qc.invalidateQueries({ queryKey: ["admin", "destinations"] }); alert(`Imported ${r.imported ?? 0} destinasi`); },
+    onSuccess: (r: any) => {
+      qc.invalidateQueries({ queryKey: ["admin", "destinations"] });
+      const skipped = r.skipped || 0;
+      const msg = `Terimpor ${r.imported ?? 0} destinasi${skipped ? `, dilewati ${skipped}` : ""}`;
+      addToast(msg, skipped ? "info" : "success");
+      if (r.errors?.length) console.warn("Bulk import errors:", r.errors);
+    },
+    onError: (e: any) => addToast(e?.message || "Import gagal", "error"),
   });
 
   const onFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -51,9 +62,9 @@ export default function AdminDestinationsPage() {
       const txt = await f.text();
       const parsed = JSON.parse(txt);
       const items = Array.isArray(parsed) ? parsed : parsed.items;
-      if (!Array.isArray(items) || !items.length) { alert("JSON harus array atau {items:[...]}"); return; }
+      if (!Array.isArray(items) || !items.length) { addToast("JSON harus array atau {items:[...]}", "error"); e.target.value = ""; return; }
       bulk.mutate(items);
-    } catch { alert("File JSON tidak valid"); }
+    } catch { addToast("File JSON tidak valid", "error"); }
     e.target.value = "";
   };
 

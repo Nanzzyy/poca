@@ -3,6 +3,7 @@
 import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api-client";
+import { useUIStore } from "@/stores";
 import { Upload, Trash2, X, Tag, Image as ImageIcon, Search, ChevronLeft, ChevronRight } from "lucide-react";
 
 interface AssetItem {
@@ -21,6 +22,7 @@ interface AssetItem {
 
 export default function AdminAssetsPage() {
   const qc = useQueryClient();
+  const addToast = useUIStore(s => s.addToast);
   const fileRef = useRef<HTMLInputElement>(null);
   const [page, setPage] = useState(1);
   const [destFilter, setDestFilter] = useState("");
@@ -39,7 +41,8 @@ export default function AdminAssetsPage() {
 
   const deleteAsset = useMutation({
     mutationFn: (id: string) => api.delete(`/admin/assets/${id}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "assets"] }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin", "assets"] }); addToast("Aset dihapus.", "info"); },
+    onError: (e: any) => addToast(e?.message || "Gagal menghapus aset", "error"),
   });
 
   const updateAsset = useMutation({
@@ -47,7 +50,9 @@ export default function AdminAssetsPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin", "assets"] });
       setEditAsset(null);
+      addToast("Aset diperbarui!", "success");
     },
+    onError: (e: any) => addToast(e?.message || "Gagal memperbarui aset", "error"),
   });
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -61,8 +66,9 @@ export default function AdminAssetsPage() {
         await api.upload("/admin/assets/upload", fd, { destination_id: destFilter || undefined });
       }
       qc.invalidateQueries({ queryKey: ["admin", "assets"] });
+      addToast("Upload selesai!", "success");
     } catch (err: any) {
-      alert(err.message || "Upload failed");
+      addToast(err?.message || "Upload gagal", "error");
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = "";

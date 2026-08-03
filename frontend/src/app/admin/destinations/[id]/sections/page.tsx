@@ -4,8 +4,10 @@ import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api-client";
+import { useUIStore } from "@/stores";
 import { SECTION_TYPES, ICON_OPTIONS } from "@/lib/section-types";
-import { Plus, Trash2, X, GripVertical, Eye, EyeOff, ChevronUp, ChevronDown, ChevronLeft, ArrowDown, ArrowUp } from "lucide-react";
+import { Plus, Trash2, X, GripVertical, Eye, EyeOff, ChevronUp, ChevronDown, ChevronLeft, ArrowDown, ArrowUp, Image as ImageIcon } from "lucide-react";
+import AssetPicker from "@/components/admin/AssetPicker";
 
 interface Section {
   id: string;
@@ -27,6 +29,7 @@ export default function AdminSectionsPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const qc = useQueryClient();
+  const addToast = useUIStore(s => s.addToast);
   const [editSection, setEditSection] = useState<Section | null>(null);
   const [sectionData, setSectionData] = useState<Record<string, unknown>>({});
   const [showAdd, setShowAdd] = useState(false);
@@ -49,27 +52,34 @@ export default function AdminSectionsPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin", "sections", id] });
       setShowAdd(false);
+      addToast("Section ditambahkan!", "success");
     },
+    onError: (e: any) => addToast(e?.message || "Gagal menambah section", "error"),
   });
 
   const updateSection = useMutation({
     mutationFn: ({ sectionId, body }: { sectionId: string; body: Record<string, unknown> }) =>
       api.put(`/admin/destinations/${id}/sections/${sectionId}`, body),
-    onSuccess: () => {
+    onSuccess: (_d, vars) => {
       qc.invalidateQueries({ queryKey: ["admin", "sections", id] });
-      setEditSection(null);
+      // only close edit panel on full-data saves, not visibility toggles
+      if (vars.body && "data" in vars.body) setEditSection(null);
+      if (vars.body && "data" in vars.body) addToast("Section disimpan!", "success");
     },
+    onError: (e: any) => addToast(e?.message || "Gagal menyimpan section", "error"),
   });
 
   const deleteSection = useMutation({
     mutationFn: (sectionId: string) => api.delete(`/admin/destinations/${id}/sections/${sectionId}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "sections", id] }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin", "sections", id] }); addToast("Section dihapus.", "info"); },
+    onError: (e: any) => addToast(e?.message || "Gagal menghapus section", "error"),
   });
 
   const reorderSection = useMutation({
     mutationFn: (items: { id: string; order: number }[]) =>
       api.put(`/admin/destinations/${id}/sections/reorder`, { items }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "sections", id] }),
+    onError: (e: any) => addToast(e?.message || "Gagal mengubah urutan", "error"),
   });
 
   const startEdit = (s: Section) => {
@@ -239,6 +249,26 @@ function SectionFieldEditor({ sectionType, data, onChange }: {
 
   const setField = (key: string, value: unknown) => onChange({ ...data, [key]: value });
 
+  // Asset picker state: {key} for top-level field, {arrayKey,idx,itemKey} for asset inside an array item
+  const [picker, setPicker] = useState<{ key: string; multiple: boolean } | null>(null);
+  const [pickerItem, setPickerItem] = useState<{ arrayKey: string; idx: number; itemKey: string } | null>(null);
+
+  const handlePickerSelect = (url: string) => {
+    if (picker) setField(picker.key, url);
+    else if (pickerItem) {
+      const items = Array.isArray(data[pickerItem.arrayKey]) ? [...(data[pickerItem.arrayKey] as Record<string, unknown>[])] : [];
+      if (items[pickerItem.idx]) items[pickerItem.idx] = { ...items[pickerItem.idx], [pickerItem.itemKey]: url };
+      setField(pickerItem.arrayKey, items);
+    }
+  };
+
+  const handlePickerConfirm = (urls: string[]) => {
+    if (picker) {
+      const existing = Array.isArray(data[picker.key]) ? (data[picker.key] as string[]) : [];
+      setField(picker.key, [...new Set([...existing, ...urls])]);
+    }
+  };
+
   return (
     <div className="space-y-4">
       {def.fields.map(field => {
@@ -311,11 +341,53 @@ function SectionFieldEditor({ sectionType, data, onChange }: {
         }
 
         if (field.type === "asset") {
+          const url = String(value || "");
           return (
             <div key={field.key}>
               <label className="text-[11px] font-medium text-on-surface-variant uppercase tracking-wider">{field.label}</label>
-              <input value={String(value || "")} onChange={e => setField(field.key, e.target.value)} placeholder="Asset URL or ID"
-                className="w-full p-2.5 mt-1 border border-outline-variant rounded-xl text-[13px] bg-surface-container-lowest outline-none focus:ring-2 focus:ring-primary/20" />
+              {url && (
+                <div className="mt-1 mb-2 relative inline-block">
+                  <img src={url} alt="" className="w-24 h-24 object-cover rounded-lg border border-outline-variant" />
+                  <button onClick={() => setField(field.key, "")}
+                    className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-error text-white flex items-center justify-center"><X className="w-3 h-3" /></button>
+                </div>
+              )}
+              <div className="flex gap-2">
+                <button onClick={() => setPicker({ key: field.key, multiple: false })}
+                  className="px-3 py-2 text-[12px] font-medium border border-outline-variant rounded-lg hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-colors">
+                  {url ? "Ganti Gambar" : "Pilih Gambar"}
+                </button>
+              </div>
+              <input value={url} onChange={e => setField(field.key, e.target.value)} placeholder="atau tempel URL..."
+                className="w-full p-2.5 mt-2 border border-outline-variant rounded-xl text-[12px] bg-surface-container-lowest outline-none focus:ring-2 focus:ring-primary/20" />
+            </div>
+          );
+        }
+
+        // asset[] — image gallery (hero-gallery, image-grid). No item_fields, so needs its own branch.
+        if (field.type === "asset[]") {
+          const imgs = Array.isArray(value) ? (value as string[]) : [];
+          const maxItems = field.max || 20;
+          return (
+            <div key={field.key}>
+              <label className="text-[11px] font-medium text-on-surface-variant uppercase tracking-wider">{field.label} ({imgs.length})</label>
+              {imgs.length > 0 && (
+                <div className="mt-2 grid grid-cols-5 gap-2">
+                  {imgs.map((url, i) => (
+                    <div key={i} className="relative">
+                      <img src={url} alt="" className="w-full aspect-square object-cover rounded-lg border border-outline-variant" />
+                      <button onClick={() => setField(field.key, imgs.filter((_, j) => j !== i))}
+                        className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-error text-white flex items-center justify-center"><X className="w-3 h-3" /></button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {imgs.length < maxItems && (
+                <button onClick={() => setPicker({ key: field.key, multiple: true })}
+                  className="mt-2 flex items-center gap-1.5 px-3 py-2 text-[12px] font-medium border border-outline-variant rounded-lg hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-colors">
+                  <Plus className="w-3.5 h-3.5" /> Tambah Gambar
+                </button>
+              )}
             </div>
           );
         }
@@ -368,6 +440,21 @@ function SectionFieldEditor({ sectionType, data, onChange }: {
                             <option value="">Select icon...</option>
                             {ICON_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
                           </select>
+                        ) : f.type === "asset" ? (
+                          <div className="flex items-center gap-2 mt-0.5">
+                            {item[f.key] ? (
+                              <img src={String(item[f.key])} alt="" className="w-12 h-12 object-cover rounded border border-outline-variant" />
+                            ) : (
+                              <div className="w-12 h-12 rounded border border-outline-variant bg-surface-container-high flex items-center justify-center"><ImageIcon className="w-4 h-4 text-on-surface-variant/30" /></div>
+                            )}
+                            <button onClick={() => setPickerItem({ arrayKey: field.key, idx, itemKey: f.key })}
+                              className="px-2.5 py-1.5 text-[11px] font-medium border border-outline-variant rounded-lg hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-colors">
+                              {item[f.key] ? "Ganti" : "Pilih"}
+                            </button>
+                            {!!item[f.key] && (
+                              <button onClick={() => updateItem(idx, f.key, "")} className="p-1 text-error hover:bg-error/10 rounded"><X className="w-3 h-3" /></button>
+                            )}
+                          </div>
                         ) : (
                           <input value={String(item[f.key] || "")} onChange={e => updateItem(idx, f.key, e.target.value)}
                             className="w-full p-2 mt-0.5 border border-outline-variant rounded-lg text-[12px] bg-surface-container-lowest outline-none focus:ring-1 focus:ring-primary/20" />
@@ -388,6 +475,14 @@ function SectionFieldEditor({ sectionType, data, onChange }: {
 
         return null;
       })}
+
+      <AssetPicker
+        open={!!picker || !!pickerItem}
+        onClose={() => { setPicker(null); setPickerItem(null); }}
+        onSelect={handlePickerSelect}
+        onConfirm={handlePickerConfirm}
+        multiple={picker?.multiple}
+      />
     </div>
   );
 }

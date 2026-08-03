@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api-client";
+import { useUIStore } from "@/stores";
 import { SECTION_TYPES, type SectionTypeDef } from "@/lib/section-types";
 import { Plus, Pencil, Trash2, Download, Upload, FileJson, X, GripVertical, Eye, EyeOff } from "lucide-react";
 
@@ -28,6 +29,7 @@ const emptyTemplate: Template = { id: "", name: "", description: "", sections: [
 
 export default function AdminTemplatesPage() {
   const qc = useQueryClient();
+  const addToast = useUIStore(s => s.addToast);
   const [editItem, setEditItem] = useState<Template | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState<Template & { importJson?: string }>({ ...emptyTemplate });
@@ -47,12 +49,15 @@ export default function AdminTemplatesPage() {
       qc.invalidateQueries({ queryKey: ["admin", "templates"] });
       setEditItem(null);
       setShowAdd(false);
+      addToast("Template disimpan!", "success");
     },
+    onError: (e: any) => addToast(e?.message || "Gagal menyimpan template", "error"),
   });
 
   const remove = useMutation({
     mutationFn: (id: string) => api.delete(`/admin/templates/${id}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "templates"] }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin", "templates"] }); addToast("Template dihapus.", "info"); },
+    onError: (e: any) => addToast(e?.message || "Gagal menghapus template", "error"),
   });
 
   const importJson = useMutation({
@@ -61,7 +66,9 @@ export default function AdminTemplatesPage() {
       qc.invalidateQueries({ queryKey: ["admin", "templates"] });
       setForm({ ...emptyTemplate });
       setShowAdd(false);
+      addToast("Template diimpor!", "success");
     },
+    onError: (e: any) => addToast(e?.message || "Import gagal", "error"),
   });
 
   const startEdit = (t: Template) => {
@@ -131,7 +138,7 @@ export default function AdminTemplatesPage() {
         const data = JSON.parse(reader.result as string);
         importJson.mutate(data);
       } catch {
-        alert("Invalid JSON file");
+        addToast("File JSON tidak valid", "error");
       }
     };
     reader.readAsText(file);
