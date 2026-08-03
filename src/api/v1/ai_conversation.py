@@ -14,6 +14,8 @@ from src.domain.schemas.conversation import (
 )
 from src.repositories.conversation_repo import ConversationRepository
 from src.services.ai_conversation_service import AIConversationService
+from src.core.redis import get_redis
+from src.services.cache_service import CacheService
 
 router = APIRouter(prefix="/ai/conversations", tags=["ai"])
 
@@ -117,8 +119,10 @@ async def send_message(
         await repo.update_summary(conv_id, title)
         conv.summary = title
 
-    # Generate AI response
-    ai_service = AIConversationService(db)
+    # Generate AI response (with cache if Redis available)
+    redis = get_redis()
+    cache = CacheService(redis) if redis else None
+    ai_service = AIConversationService(db, cache=cache)
     try:
         ai_content, ai_metadata = await ai_service.generate_response(conv_id, body.content)
     except Exception as e:

@@ -12,6 +12,7 @@ import { useState } from "react";
 import nextDynamic from "next/dynamic";
 
 const MapView = nextDynamic(() => import("@/components/map/MapView"), { ssr: false });
+const SectionRenderer = nextDynamic(() => import("@/components/sections/SectionRenderer"), { ssr: false });
 
 
 
@@ -150,7 +151,19 @@ export default function DestinationPage() {
           </div>
         </section>
 
-        {/* ═══════ TAB SYSTEM ═══════ */}
+        {/* ═══════ SECTION-DRIVEN CONTENT (if sections exist) ═══════ */}
+        {(dest as any).sections && (dest as any).sections.length > 0 ? (
+          <div className="space-y-0">
+            {([...(dest as any).sections]
+              .sort((a: any, b: any) => a.order - b.order)
+              .filter((s: any) => s.visible && s.section_type !== "hero-gallery" && s.section_type !== "reviews")
+            ).map((section: any) => (
+              <SectionRenderer key={section.id} section={section} dest={dest} />
+            ))}
+          </div>
+        ) : (
+          <>
+        {/* ═══════ TAB SYSTEM (legacy fallback) ═══════ */}
         <div className="border-b border-outline-variant/30 mb-6 flex items-center justify-between sticky top-16 bg-background/95 backdrop-blur-sm z-40 py-2">
           <div className="flex gap-6 overflow-x-auto no-scrollbar">
             {tabs.map(({ key, label }) => (
@@ -446,6 +459,8 @@ export default function DestinationPage() {
               </div>
             </div>
           </div>
+        )}
+          </>
         )}
       </main>
     </div>

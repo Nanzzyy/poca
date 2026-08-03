@@ -21,10 +21,10 @@ const QUICK_PROMPTS = [
 ];
 
 const REFINEMENT_PROMPTS = [
-  { icon: RefreshCw, label: "Ubah budget", prompt: "Ubah budget jadi lebih hemat" },
-  { icon: Sliders, label: "Tambah hari", prompt: "Tambah durasi jadi 4 hari" },
-  { icon: Wand2, label: "Ganti minat", prompt: "Ganti fokus ke kuliner" },
-  { icon: Compass, label: "Ganti lokasi", prompt: "Ganti lokasi ke daerah lain" },
+  { icon: RefreshCw, label: "Ubah budget", prompt: "Ubah budget" },
+  { icon: Sliders, label: "Tambah hari", prompt: "Tambah hari" },
+  { icon: Wand2, label: "Ganti minat", prompt: "Ganti minat" },
+  { icon: Compass, label: "Ganti lokasi", prompt: "Ganti lokasi" },
 ];
 
 const PLACEHOLDER_PLANS = [
@@ -158,9 +158,8 @@ export default function ChatPage() {
   // Handle refinement clicks
   const handleRefinement = async (prompt: string) => {
     if (!activeConv) return;
+    // Let the user provide the value; do not submit a hardcoded edit.
     setInput(prompt);
-    // Auto-send after brief delay
-    setTimeout(() => handleSend(prompt), 100);
   };
 
   // Edit plan → tell AI to modify the current plan; it will ask what changed
@@ -169,6 +168,11 @@ export default function ChatPage() {
     if (!activeConv) return;
     setInput("Ubah rencana ini");
     setTimeout(() => handleSend("Ubah rencana ini"), 100);
+  };
+
+  const handleCancelPlan = () => {
+    if (!activeConv) return;
+    void handleSend("Batalkan rencana ini");
   };
 
   const startRename = (id: string, summary?: string | null) => {
@@ -323,7 +327,7 @@ export default function ChatPage() {
                   </div>
                   <div className="flex flex-col gap-3 w-full">
                     <div className="text-[14px] leading-relaxed text-on-surface"><FormattedText text={m.content} /></div>
-                    {m.msg_metadata?.plan && <PlanCard plan={m.msg_metadata.plan} onEdit={() => handleEditPlan(m.id)} />}
+                    {m.msg_metadata?.plan && <PlanCard plan={m.msg_metadata.plan} onEdit={() => handleEditPlan(m.id)} onCancel={handleCancelPlan} />}
                     {m.msg_metadata?.recommendations?.length > 0 && <RecommendationCards items={m.msg_metadata.recommendations} />}
 
                     {/* Refinement actions — show after plan */}

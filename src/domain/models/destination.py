@@ -8,6 +8,22 @@ from sqlalchemy.orm import relationship
 from src.core.database import Base
 
 
+class DestinationSection(Base):
+    __tablename__ = "destination_sections"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    destination_id = Column(UUID(as_uuid=True), ForeignKey("destinations.id", ondelete="CASCADE"), nullable=False, index=True)
+    section_type = Column(String(50), nullable=False)
+    title = Column(String(200), nullable=True)
+    order = Column(Integer, default=0)
+    visible = Column(Boolean, default=True)
+    data = Column(JSON, default=dict)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    destination = relationship("Destination", back_populates="sections")
+
+
 class Category(Base):
     __tablename__ = "categories"
 
@@ -44,9 +60,11 @@ class Destination(Base):
     local_tips = Column(JSON, default=dict)  # food, customs, hidden_gems
     seasonal_info = Column(JSON, default=dict)
     is_active = Column(Boolean, default=True)
+    embedding = Column(Text, nullable=True)  # JSON-encoded 384-dim vector for semantic search
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
     category = relationship("Category", back_populates="destinations", lazy="selectin")
     reviews = relationship("Review", back_populates="destination", cascade="all, delete-orphan")
     review_summary = relationship("ReviewSummary", back_populates="destination", uselist=False, cascade="all, delete-orphan")
+    sections = relationship("DestinationSection", back_populates="destination", order_by="DestinationSection.order", cascade="all, delete-orphan")

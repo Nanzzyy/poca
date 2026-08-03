@@ -1,7 +1,9 @@
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from src.core.config import settings
 from src.core.redis import init_redis, close_redis
@@ -34,6 +36,11 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
 )
+
+# Mount static files for asset uploads
+_static_dir = os.path.join(os.path.dirname(__file__), "..", "static")
+os.makedirs(os.path.join(_static_dir, "uploads", "assets"), exist_ok=True)
+app.mount("/static", StaticFiles(directory=_static_dir), name="static")
 
 app.add_middleware(
     CORSMiddleware,

@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api-client";
-import { Plus, Pencil, Trash2, Search, X, Upload } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, X, Upload, Layers, FileJson } from "lucide-react";
+import Link from "next/link";
 
 export default function AdminDestinationsPage() {
   const qc = useQueryClient();
@@ -17,6 +18,12 @@ export default function AdminDestinationsPage() {
     queryKey: ["admin", "destinations", page, q],
     queryFn: () => api.get<any>(`/admin/destinations`, { params: { page, size: 15, q } }),
     staleTime: 30_000,
+  });
+
+  const { data: templates } = useQuery({
+    queryKey: ["admin", "templates"],
+    queryFn: () => api.get<any[]>("/admin/templates"),
+    staleTime: 60_000,
   });
 
   const save = useMutation({
@@ -96,6 +103,9 @@ export default function AdminDestinationsPage() {
                 <td className="p-3">{d.rating_avg}</td>
                 <td className="p-3">{d.is_active ? "✅" : "❌"}</td>
                 <td className="p-3 flex gap-1">
+                  <Link href={`/admin/destinations/${d.id}/sections`} className="p-1.5 rounded hover:bg-surface-container" title="Sections">
+                    <Layers className="w-3.5 h-3.5 text-tertiary" />
+                  </Link>
                   <button onClick={() => openEdit(d)} className="p-1.5 rounded hover:bg-surface-container"><Pencil className="w-3.5 h-3.5 text-primary" /></button>
                   <button onClick={() => { if (confirm("Hapus?")) del.mutate(d.id); }} className="p-1.5 rounded hover:bg-error/10"><Trash2 className="w-3.5 h-3.5 text-error" /></button>
                 </td>
@@ -144,6 +154,20 @@ export default function AdminDestinationsPage() {
               <div><label className="text-[11px] font-medium text-on-surface-variant block mb-0.5">Deskripsi</label><textarea value={form.description || ""} onChange={e => setForm({ ...form, description: e.target.value })} className="w-full p-2 border rounded-lg text-[13px] h-20" /></div>
               <div><label className="text-[11px] font-medium text-on-surface-variant block mb-0.5">Tags (koma)</label><input value={(form.tags || []).join(", ")} onChange={e => setForm({ ...form, tags: e.target.value.split(",").map((t: string) => t.trim()).filter(Boolean) })} className="w-full p-2 border rounded-lg text-[13px]" /></div>
               <div className="flex items-center gap-2"><input type="checkbox" checked={form.is_active !== false} onChange={e => setForm({ ...form, is_active: e.target.checked })} /><span className="text-[13px]">Aktif</span></div>
+
+              {!editItem && templates && templates.length > 0 && (
+                <div>
+                  <label className="text-[11px] font-medium text-on-surface-variant flex items-center gap-1 mb-1">
+                    <FileJson className="w-3 h-3" /> Template (opsional)
+                  </label>
+                  <select value={form.template_id || ""} onChange={e => setForm({ ...form, template_id: e.target.value || undefined })}
+                    className="w-full p-2 border border-outline-variant rounded-lg text-[13px] bg-surface-container-lowest">
+                    <option value="">Tanpa template</option>
+                    {templates.map((t: any) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                  </select>
+                </div>
+              )}
+
               <button
                 onClick={() => save.mutate(form)}
                 disabled={save.isPending || !form.name}

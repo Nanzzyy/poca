@@ -21,6 +21,7 @@ from src.services.budget_service import BudgetService
 from src.services.trip_planner_service import TripPlannerService
 
 TIME_SLOTS = ["09:00", "12:00", "15:00", "18:30"]  # morning / lunch / afternoon / dinner
+PRICE_RANK = {"budget": 0, "mid": 1, "luxury": 2}
 
 
 def _budget_category(cat_name: str | None) -> str:
@@ -38,14 +39,21 @@ def _budget_category(cat_name: str | None) -> str:
 
 
 def _level_from_budget(budget: float | None, num_days: int, people: int) -> str:
+    """Choose highest tier whose unavoidable daily costs fit budget.
+
+    Per-person/day thresholds are misleading: a one-day Rp2m budget looks
+    luxury, but luxury lodging alone already exceeds the complete budget.
+    """
     if not budget or not num_days or not people:
         return "mid"
-    per_day_person = budget / num_days / people
-    if per_day_person < 400_000:
-        return "budget"
-    if per_day_person > 1_200_000:
-        return "luxury"
-    return "mid"
+    rooms = max(1, math.ceil(people / 2))
+    transport = 150_000 * num_days
+    for level in ("luxury", "mid", "budget"):
+        lodging = BudgetService.ACCOMMODATION_COSTS[level] * num_days * rooms
+        meals = 2 * BudgetService.FOOD_COSTS[level] * num_days * people
+        if lodging + meals + transport <= budget:
+            return level
+    return "budget"
 
 
 class PlanService:
@@ -62,12 +70,6 @@ class PlanService:
         num_days = max(1, min(int(num_days or 2), 7))
         people = max(1, int(people or 1))
         plan_level = _level_from_budget(budget, num_days, people)
-        # Honour a tight budget: if the user forces a lower budget than what the
-        # level heuristic suggests, clamp everything to budget tier.
-        if budget and plan_level == "mid":
-            per_day_person = budget / num_days / people
-            if per_day_person < 300_000:
-                plan_level = "budget"
         cities = cities_for(location)
 
         cats = {c.name.lower(): c.id for c in await self.dest_repo.get_categories()}
@@ -132,7 +134,14 @@ class PlanService:
             activities: list[dict[str, Any]] = []
             for dest, t in slots:
                 cat_label = dest.category.name if getattr(dest, "category", None) else None
-                level = dest.price_level if dest.price_level in ("budget", "mid", "luxury") else plan_level
+                destination_level = (
+                    dest.price_level
+                    if dest.price_level in PRICE_RANK
+                    else plan_level
+                )
+                # User budget is a ceiling. A destination tagged luxury must
+                # not silently switch a budget itinerary to luxury estimates.
+                level = min((destination_level, plan_level), key=PRICE_RANK.get)
                 cost_raw = await self.budget.estimate_activity_cost(_budget_category(cat_label), level)
                 cost = round(cost_raw * people)
                 activities_total += cost
@@ -176,6 +185,27 @@ class PlanService:
         transport = 150_000 * num_days  # rough local transport (Gojek/sewa motor)
         total = activities_total + accommodation + transport
 
+        # Remove optional paid stops, most expensive first, until the estimate
+        # fits. Meals, accommodation, and transport remain represented.
+        if budget and total > budget:
+            removable = sorted(
+                (
+                    (activity.get("cost", 0), day, activity)
+                    for day in days
+                    for activity in day["activities"]
+                    if activity.get("category") != "food" and activity.get("cost", 0) > 0
+                ),
+                key=lambda item: item[0],
+                reverse=True,
+            )
+            for cost, day, activity in removable:
+                if total <= budget:
+                    break
+                day["activities"].remove(activity)
+                activities_total -= cost
+                total -= cost
+                day["notes"] = f"{len([a for a in day['activities'] if a['category'] != 'food'])} destinasi + makan"
+
         fit, delta = self._budget_fit(total, budget)
 
         plan = {
@@ -202,7 +232,9 @@ class PlanService:
         return plan, used
 
     def _generic_meal(self, name: str, time_str: str, level: str, people: int) -> dict[str, Any]:
-        cost = round(self.budget.FOOD_COSTS[level] * people)
+        # FOOD_COSTS is a full-day allowance. One meal uses activity food rate.
+        per_meal = {"budget": 50_000, "mid": 150_000, "luxury": 500_000}[level]
+        cost = round(per_meal * people)
         return {
             "name": name, "category": "food", "time": time_str,
             "location_name": None, "lat": None, "lng": None,

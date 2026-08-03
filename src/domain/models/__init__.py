@@ -1,5 +1,7 @@
 from src.domain.models.user import User
-from src.domain.models.destination import Category, Destination
+from src.domain.models.destination import Category, Destination, DestinationSection
+from src.domain.models.template import PageTemplate
+from src.domain.models.asset import Asset
 from src.domain.models.trip import Trip, TripActivity, TripDay
 from src.domain.models.review import Review, ReviewSummary
 from src.domain.models.conversation import Conversation, Message
@@ -13,6 +15,9 @@ __all__ = [
     "User",
     "Category",
     "Destination",
+    "DestinationSection",
+    "PageTemplate",
+    "Asset",
     "Trip",
     "TripActivity",
     "TripDay",

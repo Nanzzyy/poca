@@ -33,6 +33,17 @@ class DestinationList(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class SectionData(BaseModel):
+    id: UUID
+    section_type: str
+    title: Optional[str] = None
+    order: int = 0
+    visible: bool = True
+    data: dict[str, Any] = {}
+
+    model_config = {"from_attributes": True}
+
+
 class DestinationDetail(DestinationList):
     description: Optional[str] = None
     address: Optional[str] = None
@@ -40,6 +51,7 @@ class DestinationDetail(DestinationList):
     best_visiting_hours: Optional[dict[str, Any]] = None
     local_tips: Optional[dict[str, Any]] = None
     seasonal_info: Optional[dict[str, Any]] = None
+    sections: list[SectionData] = []
     created_at: datetime
     updated_at: datetime
 

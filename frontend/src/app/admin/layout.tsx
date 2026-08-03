@@ -6,11 +6,13 @@ import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useAuthStore } from "@/stores";
 import { useProfile } from "@/lib/queries";
-import { LayoutDashboard, MapPin, Users, BarChart3, Tags, LogOut, Menu } from "lucide-react";
+import { LayoutDashboard, MapPin, Users, BarChart3, Tags, LogOut, Menu, FileJson, Image as ImageIcon } from "lucide-react";
 
 const NAV = [
   { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/admin/destinations", label: "Destinasi", icon: MapPin },
+  { href: "/admin/templates", label: "Templates", icon: FileJson },
+  { href: "/admin/assets", label: "Assets", icon: ImageIcon },
   { href: "/admin/users", label: "Users", icon: Users },
   { href: "/admin/traffic", label: "Traffic", icon: BarChart3 },
   { href: "/admin/categories", label: "Kategori", icon: Tags },

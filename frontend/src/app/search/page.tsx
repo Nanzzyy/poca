@@ -10,11 +10,6 @@ import { destImage } from "@/lib/utils";
 import { Star, MapPin, Sparkles, Heart, Compass } from "lucide-react";
 import { GridSkeleton, Loading } from "@/components/ui";
 
-const TRENDING = [
-  { name: "Mount Bromo, East Java", location: "Probolinggo, ID" },
-  { name: "Ubud Terraces, Bali", location: "Gianyar, ID" },
-];
-
 const AI_RECOS = [
   { name: "Samosir, Danau Toba", location: "Sumatera Utara", price: "Rp 1.2jt", rating: 4.9, reviews: "1.2k", tags: ["BUDAYA", "ALAM"], desc: "Eksplorasi budaya Batak di tengah danau vulkanik terbesar di dunia." },
   { name: "Modern District, Tokyo", location: "Tokyo, JP", price: "Rp 8.5jt", rating: 4.8, reviews: "850", tags: ["URBAN", "TEKNOLOGI"], desc: "Perpaduan futuristik antara tradisi dan teknologi." },
@@ -38,6 +33,9 @@ function SearchContent() {
   const toggleFav = useToggleFavorite();
 
   const { data: cats } = useCategories();
+  // Trending cards must come from real destinations so each item has an ID
+  // and can open its detail page. Do not use name-only placeholders here.
+  const { data: trendingData, isLoading: trendingLoading } = useSearchDestinations("", { sort: "popular", size: "4" });
   // Resolve category slug/name (from chips/select) → category_id the backend expects.
   const resolvedCat = (cats || []).find(
     c => c.slug.toLowerCase() === category.toLowerCase() || c.name.toLowerCase() === category.toLowerCase()
@@ -50,6 +48,7 @@ function SearchContent() {
 
   const { data, isLoading } = useSearchDestinations(q, filters);
   const results = data?.items || [];
+  const trending = trendingData?.items || [];
 
   // Recommendations: live results first, fallback to quick endpoint, then static.
   const hasResults = results.length > 0;
@@ -191,10 +190,19 @@ function SearchContent() {
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {(results.length >= 4 ? results.slice(0, 4) : TRENDING).map((item: any, i: number) => (
+            {trendingLoading && (
+              <div className="col-span-full py-8 text-center text-sm text-on-surface-variant">Memuat destinasi trending...</div>
+            )}
+            {!trendingLoading && trending.length === 0 && (
+              <div className="col-span-full py-8 text-center text-sm text-on-surface-variant">Belum ada destinasi trending.</div>
+            )}
+            {trending.map((item: any) => (
               <div
-                key={item.id || i}
-                onClick={() => item.id && router.push(`/destination/${item.id}`)}
+                key={item.id}
+                onClick={() => router.push(`/destination/${item.id}`)}
+                role="link"
+                tabIndex={0}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") router.push(`/destination/${item.id}`); }}
                 className="bg-surface-container-lowest rounded-xl shadow-sm border border-outline-variant overflow-hidden group hover:shadow-md transition-all cursor-pointer"
               >
                 <div className="h-48 relative overflow-hidden">

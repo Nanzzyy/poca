@@ -23,7 +23,7 @@ const BAR_COLORS: Record<string, string> = {
   transport: "bg-cyan-400",
 };
 
-export function PlanCard({ plan, onEdit }: { plan: TripPlan; onEdit?: () => void }) {
+export function PlanCard({ plan, onEdit, onCancel: onCancelPlan }: { plan: TripPlan; onEdit?: () => void; onCancel?: () => void }) {
   const router = useRouter();
   const save = useSavePlan();
   const updateTrip = useUpdateTrip();
@@ -45,6 +45,7 @@ export function PlanCard({ plan, onEdit }: { plan: TripPlan; onEdit?: () => void
   const onCancel = () => {
     // Discard plan — no trip is created. Stay in chat to refine or ask again.
     setState("idle");
+    onCancelPlan?.();
   };
 
   return (

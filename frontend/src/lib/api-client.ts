@@ -69,10 +69,33 @@ async function request<T>(method: HttpMethod, path: string, config?: RequestConf
   return res.json();
 }
 
+async function uploadFile<T>(path: string, formData: FormData, params?: Record<string, string | undefined>): Promise<T> {
+  const url = new URL(`${BASE_URL}${path}`);
+  if (params) {
+    Object.entries(params).forEach(([k, v]) => {
+      if (v !== undefined && v !== null && v !== "") url.searchParams.set(k, v);
+    });
+  }
+  const token = getAuthToken();
+  const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+
+  const res = await fetch(url.toString(), { method: "POST", headers, body: formData });
+  if (!res.ok) {
+    let errorMsg = res.statusText;
+    try {
+      const errData = await res.json();
+      if (errData.detail) errorMsg = typeof errData.detail === "string" ? errData.detail : JSON.stringify(errData.detail);
+    } catch {}
+    throw new Error(errorMsg || "Upload failed");
+  }
+  return res.json();
+}
+
 export const api = {
   get: <T>(path: string, config?: RequestConfig) => request<T>("GET", path, config),
   post: <T>(path: string, body?: unknown, config?: RequestConfig) => request<T>("POST", path, { ...config, body }),
   put: <T>(path: string, body?: unknown, config?: RequestConfig) => request<T>("PUT", path, { ...config, body }),
   patch: <T>(path: string, body?: unknown, config?: RequestConfig) => request<T>("PATCH", path, { ...config, body }),
   delete: <T>(path: string, config?: RequestConfig) => request<T>("DELETE", path, config),
+  upload: <T>(path: string, formData: FormData, params?: Record<string, string | undefined>) => uploadFile<T>(path, formData, params),
 };

@@ -2,14 +2,18 @@ from sqlalchemy import select, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from math import radians, sin, cos, acos
-from src.domain.models.destination import Destination, Category
+from src.domain.models.destination import Destination, Category, DestinationSection
 
 class DestinationRepository:
     def __init__(self, db: AsyncSession):
         self.db = db
 
     async def get_by_id(self, dest_id: str) -> Destination | None:
-        stmt = select(Destination).where(Destination.id == dest_id).options(selectinload(Destination.category))
+        stmt = (
+            select(Destination)
+            .where(Destination.id == dest_id)
+            .options(selectinload(Destination.category), selectinload(Destination.sections))
+        )
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
@@ -32,8 +36,11 @@ class DestinationRepository:
                      city: str | None = None, cities: list[str] | None = None,
                      exclude_category_ids: list[int] | None = None, sort: str | None = None,
                      lat: float | None = None, lng: float | None = None, radius_km: float | None = None,
-                     page: int = 1, size: int = 20) -> tuple[list[Destination], int]:
-        query = select(Destination).where(Destination.is_active == True)
+                     page: int = 1, size: int = 20,
+                     include_inactive: bool = False) -> tuple[list[Destination], int]:
+        query = select(Destination)
+        if not include_inactive:
+            query = query.where(Destination.is_active == True)
 
         if q:
             query = query.where(
@@ -129,3 +136,59 @@ class DestinationRepository:
         stmt = select(Category)
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
+
+    async def semantic_search(
+        self,
+        query_embedding: list[float],
+        cities: list[str] | None = None,
+        exclude_category_ids: list[int] | None = None,
+        category_id: int | None = None,
+        limit: int = 5,
+    ) -> list[Destination]:
+        """Semantic search using cosine similarity on stored embeddings.
+
+        Embeddings are stored as JSON text in the `embedding` column.
+        We compute cosine similarity in Python since pgvector isn't used as TEXT.
+        For production with pgvector VECTOR type, use:
+            ORDER BY embedding <=> query_embedding (cosine distance)
+        """
+        import json as json_mod
+
+        stmt = (
+            select(Destination)
+            .where(Destination.is_active == True, Destination.embedding.isnot(None))
+            .options(selectinload(Destination.category))
+        )
+        if cities:
+            stmt = stmt.where(or_(*[Destination.city.ilike(f"%{c}%") for c in cities]))
+        if category_id:
+            stmt = stmt.where(Destination.category_id == category_id)
+        if exclude_category_ids:
+            stmt = stmt.where(Destination.category_id.not_in(exclude_category_ids))
+
+        result = await self.db.execute(stmt)
+        destinations = list(result.scalars().all())
+
+        if not destinations or not query_embedding:
+            return []
+
+        # Compute cosine similarity in Python
+        def cosine_sim(a: list[float], b: list[float]) -> float:
+            dot = sum(x * y for x, y in zip(a, b))
+            norm_a = sum(x * x for x in a) ** 0.5
+            norm_b = sum(x * x for x in b) ** 0.5
+            if norm_a == 0 or norm_b == 0:
+                return 0.0
+            return dot / (norm_a * norm_b)
+
+        scored = []
+        for dest in destinations:
+            try:
+                emb = json_mod.loads(dest.embedding)
+                score = cosine_sim(query_embedding, emb)
+                scored.append((score, dest))
+            except (json_mod.JSONDecodeError, TypeError):
+                continue
+
+        scored.sort(key=lambda x: x[0], reverse=True)
+        return [dest for _, dest in scored[:limit]]
