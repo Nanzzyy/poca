@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api-client";
 import { useUIStore } from "@/stores";
-import { Plus, Pencil, Trash2, Search, X, Upload, Layers, FileJson } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, X, Upload, Layers, FileJson, Sparkles } from "lucide-react";
 import Link from "next/link";
 
 export default function AdminDestinationsPage() {
@@ -68,6 +68,35 @@ export default function AdminDestinationsPage() {
     e.target.value = "";
   };
 
+  // ── Free POI enrich & search (Wikidata/Nominatim/Wikipedia) ──
+  const [poiQ, setPoiQ] = useState("");
+  const [showPoi, setShowPoi] = useState(false);
+  const [poiItems, setPoiItems] = useState<any[]>([]);
+
+  const enrichOne = useMutation({
+    mutationFn: (id: string) => api.post<any>(`/admin/destinations/${id}/enrich-free`),
+    onSuccess: (r: any) => { qc.invalidateQueries({ queryKey: ["admin", "destinations"] }); addToast(r?.image_added ? `Gambar ditambah (${r.source || "wikidata"})` : "Tidak ada gambar ditemukan", r?.image_added ? "success" : "info"); },
+    onError: (e: any) => addToast(e?.message || "Enrich gagal", "error"),
+  });
+
+  const enrichAll = useMutation({
+    mutationFn: () => api.post<any>("/admin/destinations/enrich-free-all", {}),
+    onSuccess: (r: any) => { qc.invalidateQueries({ queryKey: ["admin", "destinations"] }); const n = r?.items?.length || 0; const ok = r?.items?.filter((x: any) => x.image_added).length || 0; addToast(`Enrich ${ok}/${n} destinasi`, ok ? "success" : "info"); },
+    onError: (e: any) => addToast(e?.message || "Enrich batch gagal", "error"),
+  });
+
+  const poiSearch = useMutation({
+    mutationFn: (query: string) => api.get<any>("/admin/places/search", { params: { q: query } }),
+    onSuccess: (r: any) => setPoiItems(r?.items || []),
+    onError: (e: any) => addToast(e?.message || "Pencarian POI gagal", "error"),
+  });
+
+  const fromPlace = useMutation({
+    mutationFn: (p: any) => api.post<any>("/admin/destinations/from-place", p),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin", "destinations"] }); addToast("Destinasi ditambah dari POI", "success"); },
+    onError: (e: any) => addToast(e?.message || "Gagal menambah POI", "error"),
+  });
+
   const openEdit = (item: any) => { setEditItem(item); setForm({ ...item }); };
   const openAdd = () => { setShowAdd(true); setEditItem(null); setForm({ name: "", category_id: "", city: "", country: "Indonesia", latitude: 0, longitude: 0, price_level: "mid", description: "" }); };
 
@@ -79,6 +108,12 @@ export default function AdminDestinationsPage() {
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-[24px] font-bold">Destinasi ({total})</h2>
         <div className="flex items-center gap-2">
+        <button onClick={() => setShowPoi(true)} className="flex items-center gap-2 px-4 py-2 bg-tertiary text-on-tertiary rounded-xl text-[13px] font-bold active:scale-95">
+          <Search className="w-4 h-4" /> Cari POI
+        </button>
+        <button onClick={() => enrichAll.mutate()} disabled={enrichAll.isPending} className="flex items-center gap-2 px-4 py-2 bg-secondary text-on-secondary rounded-xl text-[13px] font-bold active:scale-95 disabled:opacity-50">
+          <Sparkles className="w-4 h-4" /> {enrichAll.isPending ? "Enrich..." : "Enrich Semua"}
+        </button>
         <button onClick={openAdd} className="flex items-center gap-2 px-4 py-2 bg-primary text-on-primary rounded-xl text-[13px] font-bold active:scale-95">
           <Plus className="w-4 h-4" /> Tambah
         </button>
@@ -117,6 +152,9 @@ export default function AdminDestinationsPage() {
                   <Link href={`/admin/destinations/${d.id}/sections`} className="p-1.5 rounded hover:bg-surface-container" title="Sections">
                     <Layers className="w-3.5 h-3.5 text-tertiary" />
                   </Link>
+                  <button onClick={() => enrichOne.mutate(d.id)} disabled={enrichOne.isPending} className="p-1.5 rounded hover:bg-secondary/10" title="Enrich gambar/koordinat">
+                    <Sparkles className="w-3.5 h-3.5 text-secondary" />
+                  </button>
                   <button onClick={() => openEdit(d)} className="p-1.5 rounded hover:bg-surface-container"><Pencil className="w-3.5 h-3.5 text-primary" /></button>
                   <button onClick={() => { if (confirm("Hapus?")) del.mutate(d.id); }} className="p-1.5 rounded hover:bg-error/10"><Trash2 className="w-3.5 h-3.5 text-error" /></button>
                 </td>
@@ -186,6 +224,52 @@ export default function AdminDestinationsPage() {
               >
                 {save.isPending ? "Menyimpan..." : "Simpan"}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Cari POI (Wikidata/Nominatim gratis) */}
+      {showPoi && (
+        <div className="fixed inset-0 z-[200] bg-black/40 flex items-center justify-center p-4" onClick={() => setShowPoi(false)}>
+          <div className="bg-surface-container-lowest rounded-2xl p-6 w-full max-w-2xl max-h-[80vh] overflow-auto shadow-xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-[18px] font-bold">Cari POI (gratis, tanpa API key)</h3>
+              <button onClick={() => setShowPoi(false)}><X className="w-5 h-5" /></button>
+            </div>
+            <div className="flex gap-2 mb-4">
+              <input
+                value={poiQ} onChange={e => setPoiQ(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter" && poiQ.trim().length >= 2) poiSearch.mutate(poiQ.trim()); }}
+                placeholder="cth: Pantai Kuta, Resto Bali..."
+                className="flex-1 p-2 border border-outline-variant rounded-lg text-[13px] bg-surface-container-lowest outline-none focus:ring-2 focus:ring-primary/20"
+              />
+              <button onClick={() => poiSearch.mutate(poiQ.trim())} disabled={poiSearch.isPending || poiQ.trim().length < 2}
+                className="px-4 py-2 bg-primary text-on-primary rounded-lg text-[13px] font-bold disabled:opacity-50">
+                {poiSearch.isPending ? "Mencari..." : "Cari"}
+              </button>
+            </div>
+            <div className="space-y-2">
+              {poiItems.map((p: any, i: number) => (
+                <div key={i} className="flex items-center gap-3 p-3 border border-outline-variant/20 rounded-xl">
+                  {p.image_url
+                    ? <img src={p.image_url} alt={p.name} className="w-16 h-16 rounded-lg object-cover bg-surface-container-low" />
+                    : <div className="w-16 h-16 rounded-lg bg-surface-container-low flex items-center justify-center text-outline"><Layers className="w-5 h-5" /></div>}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[13px] font-bold truncate">{p.name}</p>
+                    <p className="text-[11px] text-on-surface-variant truncate">{p.address || `${p.lat?.toFixed(4)}, ${p.lng?.toFixed(4)}`}</p>
+                    <p className="text-[10px] text-outline">sumber: {p.source}{p.city ? ` · ${p.city}` : ""}</p>
+                  </div>
+                  <button
+                    onClick={() => fromPlace.mutate({ name: p.name, lat: p.lat, lng: p.lng, address: p.address, city: p.city, image_url: p.image_url, tags: [p.category || "wisata"] })}
+                    disabled={fromPlace.isPending}
+                    className="px-3 py-1.5 bg-primary text-on-primary rounded-lg text-[12px] font-bold disabled:opacity-50"
+                  >
+                    Tambah
+                  </button>
+                </div>
+              ))}
+              {poiItems.length === 0 && <p className="text-center py-6 text-on-surface-variant text-[13px]">Cari nama tempat untuk menampilkan kandidat.</p>}
             </div>
           </div>
         </div>

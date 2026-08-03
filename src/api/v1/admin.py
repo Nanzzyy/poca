@@ -28,6 +28,7 @@ from src.domain.models.knowledge import AIKnowledgeDocument
 from src.domain.schemas.knowledge import KnowledgeCreate, KnowledgeUpdate, knowledge_item
 from src.services.knowledge_service import KnowledgeService
 from src.services.ai_conversation_service import AIConversationService
+from src.services.free_places_service import FreePlacesService
 from src.repositories.conversation_repo import ConversationRepository
 from src.domain.models.conversation import Conversation
 import json
@@ -452,8 +453,54 @@ async def admin_bulk_import(
     await db.flush()
     return {"imported": count, "skipped": len(errors), "errors": errors[:50]}
 
+
+# ── Free POI source (Wikidata/Nominatim/Wikipedia — no API key) ──
+
+@router.get("/places/search")
+async def admin_search_places(q: str = Query(..., min_length=2), lat: float | None = None, lng: float | None = None, limit: int = Query(8, ge=1, le=20), _u: User = admin):
+    """Search free POI candidates (coords + image) for admin import."""
+    if not q.strip():
+        raise HTTPException(400, detail="q is required")
+    async with FreePlacesService(None) as svc:
+        return {"items": await svc.search_places(q.strip(), lat, lng, limit)}
+
+
+@router.post("/destinations/from-place", status_code=status.HTTP_201_CREATED)
+async def admin_create_from_place(body: dict, db: AsyncSession = Depends(get_db), _u: User = admin):
+    name = (body.get("name") or "").strip()
+    if not name or body.get("lat") is None or body.get("lng") is None:
+        raise HTTPException(400, detail="name, lat, lng required")
+    slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+    if (await db.execute(select(Destination).where(Destination.slug == slug))).scalar_one_or_none():
+        slug = f"{slug}-{_uuid.uuid4().hex[:6]}"
+    images = [body["image_url"]] if body.get("image_url") else []
+    dest = Destination(
+        name=name, slug=slug,
+        latitude=float(body["lat"]), longitude=float(body["lng"]),
+        country=body.get("country", "Indonesia"), city=body.get("city"),
+        address=body.get("address"), description=body.get("description"),
+        images=images, tags=body.get("tags", []) or ["wisata"],
+        price_level=body.get("price_level", "mid"),
+    )
+    db.add(dest)
     await db.flush()
-    return {"imported": count}
+    return {"id": str(dest.id), "name": dest.name, "slug": dest.slug}
+
+
+@router.post("/destinations/{dest_id}/enrich-free")
+async def admin_enrich_free(dest_id: str, db: AsyncSession = Depends(get_db), _u: User = admin):
+    """Resolve coords + image from free sources for one destination."""
+    async with FreePlacesService(db) as svc:
+        try:
+            return await svc.enrich_destination(dest_id)
+        except ValueError as exc:
+            raise HTTPException(404, detail=str(exc))
+
+
+@router.post("/destinations/enrich-free-all")
+async def admin_enrich_free_all(size: int = Query(20, ge=1, le=100), db: AsyncSession = Depends(get_db), _u: User = admin):
+    async with FreePlacesService(db) as svc:
+        return {"items": await svc.enrich_all_without_images(size)}
 
 
 # ── Templates CRUD ──
