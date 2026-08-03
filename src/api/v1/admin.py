@@ -23,10 +23,154 @@ from src.domain.schemas.admin import (
     DestinationFromTemplate,
 )
 from src.repositories.destination_repo import DestinationRepository
+from src.repositories.knowledge_repo import KnowledgeRepository
+from src.domain.models.knowledge import AIKnowledgeDocument
+from src.domain.schemas.knowledge import KnowledgeCreate, KnowledgeUpdate, knowledge_item
+from src.services.knowledge_service import KnowledgeService
+from src.services.ai_conversation_service import AIConversationService
+from src.repositories.conversation_repo import ConversationRepository
+from src.domain.models.conversation import Conversation
+import json
+import io
+import zipfile
+
+
+def _extract_uploaded_text(filename: str, content: bytes) -> str:
+    name = (filename or "").lower()
+    if name.endswith(('.txt', '.md', '.csv', '.json')):
+        return content.decode('utf-8-sig')
+    if name.endswith('.docx'):
+        with zipfile.ZipFile(io.BytesIO(content)) as archive:
+            xml = archive.read('word/document.xml').decode('utf-8')
+        return re.sub(r'<[^>]+>', ' ', xml)
+    raise HTTPException(400, detail="Only TXT, Markdown, CSV, JSON, and DOCX files are supported")
+
+
+def _knowledge_payload(doc: AIKnowledgeDocument) -> dict:
+    data = knowledge_item(doc)
+    data.pop("content", None)
+    return data
+
+
+def _knowledge_patch(doc: AIKnowledgeDocument, body: KnowledgeUpdate) -> dict:
+    values = body.model_dump(exclude_unset=True)
+    if "source_url" in values and values["source_url"] is not None:
+        values["source_url"] = str(values["source_url"])
+    if "metadata" in values:
+        values["metadata_json"] = values.pop("metadata")
+    return values
+
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
 admin = Depends(require_admin)
+
+
+# ── AI Knowledge ──
+
+@router.get("/knowledge")
+async def admin_list_knowledge(
+    page: int = Query(1, ge=1), size: int = Query(20, ge=1, le=100),
+    status_filter: str | None = Query(None, alias="status"), q: str = Query(""),
+    topic: str | None = None, db: AsyncSession = Depends(get_db), _u: User = admin,
+):
+    rows, total = await KnowledgeRepository(db).list(
+        page=page, size=size, status=status_filter, q=q.strip() or None, topic=topic,
+    )
+    return {"items": [_knowledge_payload(d) for d in rows], "total": total, "page": page, "size": size}
+
+
+@router.post("/knowledge", status_code=status.HTTP_201_CREATED)
+async def admin_create_knowledge(body: KnowledgeCreate, db: AsyncSession = Depends(get_db), _u: User = admin):
+    values = body.model_dump()
+    values["source_url"] = str(values["source_url"]) if values.get("source_url") else None
+    values["metadata_json"] = values.pop("metadata")
+    doc = await KnowledgeService(db).create_draft(actor_id=_u.id, **values)
+    return knowledge_item(doc)
+
+
+@router.get("/knowledge/{knowledge_id}")
+async def admin_get_knowledge(knowledge_id: str, db: AsyncSession = Depends(get_db), _u: User = admin):
+    doc = await KnowledgeRepository(db).get(knowledge_id)
+    if not doc:
+        raise HTTPException(404, detail="Knowledge not found")
+    data = knowledge_item(doc)
+    data["revisions"] = [
+        {"id": str(r.id), "version": r.version, "title": r.title, "content": r.content,
+         "created_at": r.created_at.isoformat()}
+        for r in await KnowledgeRepository(db).revisions(knowledge_id)
+    ]
+    return data
+
+
+@router.put("/knowledge/{knowledge_id}")
+async def admin_update_knowledge(knowledge_id: str, body: KnowledgeUpdate, db: AsyncSession = Depends(get_db), _u: User = admin):
+    doc = await KnowledgeRepository(db).get(knowledge_id)
+    if not doc:
+        raise HTTPException(404, detail="Knowledge not found")
+    try:
+        await KnowledgeService(db).update_draft(doc, actor_id=_u.id, **_knowledge_patch(doc, body))
+    except ValueError as exc:
+        raise HTTPException(409, detail=str(exc))
+    return knowledge_item(doc)
+
+
+@router.post("/knowledge/{knowledge_id}/publish")
+async def admin_publish_knowledge(knowledge_id: str, db: AsyncSession = Depends(get_db), _u: User = admin):
+    doc = await KnowledgeRepository(db).get(knowledge_id)
+    if not doc:
+        raise HTTPException(404, detail="Knowledge not found")
+    try:
+        await KnowledgeService(db).publish(doc, _u.id)
+    except ValueError as exc:
+        raise HTTPException(422, detail=str(exc))
+    return knowledge_item(doc)
+
+
+@router.post("/knowledge/{knowledge_id}/archive")
+async def admin_archive_knowledge(knowledge_id: str, db: AsyncSession = Depends(get_db), _u: User = admin):
+    doc = await KnowledgeRepository(db).get(knowledge_id)
+    if not doc:
+        raise HTTPException(404, detail="Knowledge not found")
+    doc.status = "archived"
+    await db.flush()
+    return knowledge_item(doc)
+
+
+@router.delete("/knowledge/{knowledge_id}")
+async def admin_delete_knowledge(knowledge_id: str, db: AsyncSession = Depends(get_db), _u: User = admin):
+    doc = await KnowledgeRepository(db).get(knowledge_id)
+    if not doc:
+        raise HTTPException(404, detail="Knowledge not found")
+    if doc.status != "draft":
+        raise HTTPException(409, detail="Only drafts can be deleted")
+    await db.delete(doc)
+    await db.flush()
+    return {"ok": True}
+
+
+@router.post("/knowledge/upload", status_code=status.HTTP_201_CREATED)
+async def admin_upload_knowledge(file: UploadFile = File(...), db: AsyncSession = Depends(get_db), _u: User = admin):
+    content = await file.read()
+    if len(content) > MAX_FILE_SIZE:
+        raise HTTPException(413, detail="File too large (max 10MB)")
+    text = _extract_uploaded_text(file.filename or "", content)
+    title = os.path.splitext(file.filename or "Knowledge")[0][:255]
+    doc = await KnowledgeService(db).create_draft(
+        title=title, content=text, source_name=file.filename, actor_id=_u.id,
+    )
+    return knowledge_item(doc)
+
+
+@router.post("/knowledge/preview")
+async def admin_preview_knowledge(body: dict, db: AsyncSession = Depends(get_db), _u: User = admin):
+    query = str(body.get("query", "")).strip()
+    if not query or len(query) > 1000:
+        raise HTTPException(400, detail="query is required and must be <= 1000 characters")
+    return {"query": query, "evidence": await KnowledgeService(db).retrieve(query, limit=4)}
+
+
+# ── Dashboard ──
 
 UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), "static", "uploads", "assets")
 ALLOWED_MIME = {"image/jpeg", "image/png", "image/webp", "image/gif", "image/svg+xml", "video/mp4"}

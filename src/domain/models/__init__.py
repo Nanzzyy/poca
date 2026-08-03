@@ -10,6 +10,7 @@ from src.domain.models.post import Post, Comment, PostLike
 from src.domain.models.notification import Notification
 from src.domain.models.follower import Follower
 from src.domain.models.page_view import PageView
+from src.domain.models.knowledge import AIKnowledgeDocument, AIKnowledgeRevision
 
 __all__ = [
     "User",
@@ -35,4 +36,6 @@ __all__ = [
     "Notification",
     "Follower",
     "PageView",
+    "AIKnowledgeDocument",
+    "AIKnowledgeRevision",
 ]
