@@ -4,17 +4,11 @@ export const dynamic = "force-dynamic";
 
 import { useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { useSearchDestinations, useCategories, useQuickRecommendations, useProfile, useFavoriteIds, useToggleFavorite } from "@/lib/queries";
+import { useSearchDestinations, useCategories, useProfile, useFavoriteIds, useToggleFavorite } from "@/lib/queries";
 import { useUIStore } from "@/stores";
 import { destImage } from "@/lib/utils";
 import { Star, MapPin, Sparkles, Heart, Compass } from "lucide-react";
 import { GridSkeleton, Loading } from "@/components/ui";
-
-const AI_RECOS = [
-  { name: "Samosir, Danau Toba", location: "Sumatera Utara", price: "Rp 1.2jt", rating: 4.9, reviews: "1.2k", tags: ["BUDAYA", "ALAM"], desc: "Eksplorasi budaya Batak di tengah danau vulkanik terbesar di dunia." },
-  { name: "Modern District, Tokyo", location: "Tokyo, JP", price: "Rp 8.5jt", rating: 4.8, reviews: "850", tags: ["URBAN", "TEKNOLOGI"], desc: "Perpaduan futuristik antara tradisi dan teknologi." },
-  { name: "Secret Cove, El Nido", location: "Palawan, PH", price: "Rp 5.4jt", rating: 5.0, reviews: "340", tags: ["ADVENTURE", "RELAX"], desc: "Permata tersembunyi bagi pencari ketenangan total." },
-];
 
 const cardImg = (item: any) => destImage(item.images, item.name);
 
@@ -50,12 +44,12 @@ function SearchContent() {
   const results = data?.items || [];
   const trending = trendingData?.items || [];
 
-  // Recommendations: live results first, fallback to quick endpoint, then static.
+  // Recommendations: live results first, then real trending destinations.
+  // Never fall back to static AI_RECOS (no images / foreign places).
   const hasResults = results.length > 0;
-  const quickRecos = useQuickRecommendations(showAllRecos && !hasResults);
   const recoList = hasResults
     ? (showAllRecos ? results.slice(0, 9) : results.slice(0, 3))
-    : (showAllRecos ? (quickRecos.data?.items || []) : AI_RECOS);
+    : (showAllRecos ? trending : trending.slice(0, 3));
 
   const onLike = (id: string | undefined) => {
     if (!id) return;
