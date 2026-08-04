@@ -1,4 +1,5 @@
 # Next.js standalone production image. Port 3010 (outside 3000-3007 Coolify range).
+# Cache-bust: 2026-08-04T16:50 deploy
 FROM node:22-alpine AS builder
 WORKDIR /app
 COPY package.json package-lock.json* ./
