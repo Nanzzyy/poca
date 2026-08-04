@@ -179,11 +179,16 @@ function CtaBannerSection({ data }: { data: Record<string, unknown> }) {
   const buttonText = data.button_text as string;
   const buttonUrl = data.button_url as string;
   const bgColor = (data.bg_color as string) || "#1a73e8";
+  const bgImage = data.bg_image as string;
 
   if (!heading) return null;
 
+  const style: React.CSSProperties = bgImage
+    ? { backgroundImage: `linear-gradient(to right, rgba(0,0,0,0.55), rgba(0,0,0,0.35)), url(${bgImage})`, backgroundSize: "cover", backgroundPosition: "center" }
+    : { backgroundColor: bgColor };
+
   return (
-    <div className="mb-8 rounded-2xl p-8 text-white text-center" style={{ backgroundColor: bgColor }}>
+    <div className="mb-8 rounded-2xl p-8 text-white text-center" style={style}>
       <h3 className="text-[24px] font-bold mb-2">{heading}</h3>
       {subtext && <p className="text-white/80 mb-4">{subtext}</p>}
       {buttonText && buttonUrl && (

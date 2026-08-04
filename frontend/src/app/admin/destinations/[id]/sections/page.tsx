@@ -368,6 +368,11 @@ function SectionFieldEditor({ sectionType, data, onChange }: {
         if (field.type === "asset[]") {
           const imgs = Array.isArray(value) ? (value as string[]) : [];
           const maxItems = field.max || 20;
+          const addUrl = (raw: string) => {
+            const u = raw.trim();
+            if (!u) return;
+            setField(field.key, [...new Set([...imgs, u])]);
+          };
           return (
             <div key={field.key}>
               <label className="text-[11px] font-medium text-on-surface-variant uppercase tracking-wider">{field.label} ({imgs.length})</label>
@@ -383,10 +388,18 @@ function SectionFieldEditor({ sectionType, data, onChange }: {
                 </div>
               )}
               {imgs.length < maxItems && (
-                <button onClick={() => setPicker({ key: field.key, multiple: true })}
-                  className="mt-2 flex items-center gap-1.5 px-3 py-2 text-[12px] font-medium border border-outline-variant rounded-lg hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-colors">
-                  <Plus className="w-3.5 h-3.5" /> Tambah Gambar
-                </button>
+                <>
+                  <button onClick={() => setPicker({ key: field.key, multiple: true })}
+                    className="mt-2 flex items-center gap-1.5 px-3 py-2 text-[12px] font-medium border border-outline-variant rounded-lg hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-colors">
+                    <Plus className="w-3.5 h-3.5" /> Tambah Gambar
+                  </button>
+                  <input
+                    onBlur={e => { addUrl(e.target.value); e.target.value = ""; }}
+                    onKeyDown={e => { if (e.key === "Enter") { addUrl((e.target as HTMLInputElement).value); (e.target as HTMLInputElement).value = ""; } }}
+                    placeholder="atau tempel URL gambar (OSM/Wikimedia/dll) lalu Enter..."
+                    className="w-full p-2.5 mt-2 border border-outline-variant rounded-xl text-[12px] bg-surface-container-lowest outline-none focus:ring-2 focus:ring-primary/20"
+                  />
+                </>
               )}
             </div>
           );
