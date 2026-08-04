@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from src.core.config import settings
+from src.core.database import engine, Base
 from src.core.redis import init_redis, close_redis
 from src.api.v1 import (
     admin,
@@ -24,6 +25,9 @@ from src.api.v1 import (
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Auto-create tables on startup (idempoten — aman untuk semua deploy)
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
     await init_redis()
     yield
     await close_redis()
