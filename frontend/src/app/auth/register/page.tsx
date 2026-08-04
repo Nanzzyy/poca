@@ -8,7 +8,6 @@ import { useRegister } from "@/lib/queries";
 import { useAuthStore, useUIStore } from "@/stores";
 import { useQueryClient } from "@tanstack/react-query";
 import { Compass, UserPlus, Eye, EyeOff } from "lucide-react";
-import { GoogleButton } from "@/components/ui/GoogleButton";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -62,13 +61,6 @@ export default function RegisterPage() {
             <UserPlus className="w-4 h-4" />
             {register.isPending ? "Mendaftar..." : "Daftar"}
           </button>
-
-          <div className="relative my-4">
-            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-outline-variant/30" /></div>
-            <div className="relative flex justify-center"><span className="bg-background px-3 text-[11px] text-on-surface-variant">atau</span></div>
-          </div>
-
-          <GoogleButton label="Daftar dengan Google" />
         </form>
         <p className="text-center text-body-sm text-on-surface-variant mt-5">
           Sudah punya akun?{" "}
