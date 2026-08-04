@@ -29,6 +29,7 @@ from src.domain.schemas.knowledge import KnowledgeCreate, KnowledgeUpdate, knowl
 from src.services.knowledge_service import KnowledgeService
 from src.services.ai_conversation_service import AIConversationService
 from src.services.free_places_service import FreePlacesService
+from src.services.enrich_job_service import get_enrich_job, start_enrich_job
 from src.repositories.conversation_repo import ConversationRepository
 from src.domain.models.conversation import Conversation
 import json
@@ -501,9 +502,17 @@ async def admin_enrich_free(dest_id: str, db: AsyncSession = Depends(get_db), _u
 
 
 @router.post("/destinations/enrich-free-all")
-async def admin_enrich_free_all(size: int = Query(100, ge=1, le=100), db: AsyncSession = Depends(get_db), _u: User = admin):
-    async with FreePlacesService(db) as svc:
-        return {"items": await svc.enrich_all_without_images(size)}
+async def admin_enrich_free_all(_u: User = admin):
+    """Start a non-blocking background enrichment job."""
+    return await start_enrich_job()
+
+
+@router.get("/destinations/enrich-free-all/{job_id}")
+async def admin_enrich_free_status(job_id: str, _u: User = admin):
+    result = await get_enrich_job(job_id)
+    if not result:
+        raise HTTPException(404, detail="Enrich job not found")
+    return result
 
 
 @router.post("/seed")

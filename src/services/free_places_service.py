@@ -10,14 +10,19 @@ Images are stored as Wikimedia thumbnail URLs (no file download).
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import json
 import logging
 import re
+import time
 import urllib.parse
 from typing import Any
 
 import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.database import async_session_factory
+from src.core.redis import get_redis
 from src.repositories.destination_repo import DestinationRepository
 
 logger = logging.getLogger(__name__)
@@ -27,6 +32,12 @@ COMMONS_BASE = "https://commons.wikimedia.org/wiki/Special:FilePath/"
 NOMINATIM_SEARCH = "https://nominatim.openstreetmap.org/search"
 NOMINATIM_REVERSE = "https://nominatim.openstreetmap.org/reverse"
 LEGACY_IMAGE_HOST = "source.unsplash.com"
+IMAGE_CACHE_TTL = 30 * 24 * 60 * 60
+IMAGE_MISS_CACHE_TTL = 6 * 60 * 60
+IMAGE_BATCH_CONCURRENCY = 4
+NOMINATIM_MIN_INTERVAL = 1.0
+_nominatim_lock = asyncio.Lock()
+_nominatim_last_request = 0.0
 
 # Generic seed coordinates — not a real location. The seed stored these for
 # destinations without precise coords (e.g. 23 places pinned to Bali's center).
@@ -70,6 +81,7 @@ class FreePlacesService:
         self.repo = DestinationRepository(db) if db else None
         self._client = client
         self._owns_client = client is None
+        self._redis = get_redis()
 
     async def _aclose(self):
         if self._owns_client and self._client is not None:
@@ -89,6 +101,17 @@ class FreePlacesService:
             )
         return self._client
 
+    async def _nominatim_get(self, client: httpx.AsyncClient, url: str, **kwargs) -> httpx.Response:
+        """Respect Nominatim's public-service limit across concurrent enrich tasks."""
+        global _nominatim_last_request
+        async with _nominatim_lock:
+            wait = NOMINATIM_MIN_INTERVAL - (time.monotonic() - _nominatim_last_request)
+            if wait > 0:
+                await asyncio.sleep(wait)
+            response = await client.get(url, **kwargs)
+            _nominatim_last_request = time.monotonic()
+            return response
+
     # ── Nominatim ──────────────────────────────────────────────────────
 
     async def geocode(self, query: str, country: str = "Indonesia") -> dict | None:
@@ -104,7 +127,7 @@ class FreePlacesService:
         async def _lookup(q: str) -> dict | None:
             params = {"q": q, "format": "jsonv2", "limit": 1, "addressdetails": 1}
             try:
-                r = await client.get(NOMINATIM_SEARCH, params=params)
+                r = await self._nominatim_get(client, NOMINATIM_SEARCH, params=params)
                 if r.status_code != 200:
                     return None
                 data = (r.json() or [None])[0]
@@ -139,8 +162,10 @@ class FreePlacesService:
     async def reverse(self, lat: float, lon: float) -> str | None:
         client = await self._http()
         try:
-            r = await client.get(
-                NOMINATIM_REVERSE, params={"format": "jsonv2", "lat": lat, "lon": lon}
+            r = await self._nominatim_get(
+                client,
+                NOMINATIM_REVERSE,
+                params={"format": "jsonv2", "lat": lat, "lon": lon},
             )
             if r.status_code != 200:
                 return None
@@ -179,21 +204,6 @@ class FreePlacesService:
         b = bindings[0]
         return commons_url(b.get("image", {}).get("value")), b.get("desc", {}).get("value")
 
-    async def _wikipedia_image(self, title: str) -> tuple[str | None, str | None]:
-        """Return (lead_image_url, summary) from id-Wikipedia by exact article title."""
-        client = await self._http()
-        try:
-            r = await client.get(WIKIPEDIA_SUMMARY + urllib.parse.quote(title))
-            if r.status_code != 200:
-                return None, None
-            data = r.json() or {}
-        except Exception:
-            return None, None
-        if data.get("type") == "disambiguation":
-            return None, None
-        img = data.get("originalimage", {}).get("source") or data.get("thumbnail", {}).get("source")
-        return img, data.get("extract")
-
     async def _wikipedia_search_title(self, name: str, lang: str = "id") -> str | None:
         """Find the best Wikipedia article title for a freeform place name."""
         client = await self._http()
@@ -226,29 +236,66 @@ class FreePlacesService:
         img = data.get("originalimage", {}).get("source") or data.get("thumbnail", {}).get("source")
         return img, data.get("extract")
 
-    async def resolve_image(self, name: str, city: str | None = None) -> tuple[str | None, str | None]:
-        """Wikidata first, then id+en Wikipedia fallback (via search)."""
-        img, desc = await self._wikidata_image(name)
-        if img:
-            return img, desc
-        # Strip common suffixes and let Wikipedia search resolve the real article title.
+    def _image_cache_key(self, name: str, city: str | None) -> str:
+        query = f"{name.strip().lower()}|{(city or '').strip().lower()}"
+        digest = hashlib.sha256(query.encode()).hexdigest()[:24]
+        return f"poca:free-image:{digest}"
+
+    async def _resolve_image_uncached(self, name: str, city: str | None = None) -> tuple[str | None, str | None]:
+        """Resolve the cheapest/fastest sources first, then broaden search."""
         clean = re.sub(
             r"\s+(temple|candi|beach|pantai|island|pulau|museum|volcano|waterfall|rice terrace|marine park)$",
             "", name, flags=re.I,
         )
-        queries = [name, clean, f"{name} {city}" if city else None]
+
+        # Most well-known places have an exact Wikipedia article. This avoids
+        # the much slower Wikidata SPARQL query and multiple search round trips.
         for lang in ("id", "en"):
-            for query in queries:
-                if not query:
-                    continue
-                title = await self._wikipedia_search_title(query, lang)
-                if not title:
-                    continue
-                img, desc = await self._wikipedia_image(title, lang)
+            for query in dict.fromkeys((name, clean)):
+                img, desc = await self._wikipedia_image(query, lang)
                 if img:
                     return img, desc
-                await asyncio.sleep(0.3)
+
+        # Wikidata Commons image is a good fallback, but SPARQL is slower.
+        img, desc = await self._wikidata_image(name)
+        if img:
+            return img, desc
+
+        # Last resort: one search per language, rather than trying six query
+        # combinations for every destination.
+        search_query = f"{name} {city}" if city else name
+        for lang in ("id", "en"):
+            title = await self._wikipedia_search_title(search_query, lang)
+            if not title:
+                continue
+            img, desc = await self._wikipedia_image(title, lang)
+            if img:
+                return img, desc
         return None, None
+
+    async def resolve_image(self, name: str, city: str | None = None) -> tuple[str | None, str | None]:
+        """Resolve and cache a destination image lookup."""
+        cache_key = self._image_cache_key(name, city)
+        if self._redis:
+            try:
+                raw = await self._redis.get(cache_key)
+                if raw is not None:
+                    cached = json.loads(raw)
+                    return cached.get("image"), cached.get("description")
+            except Exception:
+                logger.debug("Free image cache read failed", exc_info=True)
+
+        result = await self._resolve_image_uncached(name, city)
+        if self._redis:
+            try:
+                await self._redis.set(
+                    cache_key,
+                    json.dumps({"image": result[0], "description": result[1]}),
+                    ex=IMAGE_CACHE_TTL if result[0] else IMAGE_MISS_CACHE_TTL,
+                )
+            except Exception:
+                logger.debug("Free image cache write failed", exc_info=True)
+        return result
 
     # ── Admin search ───────────────────────────────────────────────────
 
@@ -259,7 +306,7 @@ class FreePlacesService:
         if lat is not None and lng is not None:
             params["lat"], params["lon"] = lat, lng
         try:
-            r = await client.get(NOMINATIM_SEARCH, params=params)
+            r = await self._nominatim_get(client, NOMINATIM_SEARCH, params=params)
             if r.status_code != 200:
                 return []
             rows = r.json() or []
@@ -282,7 +329,6 @@ class FreePlacesService:
                 "image_url": image,
                 "source": "wikimedia" if image else "osm",
             })
-            await asyncio.sleep(1.0)  # respect Nominatim/Wikimedia rate limit
         return out
 
     # ── Enrich existing destination ────────────────────────────────────
@@ -329,28 +375,40 @@ class FreePlacesService:
             "images": dest.images or [],
         }
 
-    async def enrich_all_without_images(self, size: int = 20) -> list[dict]:
+    async def enrich_all_without_images(self, size: int = 20, page: int = 1) -> list[dict]:
         if not self.repo:
             return []
-        dests, _ = await self.repo.search(size=size)
-        results = []
-        for dest in dests:
-            if has_real_image(dest.images):
-                continue
-            try:
-                result = await self.enrich_destination(str(dest.id))
-                results.append({"name": dest.name, "id": str(dest.id), **result})
-            except Exception as exc:
-                logger.warning("Batch enrich failed for %s (%s)", dest.name, dest.id, exc_info=True)
-                results.append({
-                    "name": dest.name,
-                    "id": str(dest.id),
-                    "status": "error",
-                    "image_added": False,
-                    "coords_resolved": False,
-                    "source": None,
-                    "images": dest.images or [],
-                    "error": str(exc),
-                })
-            await asyncio.sleep(1.0)
-        return results
+        dests, _ = await self.repo.search(size=size, page=page)
+        candidates = [dest for dest in dests if not has_real_image(dest.images)]
+        if not candidates:
+            return []
+
+        # Each task gets its own AsyncSession. The shared HTTP client and Redis
+        # cache keep network work cheap, while the semaphore avoids hammering
+        # Wikimedia/Wikidata and keeps memory bounded for larger datasets.
+        client = await self._http()
+        semaphore = asyncio.Semaphore(IMAGE_BATCH_CONCURRENCY)
+
+        async def enrich_one(dest) -> dict:
+            async with semaphore:
+                async with async_session_factory() as session:
+                    try:
+                        async with FreePlacesService(session, client=client) as svc:
+                            result = await svc.enrich_destination(str(dest.id))
+                        await session.commit()
+                        return {"name": dest.name, "id": str(dest.id), **result}
+                    except Exception as exc:
+                        await session.rollback()
+                        logger.warning("Batch enrich failed for %s (%s)", dest.name, dest.id, exc_info=True)
+                        return {
+                            "name": dest.name,
+                            "id": str(dest.id),
+                            "status": "error",
+                            "image_added": False,
+                            "coords_resolved": False,
+                            "source": None,
+                            "images": dest.images or [],
+                            "error": str(exc),
+                        }
+
+        return list(await asyncio.gather(*(enrich_one(dest) for dest in candidates)))

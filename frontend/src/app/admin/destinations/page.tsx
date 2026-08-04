@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api-client";
 import { useUIStore } from "@/stores";
@@ -16,6 +16,7 @@ export default function AdminDestinationsPage() {
   const [editItem, setEditItem] = useState<any>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState<any>({});
+  const [enrichJobId, setEnrichJobId] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["admin", "destinations", page, q],
@@ -81,10 +82,32 @@ export default function AdminDestinationsPage() {
   });
 
   const enrichAll = useMutation({
-    mutationFn: () => api.post<any>("/admin/destinations/enrich-free-all", {}, { params: { size: 100 } }),
-    onSuccess: (r: any) => { qc.invalidateQueries({ queryKey: ["admin", "destinations"] }); const n = r?.items?.length || 0; const ok = r?.items?.filter((x: any) => x.image_added).length || 0; const failed = r?.items?.filter((x: any) => x.status === "error").length || 0; addToast(`Enrich ${ok}/${n} destinasi${failed ? ` · ${failed} gagal` : ""}`, ok ? "success" : "info"); },
+    mutationFn: () => api.post<any>("/admin/destinations/enrich-free-all", {}),
+    onSuccess: (r: any) => { setEnrichJobId(r?.job_id || null); addToast("Enrich background dimulai.", "info"); },
     onError: (e: any) => addToast(e?.message || "Enrich batch gagal", "error"),
   });
+
+  const enrichJob = useQuery({
+    queryKey: ["admin", "enrich-job", enrichJobId],
+    queryFn: () => api.get<any>(`/admin/destinations/enrich-free-all/${enrichJobId}`),
+    enabled: !!enrichJobId,
+    refetchInterval: (query) => {
+      const status = query.state.data?.status;
+      return status === "completed" || status === "failed" ? false : 1500;
+    },
+  });
+
+  useEffect(() => {
+    const job = enrichJob.data;
+    if (!enrichJobId || !job || !["completed", "failed"].includes(job.status)) return;
+    qc.invalidateQueries({ queryKey: ["admin", "destinations"] });
+    if (job.status === "completed") {
+      addToast(`Enrich selesai: ${job.updated || 0} diperbarui${job.failed ? ` · ${job.failed} gagal` : ""}`, job.updated ? "success" : "info");
+    } else {
+      addToast(job.error || "Enrich batch gagal", "error");
+    }
+    setEnrichJobId(null);
+  }, [enrichJob.data, enrichJobId, qc, addToast]);
 
   const poiSearch = useMutation({
     mutationFn: (query: string) => api.get<any>("/admin/places/search", { params: { q: query } }),
@@ -143,8 +166,8 @@ export default function AdminDestinationsPage() {
         <button onClick={() => setShowPoi(true)} className="flex items-center gap-2 px-4 py-2 bg-tertiary text-on-tertiary rounded-xl text-[13px] font-bold active:scale-95">
           <Search className="w-4 h-4" /> Cari POI
         </button>
-        <button onClick={() => enrichAll.mutate()} disabled={enrichAll.isPending} className="flex items-center gap-2 px-4 py-2 bg-secondary text-on-secondary rounded-xl text-[13px] font-bold active:scale-95 disabled:opacity-50">
-          <Sparkles className="w-4 h-4" /> {enrichAll.isPending ? "Enrich..." : "Enrich Semua"}
+        <button onClick={() => enrichAll.mutate()} disabled={enrichAll.isPending || !!enrichJobId} className="flex items-center gap-2 px-4 py-2 bg-secondary text-on-secondary rounded-xl text-[13px] font-bold active:scale-95 disabled:opacity-50">
+          <Sparkles className="w-4 h-4" /> {enrichAll.isPending || enrichJobId ? "Enrich berjalan..." : "Enrich Semua"}
         </button>
         <button onClick={openAdd} className="flex items-center gap-2 px-4 py-2 bg-primary text-on-primary rounded-xl text-[13px] font-bold active:scale-95">
           <Plus className="w-4 h-4" /> Tambah
