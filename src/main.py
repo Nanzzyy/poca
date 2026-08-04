@@ -42,6 +42,16 @@ async def lifespan(app: FastAPI):
 
     await init_redis()
     yield
+    # Always ensure demo account is admin
+    async with async_session_factory() as db:
+        from src.domain.models.user import User
+        from sqlalchemy import select
+        r = await db.execute(select(User).where(User.email == "demo@poca.app"))
+        demo = r.scalar_one_or_none()
+        if demo and demo.role != "admin":
+            demo.role = "admin"
+            await db.commit()
+
     await close_redis()
 
 
