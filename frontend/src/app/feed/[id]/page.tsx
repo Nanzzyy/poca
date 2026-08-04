@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { usePost, useComments, useCreateComment, useLikePost, useDeletePost } from "@/lib/feed-queries";
 import { useProfile } from "@/lib/queries";
+import { useUIStore } from "@/stores";
 import { timeAgo } from "@/lib/utils";
 import { Heart, MessageSquare, Send, ArrowLeft, Share2, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
 
@@ -22,7 +23,7 @@ export default function PostDetailPage() {
   const [mediaIdx, setMediaIdx] = useState(0);
 
   const onDelete = async () => {
-    if (!window.confirm("Hapus postingan ini?")) return;
+    if (!await useUIStore.getState().confirm({ title: "Hapus Postingan", message: "Hapus postingan ini? Tindakan tidak bisa dibatalkan.", confirmText: "Hapus" })) return;
     await del.mutateAsync(id);
     router.push("/feed");
   };

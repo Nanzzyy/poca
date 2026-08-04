@@ -6,6 +6,7 @@ import { Heart, MessageSquare, Send, MapPin, Share2, Trash2, ChevronLeft, Chevro
 import { useRouter } from "next/navigation";
 import { useLikePost, useDeletePost, useComments, useCreateComment } from "@/lib/feed-queries";
 import { useProfile } from "@/lib/queries";
+import { useUIStore } from "@/stores";
 import type { Post } from "@/types";
 import { timeAgo } from "@/lib/utils";
 import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
@@ -43,7 +44,8 @@ export function PostCard({ post }: { post: Post }) {
   };
 
   const onDelete = async () => {
-    if (!window.confirm("Hapus postingan ini?")) return;
+    const confirm = useUIStore.getState().confirm;
+    if (!await confirm({ title: "Hapus Postingan", message: "Hapus postingan ini? Tindakan tidak bisa dibatalkan.", confirmText: "Hapus" })) return;
     try {
       await del.mutateAsync(post.id);
     } catch { /* toast handled by caller */ }

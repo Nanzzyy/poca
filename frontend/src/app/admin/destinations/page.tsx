@@ -193,7 +193,7 @@ export default function AdminDestinationsPage() {
                     <Sparkles className="w-3.5 h-3.5 text-secondary" />
                   </button>
                   <button onClick={() => openEdit(d)} className="p-1.5 rounded hover:bg-surface-container"><Pencil className="w-3.5 h-3.5 text-primary" /></button>
-                  <button onClick={() => { if (confirm("Hapus?")) del.mutate(d.id); }} className="p-1.5 rounded hover:bg-error/10"><Trash2 className="w-3.5 h-3.5 text-error" /></button>
+                  <button onClick={async () => { if (await useUIStore.getState().confirm({ title: "Hapus Destinasi", message: `Hapus "${d.name}"?`, confirmText: "Hapus" })) del.mutate(d.id); }} className="p-1.5 rounded hover:bg-error/10"><Trash2 className="w-3.5 h-3.5 text-error" /></button>
                 </td>
               </tr>
             ))}

@@ -145,7 +145,7 @@ export default function AdminAssetsPage() {
                 <p className="text-[9px] text-on-surface-variant/60">{formatSize(a.size_bytes)}</p>
               </div>
               <div className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-                <button onClick={e => { e.stopPropagation(); if (confirm("Delete asset?")) deleteAsset.mutate(a.id); }}
+                <button onClick={async e => { e.stopPropagation(); if (await useUIStore.getState().confirm({ title: "Hapus Asset", message: "Delete asset?", confirmText: "Hapus" })) deleteAsset.mutate(a.id); }}
                   className="w-6 h-6 rounded-md bg-error/90 text-white flex items-center justify-center hover:bg-error">
                   <Trash2 className="w-3 h-3" />
                 </button>

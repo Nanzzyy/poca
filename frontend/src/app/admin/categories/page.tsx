@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api-client";
 import { Plus, Pencil, Trash2, X } from "lucide-react";
+import { useUIStore } from "@/stores";
 
 export default function AdminCategoriesPage() {
   const qc = useQueryClient();
@@ -51,7 +52,7 @@ export default function AdminCategoriesPage() {
                 <td className="p-3 font-medium">{c.name}</td><td className="p-3 text-on-surface-variant">{c.slug}</td><td className="p-3">{c.icon || "-"}</td>
                 <td className="p-3 flex gap-1">
                   <button onClick={() => openEdit(c)} className="p-1.5 rounded hover:bg-surface-container"><Pencil className="w-3.5 h-3.5 text-primary" /></button>
-                  <button onClick={() => { if (confirm("Hapus?")) del.mutate(c.id); }} className="p-1.5 rounded hover:bg-error/10"><Trash2 className="w-3.5 h-3.5 text-error" /></button>
+                  <button onClick={async () => { if (await useUIStore.getState().confirm({ title: "Hapus Kategori", message: "Hapus kategori ini?", confirmText: "Hapus" })) del.mutate(c.id); }} className="p-1.5 rounded hover:bg-error/10"><Trash2 className="w-3.5 h-3.5 text-error" /></button>
                 </td>
               </tr>
             ))}

@@ -5,6 +5,7 @@ export const dynamic = "force-dynamic";
 import { useState, useRef, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useConversations, useConversation, useCreateConversation, useSendMessage, useRenameConversation, useDeleteConversation, useProfile, useDestination } from "@/lib/queries";
+import { useUIStore } from "@/stores";
 import { MessageCircle, Send, Plus, Sparkles, Pencil, Trash2, Check, X, ChevronLeft, Menu, History, Paperclip, Bookmark, Share2, Printer, Edit, Hotel, Lightbulb, ChevronRight, Maximize2, Compass, RefreshCw, Sliders, Wand2 } from "lucide-react";
 import { RecommendationCards } from "@/components/chat/RecommendationCards";
 import { PlanCard } from "@/components/chat/PlanCard";
@@ -185,7 +186,7 @@ export default function ChatPage() {
     if (text) await rename.mutateAsync({ convId: id, summary: text });
   };
   const handleDelete = async (id: string) => {
-    if (!window.confirm("Hapus percakapan ini?")) return;
+    if (!await useUIStore.getState().confirm({ title: "Hapus Percakapan", message: "Hapus percakapan ini? Tindakan tidak bisa dibatalkan.", confirmText: "Hapus" })) return;
     await del.mutateAsync(id);
     if (activeConv === id) setActiveConv(null);
   };

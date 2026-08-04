@@ -4,6 +4,7 @@ import "./globals.css";
 import { Providers } from "./providers";
 import { ToastContainer } from "@/components/ui/Toast";
 import { AnnouncementModal } from "@/components/ui/AnnouncementModal";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { AppShell } from "@/components/layout/AppShell";
 
 const plusJakarta = Plus_Jakarta_Sans({
@@ -38,6 +39,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Providers>
           <AppShell>{children}</AppShell>
           <ToastContainer />
+          <ConfirmDialog />
           <AnnouncementModal />
         </Providers>
       </body>

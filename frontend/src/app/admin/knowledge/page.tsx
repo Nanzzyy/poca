@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api-client";
 import { Plus, Pencil, Trash2, X, Upload, Brain, Eye, Archive, CheckCircle } from "lucide-react";
+import { useUIStore } from "@/stores";
 
 const STATUS_COLORS = {
   draft: "bg-surface-container-low text-on-surface-variant",
@@ -206,8 +207,8 @@ export default function AdminKnowledgePage() {
                       </button>
                       {k.status === "draft" && (
                         <button
-                          onClick={() => {
-                            if (confirm("Hapus knowledge ini?")) del.mutate(k.id);
+                          onClick={async () => {
+                            if (await useUIStore.getState().confirm({ title: "Hapus Knowledge", message: "Hapus knowledge ini?", confirmText: "Hapus" })) del.mutate(k.id);
                           }}
                           className="p-1.5 rounded hover:bg-error/10"
                         >

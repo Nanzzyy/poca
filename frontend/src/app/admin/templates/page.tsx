@@ -187,7 +187,7 @@ export default function AdminTemplatesPage() {
                   <button onClick={() => startEdit(t)} className="p-1.5 text-on-surface-variant hover:text-primary rounded-lg transition-colors" title="Edit">
                     <Pencil className="w-3.5 h-3.5" />
                   </button>
-                  <button onClick={() => { if (confirm("Delete template?")) remove.mutate(t.id); }} className="p-1.5 text-on-surface-variant hover:text-error rounded-lg transition-colors" title="Delete">
+                  <button onClick={async () => { if (await useUIStore.getState().confirm({ title: "Hapus Template", message: "Delete template?", confirmText: "Hapus" })) remove.mutate(t.id); }} className="p-1.5 text-on-surface-variant hover:text-error rounded-lg transition-colors" title="Delete">
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>

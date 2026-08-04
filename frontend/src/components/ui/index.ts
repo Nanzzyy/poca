@@ -8,3 +8,4 @@ export { Button } from "./Button";
 export { Card } from "./Card";
 export { Input } from "./Input";
 export { VerifiedBadge } from "./VerifiedBadge";
+export { ConfirmDialog } from "./ConfirmDialog";

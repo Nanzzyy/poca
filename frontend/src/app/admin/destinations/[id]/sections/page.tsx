@@ -166,7 +166,7 @@ export default function AdminSectionsPage() {
                       Edit Data
                     </button>
                   )}
-                  <button onClick={() => { if (confirm("Remove this section?")) deleteSection.mutate(s.id); }}
+                  <button onClick={async () => { if (await useUIStore.getState().confirm({ title: "Hapus Section", message: "Remove this section?", confirmText: "Hapus" })) deleteSection.mutate(s.id); }}
                     className="p-1.5 text-on-surface-variant hover:text-error rounded-lg">
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>

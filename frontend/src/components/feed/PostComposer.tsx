@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ImagePlus, X, Send } from "lucide-react";
 import { useCreatePost } from "@/lib/feed-queries";
 import { useProfile } from "@/lib/queries";
+import { useUIStore } from "@/stores";
 import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
 import type { MediaItem } from "@/types";
 
@@ -18,6 +19,7 @@ export function PostComposer() {
   const fileRef = useRef<HTMLInputElement>(null);
   const create = useCreatePost();
   const { data: user } = useProfile();
+  const addToast = useUIStore(s => s.addToast);
 
   const pick = async (files: FileList | null) => {
     if (!files) return;
@@ -25,7 +27,7 @@ export function PostComposer() {
     const picked = Array.from(files).slice(0, remaining);
     for (const f of picked) {
       if (f.size > MAX_FILE_BYTES) {
-        alert(`"${f.name}" terlalu besar (maks 3MB).`);
+        addToast(`"${f.name}" terlalu besar (maks 3MB).`, "error");
         continue;
       }
       const url = await readFile(f);
