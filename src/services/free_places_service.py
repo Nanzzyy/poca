@@ -303,10 +303,12 @@ class FreePlacesService:
 
         image_added = _has_real_image(dest.images)
         source = None
-        if not image_added:
+        current = list(dest.images or [])
+        if len(current) < 3:
             image, desc = await self.resolve_image(dest.name, dest.city)
-            if image:
-                dest.images = [image]
+            if image and image not in current:
+                current.append(image)
+                dest.images = current[:3]
                 image_added = True
                 source = "wikidata" if "commons.wikimedia.org" in image else (
                     "wikipedia" if "upload.wikimedia.org" in image else None

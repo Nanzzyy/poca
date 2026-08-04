@@ -256,7 +256,7 @@ async def admin_list_destinations(
              "city": d.city, "price_level": d.price_level, "rating_avg": d.rating_avg,
              "is_active": d.is_active, "latitude": d.latitude, "longitude": d.longitude,
              "country": d.country, "address": d.address, "tags": d.tags or [],
-             "description": d.description}
+             "description": d.description, "images": d.images or []}
             for d in items
         ],
         "total": total, "page": page, "size": size,
@@ -372,10 +372,13 @@ async def admin_update_destination(
     if not dest:
         raise HTTPException(404, detail="Not found")
     for field in ("name", "slug", "category_id", "latitude", "longitude", "country", "city",
-                  "address", "description", "price_level", "rating_avg", "images", "tags", "is_active",
+                  "address", "description", "price_level", "rating_avg", "tags", "is_active",
                   "opening_hours", "best_visiting_hours", "local_tips", "seasonal_info"):
         if field in body:
             setattr(dest, field, body[field])
+    if "images" in body:
+        # Cap at 3 per destination — enforced in app layer (service + admin + FE).
+        dest.images = (body["images"] or [])[:3]
     await db.flush()
     return {"ok": True}
 

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api-client";
 import { useUIStore } from "@/stores";
-import { Plus, Pencil, Trash2, Search, X, Upload, Layers, FileJson, Sparkles } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, X, Upload, Layers, FileJson, Sparkles, Image as ImageIcon } from "lucide-react";
 import Link from "next/link";
 
 export default function AdminDestinationsPage() {
@@ -100,6 +100,37 @@ export default function AdminDestinationsPage() {
   const openEdit = (item: any) => { setEditItem(item); setForm({ ...item }); };
   const openAdd = () => { setShowAdd(true); setEditItem(null); setForm({ name: "", category_id: "", city: "", country: "Indonesia", latitude: 0, longitude: 0, price_level: "mid", description: "" }); };
 
+  // ── Image manager (max 3 per destination) ──
+  const MAX_IMAGES = 3;
+  const [imgItem, setImgItem] = useState<any>(null);
+  const [imgList, setImgList] = useState<string[]>([]);
+
+  const openImages = (item: any) => { setImgItem(item); setImgList([...(item.images || [])]); };
+
+  const saveImages = useMutation({
+    mutationFn: (body: { id: string; images: string[] }) => api.put(`/admin/destinations/${body.id}`, { images: body.images }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin", "destinations"] }); setImgItem(null); addToast("Gambar disimpan.", "success"); },
+    onError: (e: any) => addToast(e?.message || "Gagal menyimpan gambar", "error"),
+  });
+
+  const addImageUrl = (raw: string) => {
+    const u = raw.trim();
+    if (!u) return;
+    if (imgList.length >= MAX_IMAGES) { addToast("Maksimal 3 gambar.", "info"); return; }
+    if (imgList.includes(u)) { addToast("URL sudah ada.", "info"); return; }
+    setImgList([...imgList, u]);
+  };
+
+  const enrichImage = useMutation({
+    mutationFn: (id: string) => api.post<any>(`/admin/destinations/${id}/enrich-free`),
+    onSuccess: (r: any) => {
+      qc.invalidateQueries({ queryKey: ["admin", "destinations"] });
+      if (r?.image_added && r?.images?.length) setImgList([...r.images]);
+      addToast(r?.image_added ? `Gambar ditambah (${r.source || "wikidata"})` : "Tidak ada gambar baru ditemukan", r?.image_added ? "success" : "info");
+    },
+    onError: (e: any) => addToast(e?.message || "Enrich gagal", "error"),
+  });
+
   const items = data?.items || [];
   const total = data?.total || 0;
 
@@ -152,6 +183,12 @@ export default function AdminDestinationsPage() {
                   <Link href={`/admin/destinations/${d.id}/sections`} className="p-1.5 rounded hover:bg-surface-container" title="Sections">
                     <Layers className="w-3.5 h-3.5 text-tertiary" />
                   </Link>
+                  <button onClick={() => openImages(d)} className="relative p-1.5 rounded hover:bg-primary/10" title="Lihat/kelola gambar">
+                    <ImageIcon className="w-3.5 h-3.5 text-primary" />
+                    {!!(d.images?.length) && (
+                      <span className="absolute -top-1 -right-1 min-w-[14px] h-3.5 px-1 rounded-full bg-primary text-white text-[9px] font-bold flex items-center justify-center">{d.images.length}</span>
+                    )}
+                  </button>
                   <button onClick={() => enrichOne.mutate(d.id)} disabled={enrichOne.isPending} className="p-1.5 rounded hover:bg-secondary/10" title="Enrich gambar/koordinat">
                     <Sparkles className="w-3.5 h-3.5 text-secondary" />
                   </button>
@@ -270,6 +307,63 @@ export default function AdminDestinationsPage() {
                 </div>
               ))}
               {poiItems.length === 0 && <p className="text-center py-6 text-on-surface-variant text-[13px]">Cari nama tempat untuk menampilkan kandidat.</p>}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Kelola Gambar (max 3) */}
+      {imgItem && (
+        <div className="fixed inset-0 z-[200] bg-black/40 flex items-center justify-center p-4" onClick={() => setImgItem(null)}>
+          <div className="bg-surface-container-lowest rounded-2xl p-6 w-full max-w-lg max-h-[85vh] overflow-auto shadow-xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-1">
+              <h3 className="text-[18px] font-bold">Gambar: {imgItem.name}</h3>
+              <button onClick={() => setImgItem(null)}><X className="w-5 h-5" /></button>
+            </div>
+            <p className="text-[12px] text-on-surface-variant mb-4">{imgList.length}/{MAX_IMAGES} gambar · sumber bebas (URL / enrich Wikimedia/OSM)</p>
+
+            {imgList.length > 0 ? (
+              <div className="grid grid-cols-3 gap-3 mb-4">
+                {imgList.map((url, i) => (
+                  <div key={i} className="relative">
+                    <img src={url} alt="" className="w-full aspect-square object-cover rounded-lg border border-outline-variant" />
+                    <button onClick={() => setImgList(imgList.filter((_, j) => j !== i))}
+                      className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-error text-white flex items-center justify-center"><X className="w-3 h-3" /></button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-center py-6 text-on-surface-variant text-[13px] mb-4">Belum ada gambar. Tambah dari URL atau enrich.</p>
+            )}
+
+            {imgList.length < MAX_IMAGES ? (
+              <>
+                <div className="flex gap-2 mb-2">
+                  <button
+                    onClick={() => enrichImage.mutate(imgItem.id)}
+                    disabled={enrichImage.isPending}
+                    className="flex items-center gap-1.5 px-3 py-2 bg-secondary text-on-secondary rounded-lg text-[12px] font-bold disabled:opacity-50 whitespace-nowrap">
+                    <Sparkles className="w-3.5 h-3.5" /> {enrichImage.isPending ? "Mencari..." : "Enrich Gambar"}
+                  </button>
+                  <input
+                    onKeyDown={e => { if (e.key === "Enter") { addImageUrl((e.target as HTMLInputElement).value); (e.target as HTMLInputElement).value = ""; } }}
+                    onBlur={e => { addImageUrl(e.target.value); e.target.value = ""; }}
+                    placeholder="tempel URL gambar lalu Enter..."
+                    className="flex-1 p-2.5 border border-outline-variant rounded-lg text-[12px] bg-surface-container-lowest outline-none focus:ring-2 focus:ring-primary/20" />
+                </div>
+              </>
+            ) : (
+              <p className="text-[12px] text-on-surface-variant mb-4">Slot penuh (3/3). Hapus salah satu untuk menambah.</p>
+            )}
+
+            <div className="flex gap-2 pt-4 border-t border-outline-variant/20">
+              <button
+                onClick={() => saveImages.mutate({ id: imgItem.id, images: imgList })}
+                disabled={saveImages.isPending}
+                className="px-5 py-2 bg-primary text-on-primary rounded-xl text-[13px] font-bold disabled:opacity-50">
+                {saveImages.isPending ? "Menyimpan..." : "Simpan"}
+              </button>
+              <button onClick={() => setImgItem(null)} className="px-4 py-2 text-on-surface-variant text-[13px]">Batal</button>
             </div>
           </div>
         </div>
