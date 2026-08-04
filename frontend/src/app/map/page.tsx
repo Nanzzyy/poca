@@ -7,8 +7,8 @@ import nextDynamic from "next/dynamic";
 import { useMapMarkers, useSearchDestinations, useCategories } from "@/lib/queries";
 import { useRouter } from "next/navigation";
 import { Star, MapPin, X, Navigation, Search, Compass, Sparkles, ArrowRight } from "lucide-react";
-import { CategoryIcon } from "@/components/ui";
 import type { Destination } from "@/types";
+import { destImage } from "@/lib/utils";
 
 const MapView = nextDynamic(() => import("@/components/map/MapView"), { ssr: false });
 
@@ -78,7 +78,7 @@ export default function MapPage() {
 
   const focusDest = (d: Destination) => {
     setFocus([d.latitude, d.longitude]);
-    setSelectedMarker({ id: d.id, name: d.name, latitude: d.latitude, longitude: d.longitude, rating_avg: d.rating_avg, category_name: d.category?.name, city: d.city, country: d.country, image: d.images?.[0], description: d.description, price_level: d.price_level });
+    setSelectedMarker({ id: d.id, name: d.name, latitude: d.latitude, longitude: d.longitude, rating_avg: d.rating_avg, category_name: d.category?.name, city: d.city, country: d.country, image: destImage(d.images, d.name), description: d.description, price_level: d.price_level });
     setShowPopover(d.id);
   };
 
@@ -87,7 +87,7 @@ export default function MapPage() {
   };
 
   const handleMarkerClick = (m: any) => {
-    setSelectedMarker(m);
+    setSelectedMarker({ ...m, image: destImage(m.images, m.name) });
     setShowPopover(m.id);
   };
 
@@ -153,13 +153,7 @@ export default function MapPage() {
                     className="group relative flex flex-col bg-surface-container-lowest rounded-xl border border-outline-variant/30 shadow-sm hover:shadow-md transition-all cursor-pointer overflow-hidden active:scale-[0.99]"
                   >
                     <div className="h-48 relative overflow-hidden">
-                      {d.images?.[0] && !d.images[0].includes("source.unsplash") ? (
-                        <img className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" src={d.images[0]} alt={d.name} />
-                      ) : (
-                        <div className="w-full h-full bg-gradient-to-br from-primary/10 to-secondary/10 flex items-center justify-center">
-                          <CategoryIcon name={d.category?.icon} className="w-12 h-12 text-outline/30" />
-                        </div>
-                      )}
+                      <img className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" src={destImage(d.images, d.name)} alt={d.name} />
                       <div className="absolute top-3 right-3 bg-primary/90 backdrop-blur-sm text-on-primary px-2 py-1 rounded-lg flex items-center gap-1">
                         <Star className="w-3.5 h-3.5 fill-current" />
                         <span className="text-[10px] font-bold">{d.rating_avg}</span>
@@ -203,13 +197,7 @@ export default function MapPage() {
                     className="flex gap-4 bg-surface-container-lowest p-3 rounded-xl border border-outline-variant/20 hover:border-tertiary/30 transition-all cursor-pointer group active:scale-[0.99]"
                   >
                     <div className="w-24 h-24 rounded-lg overflow-hidden flex-shrink-0">
-                      {d.images?.[0] && !d.images[0].includes("source.unsplash") ? (
-                        <img className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" src={d.images[0]} alt={d.name} />
-                      ) : (
-                        <div className="w-full h-full bg-tertiary/10 flex items-center justify-center">
-                          <CategoryIcon name={d.category?.icon} className="w-6 h-6 text-tertiary/50" />
-                        </div>
-                      )}
+                      <img className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" src={destImage(d.images, d.name)} alt={d.name} />
                     </div>
                     <div className="flex flex-col justify-center min-w-0">
                       <h4 className="text-[16px] font-bold text-on-surface truncate">{d.name}</h4>
@@ -266,13 +254,7 @@ export default function MapPage() {
           {selectedMarker && showPopover && (
             <div className="absolute top-[15%] left-[10%] w-72 bg-white/80 backdrop-blur-md rounded-2xl shadow-2xl z-30 p-4 border border-primary/20">
               <div className="relative h-32 rounded-xl overflow-hidden mb-3">
-                {selectedMarker.image && !selectedMarker.image.includes("source.unsplash") ? (
-                  <img className="w-full h-full object-cover" src={selectedMarker.image} alt={selectedMarker.name} />
-                ) : (
-                  <div className="w-full h-full bg-gradient-to-br from-primary/10 to-secondary/10 flex items-center justify-center">
-                    <MapPin className="w-8 h-8 text-outline/30" />
-                  </div>
-                )}
+                <img className="w-full h-full object-cover" src={selectedMarker.image || destImage([], selectedMarker.name)} alt={selectedMarker.name} />
                 <button onClick={() => setShowPopover(null)} className="absolute top-2 right-2 bg-white/20 hover:bg-white/40 backdrop-blur-md rounded-full p-1 text-white transition-all">
                   <X className="w-4 h-4" />
                 </button>

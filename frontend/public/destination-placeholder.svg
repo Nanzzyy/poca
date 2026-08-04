@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" role="img" aria-label="Poca destination placeholder">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#004ac6"/>
+      <stop offset="1" stop-color="#69a9ff"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="600" fill="url(#bg)"/>
+  <circle cx="400" cy="250" r="82" fill="none" stroke="#fff" stroke-opacity=".8" stroke-width="12"/>
+  <path d="M270 430c45-72 95-108 130-108s85 36 130 108" fill="none" stroke="#fff" stroke-opacity=".8" stroke-width="12" stroke-linecap="round"/>
+  <text x="400" y="520" text-anchor="middle" fill="#fff" font-family="Arial,sans-serif" font-size="42" font-weight="700">POCA</text>
+</svg>

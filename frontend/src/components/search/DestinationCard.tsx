@@ -3,8 +3,8 @@
 import { motion } from "framer-motion";
 import type { Destination } from "@/types";
 import { Star, MapPin, Heart } from "lucide-react";
-import { CategoryIcon } from "@/components/ui";
 import { item } from "@/lib/animations";
+import { destImage } from "@/lib/utils";
 
 function getBadge(d: Destination) {
   if (d.rating_avg >= 4.5 && d.review_count > 50) return { label: "RECOMMENDED", class: "bg-emerald-500/90" };
@@ -14,17 +14,9 @@ function getBadge(d: Destination) {
   return null;
 }
 
-const GRADIENTS = [
-  "from-surface-container-high to-surface-container",
-  "from-surface-container to-surface-container-high",
-  "from-surface-container-highest to-surface-container",
-  "from-surface-dim to-surface-container",
-];
-
 export function DestinationCard({ destination: d, onClick }: { destination: Destination; onClick: () => void }) {
   const badge = getBadge(d);
-  const gradient = GRADIENTS[d.name.length % GRADIENTS.length];
-  const validImage = d.images?.[0] && !d.images[0].includes("source.unsplash");
+  const image = destImage(d.images, d.name);
 
   return (
     <motion.div
@@ -32,14 +24,8 @@ export function DestinationCard({ destination: d, onClick }: { destination: Dest
       onClick={onClick}
       className="group bg-surface-container-lowest rounded-2xl border border-outline-variant/30 overflow-hidden shadow-sm hover:shadow-md transition-all active:scale-[0.98] cursor-pointer"
     >
-      <div className={`relative h-48 sm:h-52 ${validImage ? "bg-surface-container-low" : `bg-gradient-to-br ${gradient}`} overflow-hidden`}>
-        {validImage ? (
-          <img src={d.images[0]} alt={d.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" />
-        ) : (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <CategoryIcon name={d.category?.icon} className="w-14 h-14 text-outline/30" />
-          </div>
-        )}
+      <div className={`relative h-48 sm:h-52 bg-surface-container-low overflow-hidden`}>
+        <img src={image} alt={d.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" />
 
         {/* Favorite button */}
         <button

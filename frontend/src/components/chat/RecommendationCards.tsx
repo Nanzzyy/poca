@@ -2,9 +2,9 @@
 
 import { useRouter } from "next/navigation";
 import { Star, MapPin, ChevronRight } from "lucide-react";
-import { CategoryIcon } from "@/components/ui";
 import type { RecommendationCard } from "@/types";
 import { motion } from "framer-motion";
+import { destImage } from "@/lib/utils";
 
 export function RecommendationCards({ items }: { items: RecommendationCard[] }) {
   const router = useRouter();
@@ -12,7 +12,7 @@ export function RecommendationCards({ items }: { items: RecommendationCard[] }) 
   return (
     <div className="mt-3 flex gap-3 overflow-x-auto hide-scrollbar pb-2 -mx-3 px-3 sm:mx-0 sm:px-0">
       {items.map((d, i) => {
-        const img = d.image && !d.image.includes("source.unsplash") ? d.image : null;
+        const img = destImage(d.image ? [d.image] : [], d.name);
         return (
           <motion.button
             initial={{ opacity: 0, x: 20 }}
@@ -23,13 +23,7 @@ export function RecommendationCards({ items }: { items: RecommendationCard[] }) 
             className="flex-shrink-0 w-64 flex flex-col rounded-2xl bg-white border border-gray-100 shadow-sm text-left transition-all hover:shadow-md hover:border-blue-200 overflow-hidden press-scale"
           >
             <div className="w-full h-32 bg-gray-200 relative">
-              {img ? (
-                <img src={img} alt={d.name} className="w-full h-full object-cover" />
-              ) : (
-                <div className="w-full h-full bg-gradient-to-br from-blue-400 to-cyan-500 flex items-center justify-center">
-                  <CategoryIcon name={undefined} className="w-8 h-8 text-white/50" />
-                </div>
-              )}
+              <img src={img} alt={d.name} className="w-full h-full object-cover" />
               {d.category_name && (
                 <div className="absolute top-2 left-2 px-2 py-1 bg-white/90 backdrop-blur text-[10px] font-semibold rounded-lg text-gray-800">
                   {d.category_name}

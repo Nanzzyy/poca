@@ -15,6 +15,20 @@ from src.domain.models.review import Review
 import bcrypt
 
 
+# Static Unsplash CDN assets. `source.unsplash.com` is no longer reliable and
+# returns 503, so seeded destinations must never point at its query endpoint.
+SEED_IMAGE_BY_CATEGORY = {
+    "pantai": "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1200&q=80",
+    "candi": "https://images.unsplash.com/photo-1524492412937-b28074a5d7da?w=1200&q=80",
+    "gunung": "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=1200&q=80",
+    "kuliner": "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=1200&q=80",
+    "budaya": "https://images.unsplash.com/photo-1518005020951-eccb494ad742?w=1200&q=80",
+    "alam": "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=1200&q=80",
+    "belanja": "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1200&q=80",
+    "hiburan": "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=1200&q=80",
+}
+
+
 CATEGORIES = [
     {"name": "Pantai", "icon": "beach", "slug": "pantai"},
     {"name": "Candi", "icon": "landmark", "slug": "candi"},
@@ -199,7 +213,7 @@ async def seed():
                 latitude=lat,
                 longitude=lng,
                 description=desc,
-                images=[f"https://source.unsplash.com/800x600/?{d['name'].lower().replace(' ', '')},indonesia"],
+                images=[SEED_IMAGE_BY_CATEGORY.get(cat_slug, SEED_IMAGE_BY_CATEGORY["alam"])],
                 local_tips={"food": food, "customs": customs, "hidden_gems": hidden_gems},
                 seasonal_info={"best_months": "April-October", "avoid_months": "December-February"},
                 opening_hours={"general": "08:00-17:00"},

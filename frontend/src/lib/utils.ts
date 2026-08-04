@@ -40,11 +40,18 @@ export function timeAgo(date: string | Date) {
   return "baru saja";
 }
 
-// source.unsplash.com is defunct (503). Use the destination's real image when
-// present; fall back to a branded placeholder only when empty/dead.
+const LEGACY_IMAGE_HOST = "source.unsplash.com";
+
+export function isUsableDestinationImage(url?: string | null): url is string {
+  return Boolean(url && !url.includes(LEGACY_IMAGE_HOST));
+}
+
+// Keep image fallback local so a third-party image outage cannot break cards.
 export function destImage(images?: string[] | null, name?: string | null): string {
-  const real = images?.find((u) => u && !u.includes("source.unsplash"));
+  const real = images?.find(isUsableDestinationImage);
   if (real) return real;
-  const text = encodeURIComponent((name || "Poca").slice(0, 24));
-  return `https://placehold.co/800x600/004ac6/ffffff?text=${text}`;
+  // Keep the argument in the public helper signature for callers that use it
+  // as alt/fallback context, even though the local placeholder is generic.
+  void name;
+  return "/destination-placeholder.svg";
 }

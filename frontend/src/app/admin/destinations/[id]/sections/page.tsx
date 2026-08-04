@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api-client";
 import { useUIStore } from "@/stores";
+import { destImage } from "@/lib/utils";
 import { SECTION_TYPES, ICON_OPTIONS } from "@/lib/section-types";
 import { Plus, Trash2, X, GripVertical, Eye, EyeOff, ChevronUp, ChevronDown, ChevronLeft, ArrowDown, ArrowUp, Image as ImageIcon } from "lucide-react";
 import AssetPicker from "@/components/admin/AssetPicker";
@@ -347,7 +348,7 @@ function SectionFieldEditor({ sectionType, data, onChange }: {
               <label className="text-[11px] font-medium text-on-surface-variant uppercase tracking-wider">{field.label}</label>
               {url && (
                 <div className="mt-1 mb-2 relative inline-block">
-                  <img src={url} alt="" className="w-24 h-24 object-cover rounded-lg border border-outline-variant" />
+                  <img src={destImage([url], "Poca")} alt="" className="w-24 h-24 object-cover rounded-lg border border-outline-variant" />
                   <button onClick={() => setField(field.key, "")}
                     className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-error text-white flex items-center justify-center"><X className="w-3 h-3" /></button>
                 </div>
@@ -380,7 +381,7 @@ function SectionFieldEditor({ sectionType, data, onChange }: {
                 <div className="mt-2 grid grid-cols-5 gap-2">
                   {imgs.map((url, i) => (
                     <div key={i} className="relative">
-                      <img src={url} alt="" className="w-full aspect-square object-cover rounded-lg border border-outline-variant" />
+                      <img src={destImage([url], "Poca")} alt="" className="w-full aspect-square object-cover rounded-lg border border-outline-variant" />
                       <button onClick={() => setField(field.key, imgs.filter((_, j) => j !== i))}
                         className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-error text-white flex items-center justify-center"><X className="w-3 h-3" /></button>
                     </div>

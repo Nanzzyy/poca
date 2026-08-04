@@ -8,6 +8,7 @@ import { useAuthStore } from "@/stores";
 import { User, Trophy, Star, LogOut, MapPin, Sparkles, Compass, TrendingUp, Edit3, Share2, Search, Bell, Settings, Calendar, Lock, Plane, Medal, Heart, MapIcon } from "lucide-react";
 import { useState } from "react";
 import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
+import { destImage } from "@/lib/utils";
 
 const BADGES = [
   { icon: Plane, label: "First Flight", desc: "Completed 1st Trip", color: "primary", locked: false },
@@ -253,13 +254,7 @@ export default function ProfilePage() {
                       className="bg-surface-container-lowest rounded-2xl overflow-hidden hover:-translate-y-1 transition-all cursor-pointer group shadow-sm border border-outline-variant/20"
                     >
                       <div className="h-36 overflow-hidden">
-                        {d.images?.[0] ? (
-                          <img className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" src={d.images[0]} alt={d.name} />
-                        ) : (
-                          <div className="w-full h-full bg-gradient-to-br from-primary/10 to-secondary/10 flex items-center justify-center">
-                            <MapPin className="w-8 h-8 text-outline/30" />
-                          </div>
-                        )}
+                        <img className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" src={destImage(d.images, d.name)} alt={d.name} />
                       </div>
                       <div className="p-4">
                         <h3 className="text-[16px] font-semibold group-hover:text-primary transition-colors">{d.name}</h3>

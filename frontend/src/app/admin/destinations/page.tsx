@@ -6,6 +6,7 @@ import { api } from "@/lib/api-client";
 import { useUIStore } from "@/stores";
 import { Plus, Pencil, Trash2, Search, X, Upload, Layers, FileJson, Sparkles, Image as ImageIcon } from "lucide-react";
 import Link from "next/link";
+import { destImage } from "@/lib/utils";
 
 export default function AdminDestinationsPage() {
   const qc = useQueryClient();
@@ -326,7 +327,7 @@ export default function AdminDestinationsPage() {
               <div className="grid grid-cols-3 gap-3 mb-4">
                 {imgList.map((url, i) => (
                   <div key={i} className="relative">
-                    <img src={url} alt="" className="w-full aspect-square object-cover rounded-lg border border-outline-variant" />
+                    <img src={destImage([url], imgItem.name)} alt="" className="w-full aspect-square object-cover rounded-lg border border-outline-variant" />
                     <button onClick={() => setImgList(imgList.filter((_, j) => j !== i))}
                       className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-error text-white flex items-center justify-center"><X className="w-3 h-3" /></button>
                   </div>
