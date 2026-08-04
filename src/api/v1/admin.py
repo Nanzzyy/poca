@@ -506,6 +506,25 @@ async def admin_enrich_free_all(size: int = Query(20, ge=1, le=100), db: AsyncSe
         return {"items": await svc.enrich_all_without_images(size)}
 
 
+@router.post("/seed")
+async def admin_seed_all(db: AsyncSession = Depends(get_db), _u: User = admin):
+    """Seed destinations + categories + demo user + achievements + templates.
+    Idempotent — skips if data already exists."""
+    from seed.seed_destinations import seed as seed_dest
+    from seed.seed_templates import seed as seed_tmpl
+    result = {"destinations": "skipped", "templates": "skipped"}
+    from sqlalchemy import text
+    r = await db.execute(text("SELECT count(*) FROM destinations"))
+    if r.scalar() == 0:
+        await seed_dest()
+        result["destinations"] = "seeded"
+    r = await db.execute(text("SELECT count(*) FROM page_templates"))
+    if r.scalar() == 0:
+        await seed_tmpl()
+        result["templates"] = "seeded"
+    return result
+
+
 @router.post("/destinations/fix-coords")
 async def admin_fix_coords(db: AsyncSession = Depends(get_db), _u: User = admin):
     """Re-geocode every destination whose coords are missing or a known generic
