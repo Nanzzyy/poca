@@ -26,6 +26,18 @@ USER_AGENT = "Poca-POI/1.0 (tourism seed; contact admin)"
 COMMONS_BASE = "https://commons.wikimedia.org/wiki/Special:FilePath/"
 NOMINATIM_SEARCH = "https://nominatim.openstreetmap.org/search"
 NOMINATIM_REVERSE = "https://nominatim.openstreetmap.org/reverse"
+
+# Generic seed coordinates — not a real location. The seed stored these for
+# destinations without precise coords (e.g. 23 places pinned to Bali's center).
+# enrich_destination must re-geocode these, not treat them as resolved.
+GENERIC_COORDS = {(-8.4, 115.2)}
+
+
+def coords_suspicious(lat: float | None, lng: float | None) -> bool:
+    """True if coords are missing or match a known generic/placeholder seed point."""
+    if not lat or not lng:
+        return True
+    return (round(lat, 2), round(lng, 2)) in GENERIC_COORDS
 WIKIDATA_SPARQL = "https://query.wikidata.org/sparql"
 WIKIPEDIA_SUMMARY = "https://id.wikipedia.org/api/rest_v1/page/summary/"
 WIKIPEDIA_SEARCH = "https://id.wikipedia.org/w/api.php"
@@ -74,19 +86,38 @@ class FreePlacesService:
     # ── Nominatim ──────────────────────────────────────────────────────
 
     async def geocode(self, query: str, country: str = "Indonesia") -> dict | None:
-        """Name → {lat, lon, address, city} via Nominatim."""
+        """Name → {lat, lon, address, city} via Nominatim.
+
+        Nominatim's `country` filter is restrictive and often returns nothing for
+        tourist sites whose address lacks a clean country match, so we search
+        without it (the query already carries the place name + city/region) and
+        fall back to name-only if the combined query misses.
+        """
         client = await self._http()
-        params = {"q": query, "format": "jsonv2", "limit": 1, "addressdetails": 1}
-        if country:
-            params["country"] = country
-        try:
-            r = await client.get(NOMINATIM_SEARCH, params=params)
-            if r.status_code != 200:
+
+        async def _lookup(q: str) -> dict | None:
+            params = {"q": q, "format": "jsonv2", "limit": 1, "addressdetails": 1}
+            try:
+                r = await client.get(NOMINATIM_SEARCH, params=params)
+                if r.status_code != 200:
+                    return None
+                data = (r.json() or [None])[0]
+            except Exception:
+                logger.warning("Nominatim geocode failed for %r", q, exc_info=True)
                 return None
-            data = (r.json() or [{}])[0] if r.json() else {}
-        except Exception:
-            logger.warning("Nominatim geocode failed for %r", query, exc_info=True)
-            return None
+            return data or None
+
+        data = await _lookup(query)
+        if not data:
+            # Combined "name city" can over-constrain — retry with the name only
+            # (drop the trailing city token, keep the leading place name).
+            tokens = query.split()
+            for end in range(len(tokens) - 1, 0, -1):
+                candidate = " ".join(tokens[:end])
+                if candidate and candidate != query:
+                    data = await _lookup(candidate)
+                    if data:
+                        break
         if not data:
             return None
         addr = data.get("address", {})
@@ -261,8 +292,8 @@ class FreePlacesService:
             return bool(imgs) and not all("source.unsplash" in (i or "") for i in imgs)
 
         coords_resolved = False
-        if (not dest.latitude or not dest.longitude) and dest.city:
-            geo = await self.geocode(f"{dest.name} {dest.city}")
+        if coords_suspicious(dest.latitude, dest.longitude):
+            geo = await self.geocode(f"{dest.name} {dest.city or ''}".strip())
             if geo:
                 dest.latitude, dest.longitude = geo["lat"], geo["lon"]
                 if not dest.address and geo.get("address"):

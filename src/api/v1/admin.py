@@ -503,6 +503,29 @@ async def admin_enrich_free_all(size: int = Query(20, ge=1, le=100), db: AsyncSe
         return {"items": await svc.enrich_all_without_images(size)}
 
 
+@router.post("/destinations/fix-coords")
+async def admin_fix_coords(db: AsyncSession = Depends(get_db), _u: User = admin):
+    """Re-geocode every destination whose coords are missing or a known generic
+    placeholder (e.g. the Bali-center point the seed used). Returns per-destination
+    results so callers can see which ones OSM resolved."""
+    from src.services.free_places_service import coords_suspicious
+    repo = DestinationRepository(db)
+    rows = (await db.execute(select(Destination).order_by(Destination.name))).scalars().all()
+    targets = [d for d in rows if coords_suspicious(d.latitude, d.longitude)]
+    results = []
+    async with FreePlacesService(db) as svc:
+        for d in targets:
+            before = (d.latitude, d.longitude)
+            res = await svc.enrich_destination(str(d.id))
+            results.append({
+                "id": str(d.id), "name": d.name, "city": d.city,
+                "before": list(before), "after": [d.latitude, d.longitude],
+                "coords_resolved": res.get("coords_resolved"),
+            })
+    await db.commit()
+    return {"total": len(targets), "items": results}
+
+
 # ── Templates CRUD ──
 
 @router.get("/templates")
