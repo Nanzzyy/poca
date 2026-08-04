@@ -4,6 +4,12 @@ from sqlalchemy.orm import selectinload
 from math import radians, sin, cos, acos
 from src.domain.models.destination import Destination, Category, DestinationSection
 
+
+def _haversine_km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
+    """Great-circle distance in km (spherical law of cosines)."""
+    rlat1, rlat2, rdlng = radians(lat1), radians(lat2), radians(lng2 - lng1)
+    return 6371.0 * acos(max(-1.0, min(1.0, sin(rlat1) * sin(rlat2) + cos(rlat1) * cos(rlat2) * cos(rdlng))))
+
 class DestinationRepository:
     def __init__(self, db: AsyncSession):
         self.db = db
@@ -110,11 +116,14 @@ class DestinationRepository:
                 Destination.longitude.between(lng - lng_deg, lng + lng_deg),
             )
             .options(selectinload(Destination.category))
-            .order_by(Destination.rating_avg.desc())
-            .limit(20)
         )
         result = await self.db.execute(stmt)
-        return list(result.scalars().all())
+        candidates = list(result.scalars().all())
+        # Bounding box is an approximation — filter by true haversine distance and
+        # return the genuinely nearest places (not the highest-rated within the box).
+        scored = [(d, _haversine_km(lat, lng, d.latitude, d.longitude)) for d in candidates if _haversine_km(lat, lng, d.latitude, d.longitude) <= radius_km]
+        scored.sort(key=lambda t: t[1])
+        return [d for d, _ in scored[:20]]
 
     async def get_markers_in_bounds(self, sw_lat: float, sw_lng: float, ne_lat: float, ne_lng: float,
                                      categories: list[int] | None = None) -> list[Destination]:
