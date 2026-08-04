@@ -51,7 +51,7 @@ export function useCreatePost() {
 export function useLikePost() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (postId: string) => api.post<{ like_count: number }>(`/posts/${postId}/like`),
+    mutationFn: (postId: string) => api.post<{ liked: boolean; like_count: number }>(`/posts/${postId}/like`),
     onSuccess: () => qc.invalidateQueries({ queryKey: feedKeys.all }),
   });
 }

@@ -2,7 +2,7 @@
 
 export const dynamic = "force-dynamic";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useConversations, useConversation, useCreateConversation, useSendMessage, useRenameConversation, useDeleteConversation, useProfile, useDestination } from "@/lib/queries";
 import { useUIStore } from "@/stores";
@@ -33,7 +33,7 @@ const PLACEHOLDER_PLANS = [
   { name: "Pura Tirta Empul", img: null },
 ];
 
-export default function ChatPage() {
+function ChatPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { data: user } = useProfile();
@@ -459,5 +459,14 @@ export default function ChatPage() {
         </aside>
       )}
     </main>
+  );
+}
+
+export default function ChatPage() {
+  // useSearchParams must be inside a Suspense boundary for static prerender.
+  return (
+    <Suspense fallback={<div className="pt-16 min-h-screen bg-background flex items-center justify-center"><div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>}>
+      <ChatPageInner />
+    </Suspense>
   );
 }

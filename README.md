@@ -58,18 +58,18 @@ PYTHONPATH=. .venv/bin/uvicorn src.main:app --reload --port 8000
 ```
 > `PYTHONPATH=.` wajib — `src` belum installed sebagai package.
 
-**Frontend (port 3001):**
+**Frontend (port 3010):**
 ```bash
-cd frontend && PORT=3001 npm run dev
+cd frontend && PORT=3010 npm run dev
 ```
-> Pakai 3001 karena 3000 sering dipakai project lain di mesin ini.
+> Pakai 3010 (di luar 3000-3007) supaya tidak bentrok dengan Coolify/port lain.
 
 ## Port
 
 | Service  | URL / alamat               |
 |----------|----------------------------|
 | Backend  | http://localhost:8000      |
-| Frontend | http://localhost:3001      |
+| Frontend | http://localhost:3010      |
 | Postgres | localhost:5433 (db: tourism, user/pass: tourism/tourism) |
 | Redis    | localhost:6379             |
 
