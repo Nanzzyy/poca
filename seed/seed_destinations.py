@@ -212,6 +212,7 @@ async def seed():
         demo = User(
             email="demo@poca.app",
             username="demo",
+            role="admin",
             hashed_password=bcrypt.hashpw("demo123".encode(), bcrypt.gensalt()).decode(),
             preferences={"budget": "mid", "interests": ["alam", "pantai", "budaya"], "travel_style": "comfort"},
         )
