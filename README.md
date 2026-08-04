@@ -73,6 +73,8 @@ cd frontend && PORT=3010 npm run dev
 | Postgres | localhost:5433 (db: tourism, user/pass: tourism/tourism) |
 | Redis    | localhost:6379             |
 
+> **Produksi (Coolify/Docker):** backend memakai port 8008 (bukan 8000, menghindari bentrok di host Coolify), frontend 3010. Set `NEXT_PUBLIC_API_URL` & `CORS_ORIGINS` ke domain Coolify-mu.
+
 Cek sehat:
 ```bash
 curl localhost:8000/health

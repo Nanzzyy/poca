@@ -1,10 +1,13 @@
-# Production-ready stack for Coolify. All ports outside 3000-3007.
+# Production stack for Coolify. Coolify proxies the public domains to:
+#   - frontend (:3010) — the Next.js app
+#   - backend  (:8008) — the FastAPI API (browser fetches via NEXT_PUBLIC_API_URL)
+# All ports outside 3000-3007 and 8000 (8000 conflicts on the Coolify host).
 # Local dev: `docker compose up -d db redis`, then run backend (uvicorn) + FE (npm run dev) manually.
 services:
   backend:
     build: .
     ports:
-      - "8000:8000"
+      - "8008:8008"
     environment:
       - DATABASE_URL=postgresql+asyncpg://tourism:tourism@db:5432/tourism
       - DATABASE_URL_SYNC=postgresql://tourism:tourism@db:5432/tourism
@@ -23,7 +26,7 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health',timeout=5).status==200 else 1)\" || exit 1"]
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8008/health',timeout=5).status==200 else 1)\" || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -32,8 +35,10 @@ services:
     build:
       context: ./frontend
       args:
-        # NEXT_PUBLIC_* is build-time. Set to your public API URL in Coolify.
-        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8000/api/v1}
+        # NEXT_PUBLIC_* is build-time — the public URL browsers use to reach the API.
+        # Set to your Coolify backend domain in Coolify env, e.g.
+        # https://api-poca.coolify.app/api/v1
+        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8008/api/v1}
     ports:
       - "3010:3010"
     depends_on:
@@ -42,8 +47,8 @@ services:
 
   db:
     image: postgres:16-alpine
-    ports:
-      - "5433:5432"
+    expose:
+      - "5432"
     environment:
       POSTGRES_USER: tourism
       POSTGRES_PASSWORD: tourism
@@ -51,15 +56,15 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U tourism"]
+      test: ["CMD-SHELL", "pgisready -U tourism"]
       interval: 5s
       timeout: 5s
       retries: 5
 
   redis:
     image: redis:7-alpine
-    ports:
-      - "6379:6379"
+    expose:
+      - "6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
