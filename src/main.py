@@ -25,9 +25,23 @@ from src.api.v1 import (
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Auto-create tables on startup (idempoten — aman untuk semua deploy)
+    # Auto-create tables on startup (idempotent)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+    # Seed initial data if DB is empty (first deploy)
+    from sqlalchemy import text
+    from src.core.database import async_session_factory
+    async with async_session_factory() as db:
+        r = await db.execute(text("SELECT count(*) FROM destinations"))
+        count = r.scalar()
+    if count == 0:
+        import subprocess, sys
+        subprocess.run([sys.executable, "-m", "seed.seed_destinations"], cwd="/app",
+                       env={**__import__("os").environ, "PYTHONPATH": "/app"}, check=False)
+        subprocess.run([sys.executable, "-m", "seed.seed_templates"], cwd="/app",
+                       env={**__import__("os").environ, "PYTHONPATH": "/app"}, check=False)
+
     await init_redis()
     yield
     await close_redis()
