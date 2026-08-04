@@ -11,5 +11,3 @@ python-jose[cryptography]
 passlib[bcrypt]
 python-multipart
 litellm
-sentence-transformers>=2.0
-pgvector>=0.2.0
