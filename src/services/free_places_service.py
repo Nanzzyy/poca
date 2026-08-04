@@ -26,6 +26,7 @@ USER_AGENT = "Poca-POI/1.0 (tourism seed; contact admin)"
 COMMONS_BASE = "https://commons.wikimedia.org/wiki/Special:FilePath/"
 NOMINATIM_SEARCH = "https://nominatim.openstreetmap.org/search"
 NOMINATIM_REVERSE = "https://nominatim.openstreetmap.org/reverse"
+LEGACY_IMAGE_HOST = "source.unsplash.com"
 
 # Generic seed coordinates — not a real location. The seed stored these for
 # destinations without precise coords (e.g. 23 places pinned to Bali's center).
@@ -38,6 +39,11 @@ def coords_suspicious(lat: float | None, lng: float | None) -> bool:
     if not lat or not lng:
         return True
     return (round(lat, 2), round(lng, 2)) in GENERIC_COORDS
+
+
+def has_real_image(images: list[str] | None) -> bool:
+    """Return whether a destination has at least one usable image URL."""
+    return any(image and LEGACY_IMAGE_HOST not in image for image in (images or []))
 WIKIDATA_SPARQL = "https://query.wikidata.org/sparql"
 WIKIPEDIA_SUMMARY = "https://id.wikipedia.org/api/rest_v1/page/summary/"
 WIKIPEDIA_SEARCH = "https://id.wikipedia.org/w/api.php"
@@ -288,9 +294,6 @@ class FreePlacesService:
         if not dest:
             raise ValueError(f"Destination {dest_id} not found")
 
-        def _has_real_image(imgs):
-            return bool(imgs) and not all("source.unsplash" in (i or "") for i in imgs)
-
         coords_resolved = False
         if coords_suspicious(dest.latitude, dest.longitude):
             geo = await self.geocode(f"{dest.name} {dest.city or ''}".strip())
@@ -301,7 +304,7 @@ class FreePlacesService:
                 coords_resolved = True
                 await asyncio.sleep(1.0)
 
-        image_added = _has_real_image(dest.images)
+        image_added = has_real_image(dest.images)
         source = None
         current = list(dest.images or [])
         if len(current) < 3:
@@ -332,8 +335,22 @@ class FreePlacesService:
         dests, _ = await self.repo.search(size=size)
         results = []
         for dest in dests:
-            if dest.images:
+            if has_real_image(dest.images):
                 continue
-            results.append({"name": dest.name, **(await self.enrich_destination(str(dest.id)))})
+            try:
+                result = await self.enrich_destination(str(dest.id))
+                results.append({"name": dest.name, "id": str(dest.id), **result})
+            except Exception as exc:
+                logger.warning("Batch enrich failed for %s (%s)", dest.name, dest.id, exc_info=True)
+                results.append({
+                    "name": dest.name,
+                    "id": str(dest.id),
+                    "status": "error",
+                    "image_added": False,
+                    "coords_resolved": False,
+                    "source": None,
+                    "images": dest.images or [],
+                    "error": str(exc),
+                })
             await asyncio.sleep(1.0)
         return results

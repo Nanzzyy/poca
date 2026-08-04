@@ -501,7 +501,7 @@ async def admin_enrich_free(dest_id: str, db: AsyncSession = Depends(get_db), _u
 
 
 @router.post("/destinations/enrich-free-all")
-async def admin_enrich_free_all(size: int = Query(20, ge=1, le=100), db: AsyncSession = Depends(get_db), _u: User = admin):
+async def admin_enrich_free_all(size: int = Query(100, ge=1, le=100), db: AsyncSession = Depends(get_db), _u: User = admin):
     async with FreePlacesService(db) as svc:
         return {"items": await svc.enrich_all_without_images(size)}
 

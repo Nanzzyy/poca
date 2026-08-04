@@ -81,8 +81,8 @@ export default function AdminDestinationsPage() {
   });
 
   const enrichAll = useMutation({
-    mutationFn: () => api.post<any>("/admin/destinations/enrich-free-all", {}),
-    onSuccess: (r: any) => { qc.invalidateQueries({ queryKey: ["admin", "destinations"] }); const n = r?.items?.length || 0; const ok = r?.items?.filter((x: any) => x.image_added).length || 0; addToast(`Enrich ${ok}/${n} destinasi`, ok ? "success" : "info"); },
+    mutationFn: () => api.post<any>("/admin/destinations/enrich-free-all", {}, { params: { size: 100 } }),
+    onSuccess: (r: any) => { qc.invalidateQueries({ queryKey: ["admin", "destinations"] }); const n = r?.items?.length || 0; const ok = r?.items?.filter((x: any) => x.image_added).length || 0; const failed = r?.items?.filter((x: any) => x.status === "error").length || 0; addToast(`Enrich ${ok}/${n} destinasi${failed ? ` · ${failed} gagal` : ""}`, ok ? "success" : "info"); },
     onError: (e: any) => addToast(e?.message || "Enrich batch gagal", "error"),
   });
 
