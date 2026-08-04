@@ -20,6 +20,7 @@ class User(Base):
     level = Column(Integer, default=1)
     xp_total = Column(Integer, default=0)
     role = Column(String(20), default="user", nullable=False)  # user | admin
+    is_verified = Column(Boolean, default=False, nullable=False)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)

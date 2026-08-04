@@ -7,6 +7,7 @@ import { useProfile, useUserStats, useTrips, useAchievements, useLeaderboard, us
 import { useAuthStore } from "@/stores";
 import { User, Trophy, Star, LogOut, MapPin, Sparkles, Compass, TrendingUp, Edit3, Share2, Search, Bell, Settings, Calendar, Lock, Plane, Medal, Heart, MapIcon } from "lucide-react";
 import { useState } from "react";
+import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
 
 const BADGES = [
   { icon: Plane, label: "First Flight", desc: "Completed 1st Trip", color: "primary", locked: false },
@@ -86,7 +87,10 @@ export default function ProfilePage() {
             </div>
             <div className="flex flex-col gap-1 flex-1">
               <div className="flex items-center gap-2">
-                <h1 className="text-[36px] font-bold text-on-surface">{user.username}</h1>
+                <h1 className="text-[36px] font-bold text-on-surface flex items-center gap-1.5">
+                  {user.username}
+                  {(user as any).is_verified && <VerifiedBadge className="w-5 h-5" />}
+                </h1>
                 <span className="bg-primary/10 px-2 py-[2px] rounded-full text-[11px] font-bold uppercase tracking-wider text-primary">ELITE EXPLORER</span>
               </div>
               <p className="text-[14px] text-on-surface-variant max-w-lg">{user.email} • Curating the world's most hidden gems.</p>

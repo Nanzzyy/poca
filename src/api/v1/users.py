@@ -204,6 +204,7 @@ async def get_public_profile(
         avatar_url=target.avatar_url,
         level=target.level,
         xp_total=target.xp_total,
+        is_verified=target.is_verified,
         created_at=target.created_at,
         followers_count=counts["followers_count"],
         following_count=counts["following_count"],

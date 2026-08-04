@@ -8,6 +8,7 @@ import { useLikePost, useDeletePost, useComments, useCreateComment } from "@/lib
 import { useProfile } from "@/lib/queries";
 import type { Post } from "@/types";
 import { timeAgo } from "@/lib/utils";
+import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
 
 export function PostCard({ post }: { post: Post }) {
   const router = useRouter();
@@ -71,7 +72,10 @@ export function PostCard({ post }: { post: Post }) {
             {(post.username || "U")[0].toUpperCase()}
           </div>
           <div>
-            <p className="text-[14px] font-bold leading-tight">{post.username || "Traveler"}</p>
+            <p className="text-[14px] font-bold leading-tight flex items-center gap-1">
+              {post.username || "Traveler"}
+              {(post as any).is_verified && <VerifiedBadge className="w-3.5 h-3.5" />}
+            </p>
             <p className="text-[10px] text-outline">{timeAgo(post.created_at)}{post.destination_id ? " • " + (post as any).location || "" : ""}</p>
           </div>
         </div>
@@ -183,7 +187,10 @@ function Comments({ postId }: { postId: string }) {
               {(c.username || "U")[0].toUpperCase()}
             </div>
             <div className="bg-surface-container-lowest rounded-2xl rounded-tl-sm px-3 py-2 flex-1">
-              <p className="text-[10px] font-semibold text-on-surface">{c.username || "Traveler"}</p>
+              <p className="text-[10px] font-semibold text-on-surface flex items-center gap-1">
+                {c.username || "Traveler"}
+                {(c as any).is_verified && <VerifiedBadge className="w-3 h-3" />}
+              </p>
               <p className="text-[12px] text-on-surface-variant">{c.content}</p>
             </div>
           </div>

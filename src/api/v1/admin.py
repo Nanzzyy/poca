@@ -1060,7 +1060,8 @@ async def admin_list_users(
     rows = (await db.execute(stmt)).scalars().all()
     return {
         "items": [{"id": str(u.id), "email": u.email, "username": u.username, "role": u.role,
-                    "is_active": u.is_active, "created_at": u.created_at.isoformat()} for u in rows],
+                    "is_verified": u.is_verified, "is_active": u.is_active,
+                    "created_at": u.created_at.isoformat()} for u in rows],
         "total": total, "page": page, "size": size,
     }
 
@@ -1079,8 +1080,25 @@ async def admin_update_user(
         user.role = body["role"]
     if "is_active" in body and isinstance(body["is_active"], bool):
         user.is_active = body["is_active"]
+    if "is_verified" in body and isinstance(body["is_verified"], bool):
+        user.is_verified = body["is_verified"]
     await db.flush()
     return {"ok": True}
+
+
+@router.patch("/users/{user_id}/verify")
+async def admin_toggle_verified(
+    user_id: str,
+    verified: bool = Query(...),
+    db: AsyncSession = Depends(get_db),
+    _u: User = admin,
+) -> dict:
+    user = (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
+    if not user:
+        raise HTTPException(404, "User not found")
+    user.is_verified = verified
+    await db.flush()
+    return {"id": str(user.id), "is_verified": user.is_verified}
 
 
 # ── Categories ──

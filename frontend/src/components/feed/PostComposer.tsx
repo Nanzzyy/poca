@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ImagePlus, X, Send } from "lucide-react";
 import { useCreatePost } from "@/lib/feed-queries";
 import { useProfile } from "@/lib/queries";
+import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
 import type { MediaItem } from "@/types";
 
 const MAX_MEDIA = 4;
@@ -46,8 +47,11 @@ export function PostComposer() {
   return (
     <div className="bg-surface-container-lowest border border-outline-variant/30 rounded-2xl p-4 shadow-sm mb-6">
       <div className="flex gap-3">
-        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white font-bold flex-shrink-0">
-          {user.username[0].toUpperCase()}
+        <div className="relative flex-shrink-0">
+          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white font-bold">
+            {user.username[0].toUpperCase()}
+          </div>
+          {(user as any).is_verified && <VerifiedBadge className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-background" />}
         </div>
         <div className="flex-1 min-w-0">
           <textarea

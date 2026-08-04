@@ -28,6 +28,7 @@ class CommentResponse(BaseModel):
     created_at: datetime
     username: Optional[str] = None
     avatar_url: Optional[str] = None
+    is_verified: bool = False
 
     model_config = {"from_attributes": True}
 
@@ -44,5 +45,6 @@ class PostResponse(BaseModel):
     created_at: datetime
     username: Optional[str] = None
     avatar_url: Optional[str] = None
+    is_verified: bool = False
 
     model_config = {"from_attributes": True}

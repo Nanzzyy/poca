@@ -7,6 +7,7 @@ import { useState, useEffect, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useAuthStore } from "@/stores";
 import { useUnreadCount, useProfile } from "@/lib/queries";
+import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
 
 const links = [
   { href: "/", label: "Home" },
@@ -116,7 +117,10 @@ export function TopNav() {
               {userMenuOpen && (
                 <div className="absolute top-full right-0 mt-2 w-48 bg-surface-container-lowest rounded-xl shadow-xl border border-outline-variant/30 py-1 z-[200]">
                   <div className="px-4 py-2 border-b border-outline-variant/20">
-                    <p className="text-[13px] font-bold text-on-surface">{user?.username || "User"}</p>
+                    <p className="text-[13px] font-bold text-on-surface flex items-center gap-1">
+                      {user?.username || "User"}
+                      {(user as any)?.is_verified && <VerifiedBadge className="w-3.5 h-3.5" />}
+                    </p>
                     <p className="text-[10px] text-on-surface-variant truncate">{user?.email}</p>
                   </div>
                   <Link

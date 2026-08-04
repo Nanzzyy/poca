@@ -25,6 +25,7 @@ class UserResponse(BaseModel):
     level: int = 1
     xp_total: int = 0
     role: str = "user"
+    is_verified: bool = False
     is_active: bool = True
     created_at: datetime
 
@@ -37,6 +38,7 @@ class PublicProfileResponse(BaseModel):
     avatar_url: Optional[str] = None
     level: int = 1
     xp_total: int = 0
+    is_verified: bool = False
     created_at: datetime
     followers_count: int = 0
     following_count: int = 0

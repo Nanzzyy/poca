@@ -21,6 +21,7 @@ def _to_post_response(p: Post) -> PostResponse:
     resp = PostResponse.model_validate(p)
     resp.username = p.user.username if p.user else None
     resp.avatar_url = p.user.avatar_url if p.user else None
+    resp.is_verified = p.user.is_verified if p.user else False
     resp.comment_count = len(p.comments) if p.comments else 0
     return resp
 
@@ -127,6 +128,7 @@ async def list_comments(
         resp = CommentResponse.model_validate(c)
         resp.username = c.user.username if c.user else None
         resp.avatar_url = c.user.avatar_url if c.user else None
+        resp.is_verified = c.user.is_verified if c.user else False
         result.append(resp)
     return result
 
@@ -150,6 +152,7 @@ async def create_comment(
     resp = CommentResponse.model_validate(comment)
     resp.username = user.username
     resp.avatar_url = user.avatar_url
+    resp.is_verified = user.is_verified
 
     # Notify post author on new comment (not their own).
     if str(post.user_id) != str(user.id):
