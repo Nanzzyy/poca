@@ -29,17 +29,21 @@ async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
-    # Seed initial data if DB is empty (first deploy)
+    # Bootstrap: create demo admin user if no users exist
     from sqlalchemy import text
     from src.core.database import async_session_factory
     async with async_session_factory() as db:
-        r = await db.execute(text("SELECT count(*) FROM destinations"))
-        count = r.scalar()
-    if count == 0:
-        from seed.seed_destinations import seed as seed_dest
-        from seed.seed_templates import seed as seed_tmpl
-        await seed_dest()
-        await seed_tmpl()
+        r = await db.execute(text("SELECT count(*) FROM users"))
+        if r.scalar() == 0:
+            import bcrypt
+            from src.domain.models.user import User
+            demo = User(
+                email="demo@poca.app", username="demo", role="admin",
+                hashed_password=bcrypt.hashpw("demo123".encode(), bcrypt.gensalt()).decode(),
+                preferences={"budget":"mid","interests":["alam","pantai","budaya"],"travel_style":"comfort"},
+            )
+            db.add(demo)
+            await db.commit()
 
     await init_redis()
     yield
