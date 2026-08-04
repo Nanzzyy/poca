@@ -16,11 +16,6 @@ const SectionRenderer = nextDynamic(() => import("@/components/sections/SectionR
 
 
 
-const SAMPLE_REVIEWS = [
-  { name: "Elena Rodriguez", time: "2 days ago", rating: 5, text: "The sunset here is truly religious. Watching the Kecak dance as the sky turns purple was the highlight of my Bali trip. Just watch out for the monkeys, they stole my sunglasses!", avatar: "ER" },
-  { name: "Liam Chen", time: "1 week ago", rating: 4, text: "Magical place. It gets very crowded for the evening show, so book tickets in advance. Poca's recommendation to arrive at 4 PM was spot on.", avatar: "LC" },
-];
-
 export default function DestinationPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
@@ -57,7 +52,7 @@ export default function DestinationPage() {
     addToast("Review posted!", "success");
   };
 
-  const reviewData = reviews?.items?.length ? reviews.items : SAMPLE_REVIEWS;
+  const reviewData = reviews?.items || [];
 
   const tabs = [
     { key: "overview", label: "Overview" },

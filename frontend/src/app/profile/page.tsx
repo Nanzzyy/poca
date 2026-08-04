@@ -22,11 +22,6 @@ const ACTIVITY_LOG = [
   { icon: Heart, label: "Saved", target: '"Nordic Lights Expedition"', time: "3 days ago", color: "bg-tertiary" },
 ];
 
-const SAMPLE_TRIPS = [
-  { name: "Tropical Seclusion: Maldives", date: "Dec 12 - Dec 19, 2024", status: "COMPLETED", tag: "LUXURY", img: "https://lh3.googleusercontent.com/aida-public/AB6AXuALL37CTVmhltmLC64N3m59p9DggNJGfq2dx5eh1XdJepd2co4FsVgmLNVlLkn3AQQYIpXdFONHIVklcsJqDRPFFLngBSgNtCU2KV6YK8tE_LUkNDJkb3IN8FSVi_y0eI-NyeJSZ9dPvxMVTuwxmt6_4vGrOyoeRasVzvhp5In_qqXaeoUvhLcRn8Art88LEbuExzq3HtuL6oV0zA6FKfmqAiImV269aW693ZUHZcqU7NmPtA9gc-jj", statusColor: "bg-tertiary-container text-tertiary", tagColor: "bg-primary-container text-primary" },
-  { name: "Neon Nights: Tokyo", date: "Mar 05 - Mar 14, 2025", status: "UPCOMING", tag: "CULTURE", img: "https://lh3.googleusercontent.com/aida-public/AB6AXuCcLOAd374W3oSVEdi5T_8pG2HDM_hsCX3pFWZ3QGLuEnN79ZXZjTkmhAWsxUUQWdGrr7UDFdav-fakLHNlJ-anATDlZDh-wUWSQtVgFbdnD6ETagmuDyNpjlVWZ7kqUKPLbZRYD86Pb9wKe2GFFL0O2et75ozH1GfJrX_KFr_7QePQFYdql-LYcOfUY7v-rZ33aQvzzddm2L3tgIrSg__-cHYyYclkDDN5b7_GtE-Su619vKRf9YiI", statusColor: "bg-secondary/10 text-secondary", tagColor: "bg-primary-container text-primary" },
-];
-
 const LEADERBOARD = [
   { rank: 1, name: "Sarah J.", initials: "SJ", badges: 48, points: 124500, isYou: false },
   { rank: 14, name: "Alex Rivera (You)", initials: "AR", badges: 15, points: 98210, isYou: true },
