@@ -7,7 +7,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { useSearchDestinations, useCategories, useProfile, useFavoriteIds, useToggleFavorite } from "@/lib/queries";
 import { useUIStore } from "@/stores";
 import { destImage } from "@/lib/utils";
-import { Star, MapPin, Sparkles, Heart, Compass } from "lucide-react";
+import { Star, MapPin, Sparkles, Heart } from "lucide-react";
 import { GridSkeleton, Loading } from "@/components/ui";
 
 const cardImg = (item: any) => destImage(item.images, item.name);
@@ -62,8 +62,9 @@ function SearchContent() {
       {/* ═══════ HERO ═══════ */}
       <section className="relative rounded-none md:rounded-[2rem] overflow-hidden h-[500px] flex items-center justify-center text-center px-4 group mx-0 md:mx-4 md:mt-4">
         <div className="absolute inset-0 z-0">
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20 z-10" />
-          <div className="w-full h-full bg-gradient-to-br from-primary via-primary-container to-secondary" />
+          <img src="https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1600&q=80" alt="Travel" className="w-full h-full object-cover" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-black/20 z-10" />
+          <div className="w-full h-full bg-gradient-to-r from-primary/60 via-primary-container/40 to-secondary/60" />
         </div>
         <div className="relative z-20 max-w-2xl text-white">
           <h1 className="text-[36px] font-bold mb-4 drop-shadow-lg">Temukan Destinasi Impian</h1>
@@ -243,9 +244,8 @@ function SearchContent() {
             </div>
           </div>
           <div className="w-full md:w-80 h-64 rounded-2xl overflow-hidden relative z-10 shadow-2xl rotate-3 group-hover:rotate-0 transition-all duration-500">
-            <div className="w-full h-full bg-gradient-to-br from-secondary/20 to-primary/20 flex items-center justify-center">
-              <Compass className="w-20 h-20 text-white/30" />
-            </div>
+            <img src="https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=600&q=80" alt="Adventure" className="w-full h-full object-cover" />
+            <div className="absolute inset-0 bg-gradient-to-br from-secondary/40 to-primary/40" />
           </div>
         </section>
       </div>
