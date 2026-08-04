@@ -266,6 +266,26 @@ export function useUpdatePreferences() {
   });
 }
 
+export function useUploadAvatar() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (file: File) => {
+      const fd = new FormData();
+      fd.append("file", file);
+      return api.upload<{ avatar_url: string }>("/users/me/avatar", fd);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.user.me }),
+  });
+}
+
+export function useRemoveAvatar() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.delete("/users/me/avatar"),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.user.me }),
+  });
+}
+
 // Public profile + follow
 export function usePublicProfile(userId: string) {
   return useQuery({

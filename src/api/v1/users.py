@@ -1,7 +1,8 @@
 from datetime import datetime, timedelta
+import os
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, UploadFile, File, status
 from jose import jwt
 import bcrypt
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -214,6 +215,45 @@ async def get_public_profile(
         is_following=is_following,
         is_self=bool(viewer and str(viewer.id) == user_id),
     )
+
+
+_AVATAR_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))),
+    "static", "uploads", "avatars",
+)
+_AVATAR_MIME = {"image/jpeg", "image/png", "image/webp", "image/gif", "image/svg+xml"}
+_AVATAR_MAX = 5 * 1024 * 1024  # 5MB
+
+
+@router.post("/users/me/avatar")
+async def upload_avatar(
+    file: UploadFile = File(...),
+    user: User = Depends(require_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    content = await file.read()
+    if len(content) > _AVATAR_MAX:
+        raise HTTPException(413, detail="File too large (max 5MB)")
+    if file.content_type not in _AVATAR_MIME:
+        raise HTTPException(400, detail="Format tidak didukung (jpg/png/webp/gif/svg)")
+    os.makedirs(_AVATAR_DIR, exist_ok=True)
+    ext = (file.filename or "").rsplit(".", 1)[-1].lower() if file.filename and "." in file.filename else "jpg"
+    fname = f"{user.id}.{ext}"
+    with open(os.path.join(_AVATAR_DIR, fname), "wb") as f:
+        f.write(content)
+    user.avatar_url = f"/static/uploads/avatars/{fname}"
+    await db.commit()
+    return {"avatar_url": user.avatar_url}
+
+
+@router.delete("/users/me/avatar")
+async def remove_avatar(
+    user: User = Depends(require_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    user.avatar_url = None
+    await db.commit()
+    return {"ok": True}
 
 
 @router.post("/users/{user_id}/follow")

@@ -74,19 +74,20 @@ export default function ChatPage() {
     prevConvRef.current = activeConv;
   }, [activeConv, showSidebar]);
 
-  // ?example=1 (from home "Lihat Contoh Plan") → auto-generate a sample plan.
+  // ?example=1 (from home "Lihat Contoh Plan") → tampilkan form planner,
+  // jangan auto-generate. User isi sendiri budget/hari/orang sebelum plan dibuat.
   const exampleStarted = useRef(false);
   useEffect(() => {
     if (exampleStarted.current) return;
     if (searchParams.get("example") && user && !activeConv) {
       exampleStarted.current = true;
-      startNewChat("Buatkan rencana perjalanan 2 hari di Bali untuk 2 orang dengan budget Rp3.000.000, minat pantai. Berikan detail aktivitas per hari, estimasi biaya, dan rekomendasi tempat.");
+      setShowPlanner(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, user, activeConv]);
 
-  // ?destination=<id> (from destination detail "Plan My Visit") → auto-create
-  // conversation, send a contextual first message, and show the planner form.
+  // ?destination=<id> (from destination detail "Plan My Visit") → tampilkan
+  // form planner (pre-fill lokasi), jangan auto-kirim pesan template.
   const planVisitStarted = useRef(false);
   const destId = searchParams.get("destination");
   const { data: planDest } = useDestination(destId || "");
@@ -95,7 +96,6 @@ export default function ChatPage() {
     if (destId && planDest && user && !activeConv) {
       planVisitStarted.current = true;
       setShowPlanner(true);
-      startNewChat(`Aku tertarik ke ${planDest.name}${planDest.city ? ` di ${planDest.city}` : ""}. Bantu aku rencanain ya!`);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [destId, planDest, user, activeConv]);

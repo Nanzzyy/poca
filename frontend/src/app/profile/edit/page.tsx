@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { useProfile, useUpdatePreferences } from "@/lib/queries";
+import { useProfile, useUpdatePreferences, useUploadAvatar, useRemoveAvatar } from "@/lib/queries";
 import { useUIStore } from "@/stores";
-import { ArrowLeft, Loader } from "lucide-react";
+import { ArrowLeft, Loader, Camera, X } from "lucide-react";
 
 const STYLES = [
   { key: "budget", label: "🎒 Backpacker (Hemat)" },
@@ -17,10 +17,15 @@ export default function EditProfilePage() {
   const addToast = useUIStore(s => s.addToast);
   const { data: user } = useProfile();
   const update = useUpdatePreferences();
+  const uploadAvatar = useUploadAvatar();
+  const removeAvatar = useRemoveAvatar();
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const prefs: Record<string, any> = (user?.preferences as Record<string, any>) || {};
   const [bio, setBio] = useState<string>(prefs.bio || "");
   const [style, setStyle] = useState<string>(prefs.travel_style || "mid");
+  const [location, setLocation] = useState<string>(prefs.location || "");
+  const [website, setWebsite] = useState<string>(prefs.website || "");
 
   if (!user) {
     return (
@@ -33,7 +38,7 @@ export default function EditProfilePage() {
 
   const save = async () => {
     // Merge so we never clobber existing prefs (e.g. favorite_ids).
-    const merged = { ...prefs, bio: bio.trim(), travel_style: style };
+    const merged = { ...prefs, bio: bio.trim(), travel_style: style, location: location.trim(), website: website.trim() };
     try {
       await update.mutateAsync(merged);
       addToast("Profil disimpan!", "success");
@@ -41,6 +46,25 @@ export default function EditProfilePage() {
     } catch {
       addToast("Gagal menyimpan profil.", "error");
     }
+  };
+
+  const onPickAvatar = (files: FileList | null) => {
+    const f = files?.[0];
+    if (!f) return;
+    if (!f.type.startsWith("image/")) { addToast("File harus gambar.", "error"); return; }
+    if (f.size > 5 * 1024 * 1024) { addToast("Maks 5MB.", "error"); return; }
+    uploadAvatar.mutate(f, {
+      onSuccess: () => addToast("Foto profil diperbarui!", "success"),
+      onError: (e: any) => addToast(e?.message || "Gagal upload foto.", "error"),
+    });
+  };
+
+  const onRemoveAvatar = async () => {
+    if (!await useUIStore.getState().confirm({ title: "Hapus Foto", message: "Kembali pakai inisial?", confirmText: "Hapus", danger: true })) return;
+    removeAvatar.mutate(undefined, {
+      onSuccess: () => addToast("Foto dihapus.", "info"),
+      onError: (e: any) => addToast(e?.message || "Gagal hapus foto.", "error"),
+    });
   };
 
   return (
@@ -54,12 +78,33 @@ export default function EditProfilePage() {
 
       <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant/30 shadow-sm p-6 space-y-6">
         <div className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary/10 to-secondary/10 flex items-center justify-center text-2xl font-bold text-primary">
-            {user.username[0].toUpperCase()}
+          <div className="relative">
+            <div className="w-20 h-20 rounded-2xl overflow-hidden bg-gradient-to-br from-primary/10 to-secondary/10 flex items-center justify-center text-2xl font-bold text-primary">
+              {user.avatar_url ? <img src={user.avatar_url} alt={user.username} className="w-full h-full object-cover" /> : user.username[0].toUpperCase()}
+            </div>
+            <button
+              onClick={() => fileRef.current?.click()}
+              disabled={uploadAvatar.isPending}
+              className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-primary text-on-primary flex items-center justify-center shadow-md hover:bg-primary/90 transition-colors active:scale-90 disabled:opacity-50"
+              title="Ganti foto"
+            >
+              {uploadAvatar.isPending ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <Camera className="w-3.5 h-3.5" />}
+            </button>
+            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => { onPickAvatar(e.target.files); e.target.value = ""; }} />
           </div>
-          <div>
+          <div className="flex-1">
             <p className="text-[16px] font-bold text-on-surface">{user.username}</p>
             <p className="text-[12px] text-on-surface-variant">{user.email}</p>
+            <div className="flex gap-2 mt-2">
+              <button onClick={() => fileRef.current?.click()} disabled={uploadAvatar.isPending} className="text-[12px] font-bold text-primary hover:underline disabled:opacity-50">
+                {user.avatar_url ? "Ganti Foto" : "Unggah Foto"}
+              </button>
+              {user.avatar_url && (
+                <button onClick={onRemoveAvatar} disabled={removeAvatar.isPending} className="text-[12px] font-bold text-error hover:underline disabled:opacity-50 flex items-center gap-0.5">
+                  <X className="w-3 h-3" /> Hapus
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
@@ -86,6 +131,27 @@ export default function EditProfilePage() {
                 {s.label}
               </button>
             ))}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="text-[12px] font-medium text-on-surface-variant mb-1 block">Lokasi / Asal</label>
+            <input
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+              placeholder="cth: Jakarta, Indonesia"
+              className="w-full p-3 border border-outline-variant/50 rounded-xl text-[14px] bg-surface-container-lowest outline-none focus:ring-2 focus:ring-primary/20"
+            />
+          </div>
+          <div>
+            <label className="text-[12px] font-medium text-on-surface-variant mb-1 block">Website / Sosmed</label>
+            <input
+              value={website}
+              onChange={(e) => setWebsite(e.target.value)}
+              placeholder="cth: instagram.com/username"
+              className="w-full p-3 border border-outline-variant/50 rounded-xl text-[14px] bg-surface-container-lowest outline-none focus:ring-2 focus:ring-primary/20"
+            />
           </div>
         </div>
 

@@ -28,3 +28,4 @@ seed/data/
 
 # Logs
 *.log
+static/uploads

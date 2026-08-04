@@ -53,8 +53,9 @@ export function TopNav() {
     <header className="fixed top-0 left-0 w-full z-50 bg-surface/80 backdrop-blur-md shadow-sm">
       <nav className="max-w-[1280px] mx-auto px-6 h-16 flex items-center justify-between">
         <div className="flex items-center gap-8">
-          <Link href="/" className="text-[28px] font-bold leading-[1.2] tracking-tight text-primary">
-            Poca
+          <Link href="/" className="flex items-center gap-2">
+            <img src="/poca.svg" alt="Poca" className="w-8 h-8 rounded-lg" />
+            <span className="text-[24px] font-bold leading-[1.2] tracking-tight text-primary">Poca</span>
           </Link>
           <div className="hidden md:flex items-center gap-4">
             {links.map(({ href, label, icon: Icon }) => {
@@ -112,7 +113,7 @@ export function TopNav() {
                 onClick={() => setUserMenuOpen(o => !o)}
                 className="w-10 h-10 rounded-full bg-surface-container-high border border-outline-variant overflow-hidden flex items-center justify-center text-on-surface-variant hover:border-primary/30 transition-colors"
               >
-                {(user?.username || "U")[0].toUpperCase()}
+                {user?.avatar_url ? <img src={user.avatar_url} alt={user.username} className="w-full h-full object-cover" /> : (user?.username || "U")[0].toUpperCase()}
               </button>
               {userMenuOpen && (
                 <div className="absolute top-full right-0 mt-2 w-48 bg-surface-container-lowest rounded-xl shadow-xl border border-outline-variant/30 py-1 z-[200]">
