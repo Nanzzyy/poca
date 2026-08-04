@@ -229,6 +229,13 @@ class PlanService:
             "price_level": plan_level,
             "days": days,
         }
+        # Cover image = first destination in the plan that has a real image.
+        cover = next(
+            (str(imgs[0]) for d in used if (imgs := d.images or []) and "source.unsplash" not in str(imgs[0])),
+            None,
+        )
+        if cover:
+            plan["cover_image"] = cover
         return plan, used
 
     def _generic_meal(self, name: str, time_str: str, level: str, people: int) -> dict[str, Any]:

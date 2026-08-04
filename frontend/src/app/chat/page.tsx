@@ -414,9 +414,13 @@ export default function ChatPage() {
                 <div>
                   <h3 className="text-headline-sm font-semibold mb-3 text-on-surface">Preview Rencana</h3>
                   <div className="rounded-2xl overflow-hidden shadow-sm relative h-48 group bg-gradient-to-br from-primary/10 to-secondary/10 flex items-center justify-center">
-                    <Compass className="w-16 h-16 text-outline/30" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent flex items-end p-4">
-                      <p className="text-white font-bold text-[12px]">{lastAiMsg?.msg_metadata?.plan?.location || "Destinasi"}</p>
+                    {lastAiMsg?.msg_metadata?.plan?.cover_image ? (
+                      <img src={lastAiMsg.msg_metadata.plan.cover_image} alt={lastAiMsg?.msg_metadata?.plan?.location || "Destinasi"} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                    ) : (
+                      <Compass className="w-16 h-16 text-outline/30" />
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-4">
+                      <p className="text-white font-bold text-[12px] drop-shadow">{lastAiMsg?.msg_metadata?.plan?.location || "Destinasi"}</p>
                     </div>
                   </div>
                 </div>

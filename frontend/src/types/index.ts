@@ -271,6 +271,7 @@ export interface TripPlan {
   title: string;
   num_days: number;
   location?: string | null;
+  cover_image?: string | null;
   people: number;
   budget_requested?: number | null;
   budget_estimate: {
