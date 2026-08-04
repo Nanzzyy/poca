@@ -15,8 +15,8 @@ export default function LoginPage() {
   const setToken = useAuthStore((s) => s.setToken);
   const addToast = useUIStore((s) => s.addToast);
   const qc = useQueryClient();
-  const [email, setEmail] = useState("demo@poca.app");
-  const [password, setPassword] = useState("demo123");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
