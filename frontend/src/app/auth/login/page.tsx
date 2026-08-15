@@ -50,7 +50,7 @@ export default function LoginPage() {
             <input
               type="email"
               required
-              className="w-full p-3 border border-outline-variant bg-surface-container-lowest rounded-xl text-body-md outline-none focus:ring-2 focus:ring-primary/20"
+              className="w-full p-3 border border-outline-variant bg-surface-container-lowest rounded-xl text-body-md outline-none"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
@@ -60,7 +60,7 @@ export default function LoginPage() {
             <input
               type={showPw ? "text" : "password"}
               required
-              className="w-full p-3 border border-outline-variant bg-surface-container-lowest rounded-xl text-body-md outline-none focus:ring-2 focus:ring-primary/20 pr-10"
+              className="w-full p-3 border border-outline-variant bg-surface-container-lowest rounded-xl text-body-md outline-none pr-10"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />

@@ -300,9 +300,9 @@ export default function DestinationPage() {
                     </button>
                   ))}
                 </div>
-                <input type="text" placeholder="Title" className="w-full p-2.5 border border-outline-variant rounded-xl mb-2 text-[14px] bg-surface-container-lowest outline-none focus:ring-2 focus:ring-primary/20" value={rTitle} onChange={e => setRTitle(e.target.value)} />
-                <textarea placeholder="Your experience" className="w-full p-2.5 border border-outline-variant rounded-xl mb-2 text-[14px] bg-surface-container-lowest outline-none focus:ring-2 focus:ring-primary/20" rows={3} value={rContent} onChange={e => setRContent(e.target.value)} />
-                <input type="text" placeholder="Travel tips" className="w-full p-2.5 border border-outline-variant rounded-xl mb-3 text-[14px] bg-surface-container-lowest outline-none focus:ring-2 focus:ring-primary/20" value={rTips} onChange={e => setRTips(e.target.value)} />
+                <input type="text" placeholder="Title" className="w-full p-2.5 border border-outline-variant rounded-xl mb-2 text-[14px] bg-surface-container-lowest outline-none" value={rTitle} onChange={e => setRTitle(e.target.value)} />
+                <textarea placeholder="Your experience" className="w-full p-2.5 border border-outline-variant rounded-xl mb-2 text-[14px] bg-surface-container-lowest outline-none" rows={3} value={rContent} onChange={e => setRContent(e.target.value)} />
+                <input type="text" placeholder="Travel tips" className="w-full p-2.5 border border-outline-variant rounded-xl mb-3 text-[14px] bg-surface-container-lowest outline-none" value={rTips} onChange={e => setRTips(e.target.value)} />
                 <div className="flex gap-2">
                   <button onClick={submitReview} className="flex items-center gap-1.5 px-4 py-2 bg-primary text-on-primary rounded-xl text-[14px] font-bold hover:bg-primary/90 transition-all active:scale-[0.98]">
                     <Send className="w-3.5 h-3.5" /> Submit

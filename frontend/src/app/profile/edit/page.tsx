@@ -115,7 +115,7 @@ export default function EditProfilePage() {
             value={bio}
             onChange={(e) => setBio(e.target.value)}
             placeholder="Ceritakan sedikit tentang gaya liburanmu..."
-            className="w-full p-3 border border-outline-variant/50 rounded-xl text-[14px] bg-surface-container-lowest outline-none focus:ring-2 focus:ring-primary/20 resize-none"
+            className="w-full p-3 border border-outline-variant/50 rounded-xl text-[14px] bg-surface-container-lowest outline-none resize-none"
           />
         </div>
 
@@ -141,7 +141,7 @@ export default function EditProfilePage() {
               value={location}
               onChange={(e) => setLocation(e.target.value)}
               placeholder="cth: Jakarta, Indonesia"
-              className="w-full p-3 border border-outline-variant/50 rounded-xl text-[14px] bg-surface-container-lowest outline-none focus:ring-2 focus:ring-primary/20"
+              className="w-full p-3 border border-outline-variant/50 rounded-xl text-[14px] bg-surface-container-lowest outline-none"
             />
           </div>
           <div>
@@ -150,7 +150,7 @@ export default function EditProfilePage() {
               value={website}
               onChange={(e) => setWebsite(e.target.value)}
               placeholder="cth: instagram.com/username"
-              className="w-full p-3 border border-outline-variant/50 rounded-xl text-[14px] bg-surface-container-lowest outline-none focus:ring-2 focus:ring-primary/20"
+              className="w-full p-3 border border-outline-variant/50 rounded-xl text-[14px] bg-surface-container-lowest outline-none"
             />
           </div>
         </div>

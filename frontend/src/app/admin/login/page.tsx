@@ -45,8 +45,8 @@ export default function AdminLoginPage() {
           <p className="text-body-md text-on-surface-variant mt-1">Masuk dengan akun administrator</p>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <input type="email" required placeholder="Email admin" className="w-full p-3 border border-outline-variant bg-surface-container-lowest rounded-xl text-body-md outline-none focus:ring-2 focus:ring-primary/20" value={email} onChange={(e) => setEmail(e.target.value)} />
-          <input type="password" required placeholder="Password" className="w-full p-3 border border-outline-variant bg-surface-container-lowest rounded-xl text-body-md outline-none focus:ring-2 focus:ring-primary/20" value={password} onChange={(e) => setPassword(e.target.value)} />
+          <input type="email" required placeholder="Email admin" className="w-full p-3 border border-outline-variant bg-surface-container-lowest rounded-xl text-body-md outline-none" value={email} onChange={(e) => setEmail(e.target.value)} />
+          <input type="password" required placeholder="Password" className="w-full p-3 border border-outline-variant bg-surface-container-lowest rounded-xl text-body-md outline-none" value={password} onChange={(e) => setPassword(e.target.value)} />
           <button type="submit" disabled={login.isPending} className="w-full py-3 bg-primary text-on-primary rounded-xl font-bold hover:bg-primary/90 disabled:opacity-50 transition-all flex items-center justify-center gap-2">
             <LogIn className="w-4 h-4" /> {login.isPending ? "Masuk..." : "Masuk Admin"}
           </button>

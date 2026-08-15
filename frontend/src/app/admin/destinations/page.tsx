@@ -211,7 +211,7 @@ export default function AdminDestinationsPage() {
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-outline" />
         <input
           value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }}
-          placeholder="Cari destinasi..." className="w-full pl-9 pr-3 py-2 border border-outline-variant rounded-lg text-[13px] bg-surface-container-lowest outline-none focus:ring-2 focus:ring-primary/20" />
+          placeholder="Cari destinasi..." className="w-full pl-9 pr-3 py-2 border border-outline-variant rounded-lg text-[13px] bg-surface-container-lowest outline-none" />
       </div>
 
       {/* Table */}
@@ -273,7 +273,7 @@ export default function AdminDestinationsPage() {
             <div className="space-y-3">
               {(["name", "city", "country", "slug"] as const).map((f) => (
                 <div key={f}><label className="text-[11px] font-medium text-on-surface-variant block mb-0.5">{f}</label>
-                  <input value={form[f] as string || ""} onChange={e => setForm({ ...form, [f]: e.target.value })} className="w-full p-2 border border-outline-variant rounded-lg text-[13px] bg-surface-container-lowest outline-none focus:ring-2 focus:ring-primary/20" />
+                  <input value={form[f] as string || ""} onChange={e => setForm({ ...form, [f]: e.target.value })} className="w-full p-2 border border-outline-variant rounded-lg text-[13px] bg-surface-container-lowest outline-none" />
                 </div>
               ))}
               <div className="grid grid-cols-2 gap-3">
@@ -330,7 +330,7 @@ export default function AdminDestinationsPage() {
                 value={poiQ} onChange={e => setPoiQ(e.target.value)}
                 onKeyDown={e => { if (e.key === "Enter" && poiQ.trim().length >= 2) poiSearch.mutate(poiQ.trim()); }}
                 placeholder="cth: Pantai Kuta, Resto Bali..."
-                className="flex-1 p-2 border border-outline-variant rounded-lg text-[13px] bg-surface-container-lowest outline-none focus:ring-2 focus:ring-primary/20"
+                className="flex-1 p-2 border border-outline-variant rounded-lg text-[13px] bg-surface-container-lowest outline-none"
               />
               <button onClick={() => poiSearch.mutate(poiQ.trim())} disabled={poiSearch.isPending || poiQ.trim().length < 2}
                 className="px-4 py-2 bg-primary text-on-primary rounded-lg text-[13px] font-bold disabled:opacity-50">
@@ -400,7 +400,7 @@ export default function AdminDestinationsPage() {
                     onKeyDown={e => { if (e.key === "Enter") { addImageUrl((e.target as HTMLInputElement).value); (e.target as HTMLInputElement).value = ""; } }}
                     onBlur={e => { addImageUrl(e.target.value); e.target.value = ""; }}
                     placeholder="tempel URL gambar lalu Enter..."
-                    className="flex-1 p-2.5 border border-outline-variant rounded-lg text-[12px] bg-surface-container-lowest outline-none focus:ring-2 focus:ring-primary/20" />
+                    className="flex-1 p-2.5 border border-outline-variant rounded-lg text-[12px] bg-surface-container-lowest outline-none" />
                 </div>
               </>
             ) : (

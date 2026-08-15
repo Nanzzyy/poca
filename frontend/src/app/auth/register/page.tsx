@@ -44,15 +44,15 @@ export default function RegisterPage() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-body-sm font-medium text-on-surface mb-1.5">Email</label>
-            <input type="email" required className="w-full p-3 border border-outline-variant bg-surface-container-lowest rounded-xl text-body-md outline-none focus:ring-2 focus:ring-primary/20" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+            <input type="email" required className="w-full p-3 border border-outline-variant bg-surface-container-lowest rounded-xl text-body-md outline-none" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
           </div>
           <div>
             <label className="block text-body-sm font-medium text-on-surface mb-1.5">Username</label>
-            <input type="text" required className="w-full p-3 border border-outline-variant bg-surface-container-lowest rounded-xl text-body-md outline-none focus:ring-2 focus:ring-primary/20" value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} />
+            <input type="text" required className="w-full p-3 border border-outline-variant bg-surface-container-lowest rounded-xl text-body-md outline-none" value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} />
           </div>
           <div className="relative">
             <label className="block text-body-sm font-medium text-on-surface mb-1.5">Password</label>
-            <input type={showPw ? "text" : "password"} required className="w-full p-3 border border-outline-variant bg-surface-container-lowest rounded-xl text-body-md outline-none focus:ring-2 focus:ring-primary/20 pr-10" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
+            <input type={showPw ? "text" : "password"} required className="w-full p-3 border border-outline-variant bg-surface-container-lowest rounded-xl text-body-md outline-none pr-10" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
             <button type="button" onClick={() => setShowPw(!showPw)} className="absolute right-3 top-[42px] text-on-surface-variant">
               {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             </button>

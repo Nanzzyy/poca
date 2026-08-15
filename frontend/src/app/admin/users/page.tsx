@@ -42,7 +42,7 @@ export default function AdminUsersPage() {
       <h2 className="text-[24px] font-bold mb-6">Users ({total})</h2>
       <div className="relative mb-4 max-w-md">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-outline" />
-        <input value={q} onChange={e => { setQ(e.target.value); setPage(1); }} placeholder="Cari user..." className="w-full pl-9 pr-3 py-2 border border-outline-variant rounded-lg text-[13px] outline-none focus:ring-2 focus:ring-primary/20" />
+        <input value={q} onChange={e => { setQ(e.target.value); setPage(1); }} placeholder="Cari user..." className="w-full pl-9 pr-3 py-2 border border-outline-variant rounded-lg text-[13px] outline-none" />
       </div>
       <div className="bg-surface-container-lowest rounded-xl shadow-sm border border-outline-variant/20 overflow-hidden">
         <table className="w-full text-left text-[13px]">

@@ -227,19 +227,19 @@ export default function AdminTemplatesPage() {
                 <div>
                   <label className="text-[11px] font-medium text-on-surface-variant uppercase tracking-wider">Template ID</label>
                   <input value={form.id} onChange={e => setForm({ ...form, id: e.target.value })} disabled={!!editItem}
-                    className="w-full p-2.5 mt-1 border border-outline-variant rounded-xl text-[14px] bg-surface-container-lowest outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50" placeholder="e.g. temple, beach" />
+                    className="w-full p-2.5 mt-1 border border-outline-variant rounded-xl text-[14px] bg-surface-container-lowest outline-none disabled:opacity-50" placeholder="e.g. temple, beach" />
                 </div>
                 <div>
                   <label className="text-[11px] font-medium text-on-surface-variant uppercase tracking-wider">Name</label>
                   <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })}
-                    className="w-full p-2.5 mt-1 border border-outline-variant rounded-xl text-[14px] bg-surface-container-lowest outline-none focus:ring-2 focus:ring-primary/20" placeholder="Template Name" />
+                    className="w-full p-2.5 mt-1 border border-outline-variant rounded-xl text-[14px] bg-surface-container-lowest outline-none" placeholder="Template Name" />
                 </div>
               </div>
 
               <div>
                 <label className="text-[11px] font-medium text-on-surface-variant uppercase tracking-wider">Description</label>
                 <textarea value={form.description || ""} onChange={e => setForm({ ...form, description: e.target.value })} rows={2}
-                  className="w-full p-2.5 mt-1 border border-outline-variant rounded-xl text-[14px] bg-surface-container-lowest outline-none focus:ring-2 focus:ring-primary/20" />
+                  className="w-full p-2.5 mt-1 border border-outline-variant rounded-xl text-[14px] bg-surface-container-lowest outline-none" />
               </div>
 
               <label className="flex items-center gap-2 cursor-pointer">

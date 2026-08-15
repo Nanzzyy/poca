@@ -209,7 +209,7 @@ function Comments({ postId }: { postId: string }) {
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && submit()}
             placeholder="Tulis komentar..."
-            className="flex-1 text-[12px] px-3 py-2 rounded-xl border border-outline-variant outline-none focus:ring-2 focus:ring-primary/20 bg-surface-container-lowest"
+            className="flex-1 text-[12px] px-3 py-2 rounded-xl border border-outline-variant outline-none bg-surface-container-lowest"
           />
           <button onClick={submit} disabled={create.isPending || !text.trim()} className="w-9 h-9 flex items-center justify-center rounded-xl bg-primary text-on-primary disabled:opacity-40 active:scale-[0.95]">
             <Send className="w-4 h-4" />

@@ -12,13 +12,12 @@ import { PlanCard } from "@/components/chat/PlanCard";
 import { FormattedText } from "@/components/chat/FormattedText";
 import { PlanInputForm } from "@/components/chat/PlanInputForm";
 import { Loading } from "@/components/ui";
-import type { PlanFormData } from "@/components/chat/PlanInputForm";
 
 const QUICK_PROMPTS = [
-  "Rencana 2 hari di Bali budget 2 juta",
-  "3 hari di Jogja untuk 2 orang",
-  "Backpacker ke Bandung 500rb",
-  "Kuliner + wisata sejarah Jogja",
+  "Lagi jenuh nih, butuh rekomendasi liburan di Bali.",
+  "Pengen jalan-jalan seru ke Jogja bareng keluarga.",
+  "Rencana mau backpacking ke Bandung.",
+  "Cari wisata kuliner dan sejarah di Jogja.",
 ];
 
 const REFINEMENT_PROMPTS = [
@@ -139,15 +138,9 @@ function ChatPageInner() {
     // (prevents the blank flash before the plan card appears).
   };
 
-  // Handle plan generation from PlanInputForm
-  const handlePlanGenerate = async (data: PlanFormData) => {
+  // Handle plan generation from PlanInputForm templates
+  const handlePlanGenerate = async (prompt: string) => {
     setPlanLoading(true);
-    let prompt = `Buatkan rencana perjalanan ${data.days} hari`;
-    if (data.location) prompt += ` di ${data.location}`;
-    prompt += ` untuk ${data.people} orang`;
-    if (data.budget > 0) prompt += ` dengan budget Rp${data.budget.toLocaleString("id-ID")}`;
-    if (data.interest) prompt += `, minat: ${data.interest}`;
-    prompt += `. Berikan detail aktivitas per hari, estimasi biaya, dan rekomendasi tempat.`;
     await startNewChat(prompt);
     setPlanLoading(false);
     // Stay in planner mode until the plan card appears — prevents
@@ -379,7 +372,7 @@ function ChatPageInner() {
                 </div>
               )}
               <input
-                className="w-full bg-surface-container-low border border-outline-variant/50 rounded-2xl py-4 pl-6 pr-14 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all text-[14px] text-on-surface"
+                className="w-full bg-surface-container-low border border-outline-variant/50 rounded-2xl py-4 pl-6 pr-14 outline-none transition-all text-[14px] text-on-surface"
                 placeholder="Tanyakan apa saja tentang perjalananmu..."
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
