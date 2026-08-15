@@ -12,6 +12,7 @@ def _destination(number: int, level: str = "luxury"):
     return SimpleNamespace(
         id=number, name=f"Tempat {number}", city="Denpasar",
         latitude=None, longitude=None, price_level=level,
+        images=["https://example.com/img.jpg"],
         category=SimpleNamespace(name="pantai"),
     )
 
