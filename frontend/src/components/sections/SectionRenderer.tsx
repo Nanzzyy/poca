@@ -10,7 +10,7 @@ const MapComponent = nextDynamic(() => import("@/components/map/MapView"), { ssr
 interface Section {
   id: string;
   section_type: string;
-  title: string | null;
+  title?: string | null;
   order: number;
   visible: boolean;
   data: Record<string, unknown>;
@@ -216,7 +216,7 @@ function MapSection({ dest }: { dest: Destination }) {
             latitude: dest.latitude,
             longitude: dest.longitude,
             rating_avg: dest.rating_avg,
-            category_name: (dest as any).category?.name,
+            category_name: dest.category?.name,
             country: dest.country,
             city: dest.city,
           }]}

@@ -108,7 +108,7 @@ export default function PublicProfilePage() {
         </h2>
         {posts && posts.items.length > 0 ? (
           <div className="space-y-3">
-            {posts.items.map((p: any) => (
+            {posts.items.map((p) => (
               <div key={p.id} onClick={() => router.push(`/feed/${p.id}`)} className="bg-surface-container-lowest rounded-xl p-4 border border-outline-variant/10 hover:shadow-md transition-all cursor-pointer">
                 {p.media?.[0]?.url && (
                   <div className="h-40 rounded-lg overflow-hidden mb-3">

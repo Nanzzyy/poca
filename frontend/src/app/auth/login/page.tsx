@@ -29,8 +29,8 @@ export default function LoginPage() {
       qc.clear();
       addToast("Berhasil masuk!", "success");
       router.push("/");
-    } catch (err: any) {
-      addToast(err?.message || "Login gagal", "error");
+    } catch (err) {
+      addToast(err instanceof Error ? err.message : "Login gagal", "error");
     }
   };
 

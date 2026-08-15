@@ -26,8 +26,8 @@ export default function RegisterPage() {
       qc.clear();
       addToast("Akun berhasil dibuat!", "success");
       router.push("/");
-    } catch (err: any) {
-      addToast(err?.message || "Registrasi gagal", "error");
+    } catch (err) {
+      addToast(err instanceof Error ? err.message : "Registrasi gagal", "error");
     }
   };
 

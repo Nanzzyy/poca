@@ -21,11 +21,11 @@ export default function EditProfilePage() {
   const removeAvatar = useRemoveAvatar();
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const prefs: Record<string, any> = (user?.preferences as Record<string, any>) || {};
-  const [bio, setBio] = useState<string>(prefs.bio || "");
-  const [style, setStyle] = useState<string>(prefs.travel_style || "mid");
-  const [location, setLocation] = useState<string>(prefs.location || "");
-  const [website, setWebsite] = useState<string>(prefs.website || "");
+  const prefs: Record<string, unknown> = (user?.preferences as Record<string, unknown>) || {};
+  const [bio, setBio] = useState<string>((prefs.bio as string) || "");
+  const [style, setStyle] = useState<string>((prefs.travel_style as string) || "mid");
+  const [location, setLocation] = useState<string>((prefs.location as string) || "");
+  const [website, setWebsite] = useState<string>((prefs.website as string) || "");
 
   if (!user) {
     return (
@@ -55,7 +55,7 @@ export default function EditProfilePage() {
     if (f.size > 5 * 1024 * 1024) { addToast("Maks 5MB.", "error"); return; }
     uploadAvatar.mutate(f, {
       onSuccess: () => addToast("Foto profil diperbarui!", "success"),
-      onError: (e: any) => addToast(e?.message || "Gagal upload foto.", "error"),
+      onError: (e: Error) => addToast(e?.message || "Gagal upload foto.", "error"),
     });
   };
 
@@ -63,7 +63,7 @@ export default function EditProfilePage() {
     if (!await useUIStore.getState().confirm({ title: "Hapus Foto", message: "Kembali pakai inisial?", confirmText: "Hapus", danger: true })) return;
     removeAvatar.mutate(undefined, {
       onSuccess: () => addToast("Foto dihapus.", "info"),
-      onError: (e: any) => addToast(e?.message || "Gagal hapus foto.", "error"),
+      onError: (e: Error) => addToast(e?.message || "Gagal hapus foto.", "error"),
     });
   };
 

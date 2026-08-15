@@ -7,54 +7,65 @@ import { useUIStore } from "@/stores";
 import { Plus, Pencil, Trash2, Search, X, Upload, Layers, FileJson, Sparkles, Image as ImageIcon } from "lucide-react";
 import Link from "next/link";
 import { destImage } from "@/lib/utils";
+import type {
+  AdminDestination, AdminDestinationForm, AdminTemplate, AdminPoiItem,
+  AdminEnrichResult, AdminEnrichJob, PaginatedResponse,
+} from "@/types";
+
+interface AdminDestinationsResponse {
+  items: AdminDestination[];
+  total: number;
+  page: number;
+  size: number;
+}
 
 export default function AdminDestinationsPage() {
   const qc = useQueryClient();
   const addToast = useUIStore(s => s.addToast);
   const [page, setPage] = useState(1);
   const [q, setQ] = useState("");
-  const [editItem, setEditItem] = useState<any>(null);
+  const [editItem, setEditItem] = useState<AdminDestination | null>(null);
   const [showAdd, setShowAdd] = useState(false);
-  const [form, setForm] = useState<any>({});
+  const [form, setForm] = useState<AdminDestinationForm>({});
   const [enrichJobId, setEnrichJobId] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["admin", "destinations", page, q],
-    queryFn: () => api.get<any>(`/admin/destinations`, { params: { page, size: 15, q } }),
+    queryFn: () => api.get<AdminDestinationsResponse>(`/admin/destinations`, { params: { page, size: 15, q } }),
     staleTime: 30_000,
   });
 
   const { data: templates } = useQuery({
     queryKey: ["admin", "templates"],
-    queryFn: () => api.get<any[]>("/admin/templates"),
+    queryFn: () => api.get<AdminTemplate[]>("/admin/templates"),
     staleTime: 60_000,
   });
 
   const save = useMutation({
-    mutationFn: (body: any) =>
+    mutationFn: (body: AdminDestinationForm) =>
       editItem?.id
         ? api.put(`/admin/destinations/${editItem.id}`, body)
         : api.post("/admin/destinations", body),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin", "destinations"] }); setEditItem(null); setShowAdd(false); addToast("Destinasi disimpan!", "success"); },
-    onError: (e: any) => addToast(e?.message || "Gagal menyimpan destinasi", "error"),
+    onError: (e: Error) => addToast(e?.message || "Gagal menyimpan destinasi", "error"),
   });
 
   const del = useMutation({
     mutationFn: (id: string) => api.delete(`/admin/destinations/${id}`),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin", "destinations"] }); addToast("Destinasi dihapus.", "info"); },
-    onError: (e: any) => addToast(e?.message || "Gagal menghapus", "error"),
+    onError: (e: Error) => addToast(e?.message || "Gagal menghapus", "error"),
   });
 
   const bulk = useMutation({
-    mutationFn: (items: any[]) => api.post<any>("/admin/destinations/bulk", { items }),
-    onSuccess: (r: any) => {
+    mutationFn: (items: unknown[]) => api.post<{ imported?: number; skipped?: number; errors?: { index: number; name: string; error: string }[] }>("/admin/destinations/bulk", { items }),
+    onSuccess: (r) => {
       qc.invalidateQueries({ queryKey: ["admin", "destinations"] });
       const skipped = r.skipped || 0;
       const msg = `Terimpor ${r.imported ?? 0} destinasi${skipped ? `, dilewati ${skipped}` : ""}`;
       addToast(msg, skipped ? "info" : "success");
       if (r.errors?.length) console.warn("Bulk import errors:", r.errors);
     },
-    onError: (e: any) => addToast(e?.message || "Import gagal", "error"),
+    onError: (e: Error) => addToast(e?.message || "Import gagal", "error"),
   });
 
   const onFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -73,23 +84,23 @@ export default function AdminDestinationsPage() {
   // ── Free POI enrich & search (Wikidata/Nominatim/Wikipedia) ──
   const [poiQ, setPoiQ] = useState("");
   const [showPoi, setShowPoi] = useState(false);
-  const [poiItems, setPoiItems] = useState<any[]>([]);
+  const [poiItems, setPoiItems] = useState<AdminPoiItem[]>([]);
 
   const enrichOne = useMutation({
-    mutationFn: (id: string) => api.post<any>(`/admin/destinations/${id}/enrich-free`),
-    onSuccess: (r: any) => { qc.invalidateQueries({ queryKey: ["admin", "destinations"] }); addToast(r?.image_added ? `Gambar ditambah (${r.source || "wikidata"})` : "Tidak ada gambar ditemukan", r?.image_added ? "success" : "info"); },
-    onError: (e: any) => addToast(e?.message || "Enrich gagal", "error"),
+    mutationFn: (id: string) => api.post<AdminEnrichResult>(`/admin/destinations/${id}/enrich-free`),
+    onSuccess: (r) => { qc.invalidateQueries({ queryKey: ["admin", "destinations"] }); addToast(r?.image_added ? `Gambar ditambah (${r.source || "wikidata"})` : "Tidak ada gambar ditemukan", r?.image_added ? "success" : "info"); },
+    onError: (e: Error) => addToast(e?.message || "Enrich gagal", "error"),
   });
 
   const enrichAll = useMutation({
-    mutationFn: () => api.post<any>("/admin/destinations/enrich-free-all", {}),
-    onSuccess: (r: any) => { setEnrichJobId(r?.job_id || null); addToast("Enrich background dimulai.", "info"); },
-    onError: (e: any) => addToast(e?.message || "Enrich batch gagal", "error"),
+    mutationFn: () => api.post<AdminEnrichJob>("/admin/destinations/enrich-free-all", {}),
+    onSuccess: (r) => { setEnrichJobId(r?.job_id || null); addToast("Enrich background dimulai.", "info"); },
+    onError: (e: Error) => addToast(e?.message || "Enrich batch gagal", "error"),
   });
 
   const enrichJob = useQuery({
     queryKey: ["admin", "enrich-job", enrichJobId],
-    queryFn: () => api.get<any>(`/admin/destinations/enrich-free-all/${enrichJobId}`),
+    queryFn: () => api.get<AdminEnrichJob>(`/admin/destinations/enrich-free-all/${enrichJobId}`),
     enabled: !!enrichJobId,
     refetchInterval: (query) => {
       const status = query.state.data?.status;
@@ -110,31 +121,47 @@ export default function AdminDestinationsPage() {
   }, [enrichJob.data, enrichJobId, qc, addToast]);
 
   const poiSearch = useMutation({
-    mutationFn: (query: string) => api.get<any>("/admin/places/search", { params: { q: query } }),
-    onSuccess: (r: any) => setPoiItems(r?.items || []),
-    onError: (e: any) => addToast(e?.message || "Pencarian POI gagal", "error"),
+    mutationFn: (query: string) => api.get<{ items: AdminPoiItem[] }>("/admin/places/search", { params: { q: query } }),
+    onSuccess: (r) => setPoiItems(r?.items || []),
+    onError: (e: Error) => addToast(e?.message || "Pencarian POI gagal", "error"),
   });
 
   const fromPlace = useMutation({
-    mutationFn: (p: any) => api.post<any>("/admin/destinations/from-place", p),
+    mutationFn: (p: AdminPoiItem) => api.post<{ id: string }>("/admin/destinations/from-place", p),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin", "destinations"] }); addToast("Destinasi ditambah dari POI", "success"); },
-    onError: (e: any) => addToast(e?.message || "Gagal menambah POI", "error"),
+    onError: (e: Error) => addToast(e?.message || "Gagal menambah POI", "error"),
   });
 
-  const openEdit = (item: any) => { setEditItem(item); setForm({ ...item }); };
+  const openEdit = (item: AdminDestination) => {
+    setEditItem(item);
+    setForm({
+      name: item.name,
+      slug: item.slug,
+      category_id: item.category ? "" : "",
+      city: item.city,
+      country: item.country,
+      latitude: item.latitude,
+      longitude: item.longitude,
+      price_level: item.price_level,
+      rating_avg: item.rating_avg,
+      description: item.description,
+      tags: item.tags,
+      is_active: item.is_active,
+    });
+  };
   const openAdd = () => { setShowAdd(true); setEditItem(null); setForm({ name: "", category_id: "", city: "", country: "Indonesia", latitude: 0, longitude: 0, price_level: "mid", description: "" }); };
 
   // ── Image manager (max 3 per destination) ──
   const MAX_IMAGES = 3;
-  const [imgItem, setImgItem] = useState<any>(null);
+  const [imgItem, setImgItem] = useState<AdminDestination | null>(null);
   const [imgList, setImgList] = useState<string[]>([]);
 
-  const openImages = (item: any) => { setImgItem(item); setImgList([...(item.images || [])]); };
+  const openImages = (item: AdminDestination) => { setImgItem(item); setImgList([...(item.images || [])]); };
 
   const saveImages = useMutation({
     mutationFn: (body: { id: string; images: string[] }) => api.put(`/admin/destinations/${body.id}`, { images: body.images }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin", "destinations"] }); setImgItem(null); addToast("Gambar disimpan.", "success"); },
-    onError: (e: any) => addToast(e?.message || "Gagal menyimpan gambar", "error"),
+    onError: (e: Error) => addToast(e?.message || "Gagal menyimpan gambar", "error"),
   });
 
   const addImageUrl = (raw: string) => {
@@ -146,13 +173,13 @@ export default function AdminDestinationsPage() {
   };
 
   const enrichImage = useMutation({
-    mutationFn: (id: string) => api.post<any>(`/admin/destinations/${id}/enrich-free`),
-    onSuccess: (r: any) => {
+    mutationFn: (id: string) => api.post<AdminEnrichResult>(`/admin/destinations/${id}/enrich-free`),
+    onSuccess: (r) => {
       qc.invalidateQueries({ queryKey: ["admin", "destinations"] });
       if (r?.image_added && r?.images?.length) setImgList([...r.images]);
       addToast(r?.image_added ? `Gambar ditambah (${r.source || "wikidata"})` : "Tidak ada gambar baru ditemukan", r?.image_added ? "success" : "info");
     },
-    onError: (e: any) => addToast(e?.message || "Enrich gagal", "error"),
+    onError: (e: Error) => addToast(e?.message || "Enrich gagal", "error"),
   });
 
   const items = data?.items || [];
@@ -196,7 +223,7 @@ export default function AdminDestinationsPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-outline-variant/10">
-            {items.map((d: any) => (
+            {items.map((d) => (
               <tr key={d.id} className="hover:bg-surface-container-low/30">
                 <td className="p-3 font-medium">{d.name}</td>
                 <td className="p-3 text-on-surface-variant">{d.city || "-"}</td>
@@ -244,9 +271,9 @@ export default function AdminDestinationsPage() {
               <button onClick={() => { setEditItem(null); setShowAdd(false); }}><X className="w-5 h-5" /></button>
             </div>
             <div className="space-y-3">
-              {["name", "city", "country", "slug"].map(f => (
+              {(["name", "city", "country", "slug"] as const).map((f) => (
                 <div key={f}><label className="text-[11px] font-medium text-on-surface-variant block mb-0.5">{f}</label>
-                  <input value={form[f] || ""} onChange={e => setForm({ ...form, [f]: e.target.value })} className="w-full p-2 border border-outline-variant rounded-lg text-[13px] bg-surface-container-lowest outline-none focus:ring-2 focus:ring-primary/20" />
+                  <input value={form[f] as string || ""} onChange={e => setForm({ ...form, [f]: e.target.value })} className="w-full p-2 border border-outline-variant rounded-lg text-[13px] bg-surface-container-lowest outline-none focus:ring-2 focus:ring-primary/20" />
                 </div>
               ))}
               <div className="grid grid-cols-2 gap-3">
@@ -273,7 +300,7 @@ export default function AdminDestinationsPage() {
                   <select value={form.template_id || ""} onChange={e => setForm({ ...form, template_id: e.target.value || undefined })}
                     className="w-full p-2 border border-outline-variant rounded-lg text-[13px] bg-surface-container-lowest">
                     <option value="">Tanpa template</option>
-                    {templates.map((t: any) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                    {templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
                   </select>
                 </div>
               )}
@@ -311,7 +338,7 @@ export default function AdminDestinationsPage() {
               </button>
             </div>
             <div className="space-y-2">
-              {poiItems.map((p: any, i: number) => (
+              {poiItems.map((p, i) => (
                 <div key={i} className="flex items-center gap-3 p-3 border border-outline-variant/20 rounded-xl">
                   {p.image_url
                     ? <img src={p.image_url} alt={p.name} className="w-16 h-16 rounded-lg object-cover bg-surface-container-low" />

@@ -55,7 +55,7 @@ export default function AdminSectionsPage() {
       setShowAdd(false);
       addToast("Section ditambahkan!", "success");
     },
-    onError: (e: any) => addToast(e?.message || "Gagal menambah section", "error"),
+    onError: (e: Error) => addToast(e?.message || "Gagal menambah section", "error"),
   });
 
   const updateSection = useMutation({
@@ -67,20 +67,20 @@ export default function AdminSectionsPage() {
       if (vars.body && "data" in vars.body) setEditSection(null);
       if (vars.body && "data" in vars.body) addToast("Section disimpan!", "success");
     },
-    onError: (e: any) => addToast(e?.message || "Gagal menyimpan section", "error"),
+    onError: (e: Error) => addToast(e?.message || "Gagal menyimpan section", "error"),
   });
 
   const deleteSection = useMutation({
     mutationFn: (sectionId: string) => api.delete(`/admin/destinations/${id}/sections/${sectionId}`),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin", "sections", id] }); addToast("Section dihapus.", "info"); },
-    onError: (e: any) => addToast(e?.message || "Gagal menghapus section", "error"),
+    onError: (e: Error) => addToast(e?.message || "Gagal menghapus section", "error"),
   });
 
   const reorderSection = useMutation({
     mutationFn: (items: { id: string; order: number }[]) =>
       api.put(`/admin/destinations/${id}/sections/reorder`, { items }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "sections", id] }),
-    onError: (e: any) => addToast(e?.message || "Gagal mengubah urutan", "error"),
+    onError: (e: Error) => addToast(e?.message || "Gagal mengubah urutan", "error"),
   });
 
   const startEdit = (s: Section) => {

@@ -4,6 +4,20 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api-client";
 import { Search } from "lucide-react";
+import type { AdminUser } from "@/types";
+
+interface AdminUsersResponse {
+  items: AdminUser[];
+  total: number;
+  page: number;
+  size: number;
+}
+
+interface AdminUserPatch {
+  role?: string;
+  is_active?: boolean;
+  is_verified?: boolean;
+}
 
 export default function AdminUsersPage() {
   const qc = useQueryClient();
@@ -11,12 +25,12 @@ export default function AdminUsersPage() {
   const [q, setQ] = useState("");
   const { data, isLoading } = useQuery({
     queryKey: ["admin", "users", page, q],
-    queryFn: () => api.get<any>("/admin/users", { params: { page, size: 15, q } }),
+    queryFn: () => api.get<AdminUsersResponse>("/admin/users", { params: { page, size: 15, q } }),
     staleTime: 30_000,
   });
 
   const updateUser = useMutation({
-    mutationFn: ({ id, body }: { id: string; body: any }) => api.patch(`/admin/users/${id}`, body),
+    mutationFn: ({ id, body }: { id: string; body: AdminUserPatch }) => api.patch(`/admin/users/${id}`, body),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "users"] }),
   });
 
@@ -36,7 +50,7 @@ export default function AdminUsersPage() {
             <tr><th className="p-3">Username</th><th className="p-3">Email</th><th className="p-3">Role</th><th className="p-3">Aktif</th><th className="p-3">Aksi</th></tr>
           </thead>
           <tbody className="divide-y divide-outline-variant/10">
-            {items.map((u: any) => (
+            {items.map((u) => (
               <tr key={u.id} className="hover:bg-surface-container-low/30">
                 <td className="p-3 font-medium">{u.username}</td><td className="p-3 text-on-surface-variant">{u.email}</td>
                 <td className="p-3"><span className={`px-2 py-0.5 rounded text-[10px] font-bold ${u.role === "admin" ? "bg-secondary/10 text-secondary" : "bg-surface-container text-on-surface-variant"}`}>{u.role}</span></td>

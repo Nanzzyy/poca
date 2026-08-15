@@ -9,7 +9,7 @@ import { Bell, Bot, UserPlus, Heart, MessageSquare, Trophy, Calendar, Sparkles, 
 import { timeAgo } from "@/lib/utils";
 import type { AppNotification } from "@/types";
 
-const TYPE_ICON: Record<string, { icon: any; bg: string }> = {
+const TYPE_ICON: Record<string, { icon: React.ComponentType<{ className?: string }>; bg: string }> = {
   follow: { icon: UserPlus, bg: "bg-primary/10" },
   like: { icon: Heart, bg: "bg-primary/10" },
   comment: { icon: MessageSquare, bg: "bg-secondary/10" },

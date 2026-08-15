@@ -3,12 +3,20 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api-client";
+import type { AdminTrafficRow } from "@/types";
+
+interface AdminTrafficResponse {
+  items: AdminTrafficRow[];
+  total: number;
+  page: number;
+  size: number;
+}
 
 export default function AdminTrafficPage() {
   const [page, setPage] = useState(1);
   const { data, isLoading } = useQuery({
     queryKey: ["admin", "traffic", page],
-    queryFn: () => api.get<any>("/admin/traffic", { params: { page, size: 50 } }),
+    queryFn: () => api.get<AdminTrafficResponse>("/admin/traffic", { params: { page, size: 50 } }),
     staleTime: 15_000,
   });
 
@@ -24,7 +32,7 @@ export default function AdminTrafficPage() {
             <tr><th className="p-3">Path</th><th className="p-3">User</th><th className="p-3">IP</th><th className="p-3">Waktu</th></tr>
           </thead>
           <tbody className="divide-y divide-outline-variant/10">
-            {items.map((r: any) => (
+            {items.map((r) => (
               <tr key={r.id} className="hover:bg-surface-container-low/30">
                 <td className="p-3 font-mono text-[12px]">{r.path}</td>
                 <td className="p-3 text-on-surface-variant">{r.user_id?.slice(0, 8) || "anon"}</td>

@@ -3,11 +3,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api-client";
 import { Users, MapPin, FileText, Eye, TrendingUp } from "lucide-react";
+import type { AdminDashboardData } from "@/types";
 
 export default function AdminDashboardPage() {
   const { data, isLoading } = useQuery({
     queryKey: ["admin", "dashboard"],
-    queryFn: () => api.get<any>("/admin/dashboard"),
+    queryFn: () => api.get<AdminDashboardData>("/admin/dashboard"),
     staleTime: 30_000,
   });
 
@@ -20,7 +21,7 @@ export default function AdminDashboardPage() {
     { label: "Views Hari Ini", value: data?.total_views_today ?? 0, icon: Eye, color: "text-amber-600", bg: "bg-amber-50" },
   ];
 
-  const maxView = Math.max(1, ...(data?.weekly_views || []).map((v: any) => v.count));
+  const maxView = Math.max(1, ...(data?.weekly_views || []).map((v) => v.count));
 
   return (
     <div>
@@ -51,7 +52,7 @@ export default function AdminDashboardPage() {
           </h3>
           {data?.weekly_views?.length ? (
             <div className="flex items-end gap-2 h-40">
-              {(data.weekly_views as any[]).map((v: any) => (
+              {(data.weekly_views || []).map((v) => (
                 <div key={v.date} className="flex-1 flex flex-col items-center gap-1">
                   <span className="text-[10px] text-on-surface-variant font-medium">{v.count}</span>
                   <div
@@ -72,7 +73,7 @@ export default function AdminDashboardPage() {
           <h3 className="text-[16px] font-bold mb-4">Top Halaman (7 Hari)</h3>
           {data?.top_pages?.length ? (
             <div className="space-y-2">
-              {(data.top_pages as any[]).map((p: any, i: number) => (
+              {(data.top_pages || []).map((p, i) => (
                 <div key={i} className="flex items-center justify-between py-2 border-b border-outline-variant/10">
                   <span className="text-[13px] text-on-surface font-medium truncate">{p.path}</span>
                   <span className="text-[12px] text-on-surface-variant font-bold">{p.count}</span>

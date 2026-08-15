@@ -6,7 +6,7 @@ import { useAuthStore } from "@/stores";
 import type {
   Destination, Category, Review, ReviewSummary, Trip, BudgetEstimate,
   Conversation, Message, User, UserStats, Achievement, PaginatedResponse, LocalGuide, TripPlan,
-  PublicProfile, AppNotification,
+  PublicProfile, AppNotification, GeoJSONFeature, LeaderboardEntry, UserAchievement, UserPost,
 } from "@/types";
 
 // Query key factory — keeps keys consistent across hooks
@@ -100,7 +100,7 @@ export function useCategories() {
 export function useMapMarkers(sw: [number, number], ne: [number, number], categories?: string) {
   return useQuery({
     queryKey: keys.map(`${sw[0].toFixed(2)},${sw[1].toFixed(2)}`, `${ne[0].toFixed(2)},${ne[1].toFixed(2)}`),
-    queryFn: () => api.get<{ features: any[] }>("/map/markers", {
+    queryFn: () => api.get<{ features: GeoJSONFeature[] }>("/map/markers", {
       params: { sw_lat: sw[0], sw_lng: sw[1], ne_lat: ne[0], ne_lng: ne[1], categories },
     }),
     enabled: !!sw && !!ne,
@@ -229,7 +229,8 @@ export function useProfile() {
 // Favorites live on user.preferences.favorite_ids (account-bound, zero-migration).
 export function useFavoriteIds() {
   const { data: user } = useProfile();
-  return new Set<string>((user?.preferences as any)?.favorite_ids || []);
+  const favs = (user?.preferences as { favorite_ids?: string[] } | undefined)?.favorite_ids;
+  return new Set<string>(favs || []);
 }
 
 export function useToggleFavorite() {
@@ -260,8 +261,8 @@ export function useMyReviews(page = 1) {
 export function useUpdatePreferences() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (preferences: Record<string, any>) =>
-      api.put<User>("/users/me/preferences", { preferences }),
+    mutationFn: (preferences: Record<string, unknown>) =>
+      api.put<User>("/users/me", { preferences }),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.user.me }),
   });
 }
@@ -311,7 +312,7 @@ export function useToggleFollow() {
 export function useUserPosts(userId: string) {
   return useQuery({
     queryKey: keys.user.userPosts(userId),
-    queryFn: () => api.get<PaginatedResponse<any>>(`/users/${userId}/posts`),
+    queryFn: () => api.get<PaginatedResponse<UserPost>>(`/users/${userId}/posts`),
     enabled: !!userId,
     staleTime: 60_000,
   });
@@ -432,10 +433,10 @@ export function useSendMessage() {
     },
     onSuccess: (aiMsg, { convId, content }, ctx) => {
       // Keep the user message (replace optimistic ID with real) + append AI reply.
-      const key = (ctx as any)?.key || keys.chat.messages(convId);
+      const key = (ctx as { prev?: Conversation; key?: readonly unknown[] } | undefined)?.key || keys.chat.messages(convId);
       const prev = qc.getQueryData<Conversation>(key);
       if (prev) {
-        const real = prev.messages.filter((m: any) => !String(m.id).startsWith("opt-"));
+        const real = prev.messages.filter((m) => !String(m.id).startsWith("opt-"));
         // The optimistic user bubble is removed in the filter above;
         // re-add a real-looking user message so it doesn't disappear.
         const userMsg: Message = {
@@ -496,7 +497,7 @@ export function useAchievements() {
 export function useMyAchievements() {
   return useQuery({
     queryKey: ["user", "my-achievements"],
-    queryFn: () => api.get<any[]>("/gamification/users/me/achievements"),
+    queryFn: () => api.get<UserAchievement[]>("/gamification/users/me/achievements"),
     staleTime: 120_000,
   });
 }
@@ -504,13 +505,13 @@ export function useMyAchievements() {
 export function useLeaderboard() {
   return useQuery({
     queryKey: keys.leaderboard,
-    queryFn: () => api.get<any[]>("/gamification/leaderboard"),
+    queryFn: () => api.get<LeaderboardEntry[]>("/gamification/leaderboard"),
     staleTime: 120_000,
   });
 }
 
 // Recommendations
-export function useRecommendations(prefs: Record<string, any>) {
+export function useRecommendations(prefs: Record<string, unknown>) {
   return useQuery({
     queryKey: ["recommendations", prefs],
     queryFn: () => api.post<PaginatedResponse<Destination>>("/recommendations", prefs),

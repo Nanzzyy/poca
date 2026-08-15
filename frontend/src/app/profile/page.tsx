@@ -9,6 +9,7 @@ import { User, Trophy, Star, LogOut, MapPin, Sparkles, Compass, TrendingUp, Edit
 import { useState } from "react";
 import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
 import { destImage } from "@/lib/utils";
+import type { LeaderboardEntry, LeaderboardFallbackRow } from "@/types";
 
 const BADGES = [
   { icon: Plane, label: "First Flight", desc: "Completed 1st Trip", color: "primary", locked: false },
@@ -23,10 +24,10 @@ const ACTIVITY_LOG = [
   { icon: Heart, label: "Saved", target: '"Nordic Lights Expedition"', time: "3 days ago", color: "bg-tertiary" },
 ];
 
-const LEADERBOARD = [
-  { rank: 1, name: "Sarah J.", initials: "SJ", badges: 48, points: 124500, isYou: false },
-  { rank: 14, name: "Alex Rivera (You)", initials: "AR", badges: 15, points: 98210, isYou: true },
-  { rank: 15, name: "Marcus T.", initials: "MT", badges: 31, points: 95040, isYou: false },
+const LEADERBOARD: LeaderboardFallbackRow[] = [
+  { rank: 1, name: "Sarah J.", badges: 48, points: 124500, isYou: false },
+  { rank: 14, name: "Alex Rivera (You)", badges: 15, points: 98210, isYou: true },
+  { rank: 15, name: "Marcus T.", badges: 31, points: 95040, isYou: false },
 ];
 
 export default function ProfilePage() {
@@ -45,7 +46,7 @@ export default function ProfilePage() {
 
   // Map achievement code -> unlocked_at
   const earnedMap = new Map<string, string>();
-  myAchievements?.forEach((ua: any) => {
+  myAchievements?.forEach((ua) => {
     if (ua.achievement?.code) earnedMap.set(ua.achievement.code, ua.unlocked_at);
   });
 
@@ -85,12 +86,16 @@ export default function ProfilePage() {
               <div className="flex items-center gap-2">
                 <h1 className="text-[36px] font-bold text-on-surface flex items-center gap-1.5">
                   {user.username}
-                  {(user as any).is_verified && <VerifiedBadge className="w-5 h-5" />}
+                  {user.is_verified && <VerifiedBadge className="w-5 h-5" />}
                 </h1>
                 <span className="bg-primary/10 px-2 py-[2px] rounded-full text-[11px] font-bold uppercase tracking-wider text-primary">ELITE EXPLORER</span>
               </div>
               <div className="text-[14px] text-on-surface-variant max-w-lg space-y-1">
-                {(() => { const p: any = (user as any).preferences || {}; const u = user as any; const bits = [p.bio, [p.location, p.website].filter(Boolean).join(" · ")].filter(Boolean); return bits.length ? bits.map((b, i) => <p key={i}>{b}</p>) : <p>{u.email}</p>; })()}
+                {(() => {
+                  const p = (user.preferences ?? {}) as { bio?: string; location?: string; website?: string };
+                  const bits = [p.bio, [p.location, p.website].filter(Boolean).join(" · ")].filter(Boolean);
+                  return bits.length ? bits.map((b, i) => <p key={i}>{b}</p>) : <p>{user.email}</p>;
+                })()}
               </div>
               <div className="mt-3 w-full max-w-md">
                 <div className="flex justify-between items-end mb-1">
@@ -166,21 +171,30 @@ export default function ProfilePage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-outline-variant">
-                    {(leaderboard && leaderboard.length > 0 ? leaderboard : LEADERBOARD).map((e: any, i) => (
-                      <tr key={i} className={e.isYou || e.username === user.username ? "bg-primary/5 border-l-4 border-primary" : "hover:bg-surface-container-low/30 transition-colors"}>
-                        <td className={`px-5 py-4 font-bold ${e.rank <= 3 ? "text-secondary" : "text-on-surface-variant"}`}>#{e.rank || e.level}</td>
+                    {(leaderboard && leaderboard.length > 0 ? leaderboard : LEADERBOARD).map((e, i) => {
+                      const fb = e as LeaderboardFallbackRow;
+                      const entry = e as LeaderboardEntry;
+                      const name = fb.name ?? entry.username ?? "";
+                      const rank = fb.rank ?? entry.level ?? 0;
+                      const badges = fb.badges ?? entry.achievements_count ?? 0;
+                      const points = fb.points ?? entry.xp_total ?? 0;
+                      const isYou = fb.isYou ?? entry.username === user.username;
+                      return (
+                      <tr key={i} className={isYou ? "bg-primary/5 border-l-4 border-primary" : "hover:bg-surface-container-low/30 transition-colors"}>
+                        <td className={`px-5 py-4 font-bold ${rank <= 3 ? "text-secondary" : "text-on-surface-variant"}`}>#{rank}</td>
                         <td className="px-5 py-4 flex items-center gap-4">
                           <div className="w-10 h-10 rounded-full bg-surface-container-high flex items-center justify-center text-sm font-bold flex-shrink-0">
-                            {(e.username || e.name || "U")[0].toUpperCase()}
+                            {(name || "U")[0].toUpperCase()}
                           </div>
-                          <span className={`text-[14px] ${e.isYou || e.username === user.username ? "font-bold text-primary" : "font-semibold"}`}>
-                            {e.username}{e.isYou || e.username === user.username ? " (You)" : ""}
+                          <span className={`text-[14px] ${isYou ? "font-bold text-primary" : "font-semibold"}`}>
+                            {name}{isYou ? " (You)" : ""}
                           </span>
                         </td>
-                        <td className="px-5 py-4 text-on-surface-variant">{e.achievements_count || e.badges}</td>
-                        <td className="px-5 py-4 text-right font-bold">{e.xp_total || e.points?.toLocaleString()}</td>
+                        <td className="px-5 py-4 text-on-surface-variant">{badges}</td>
+                        <td className="px-5 py-4 text-right font-bold">{points.toLocaleString()}</td>
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -210,7 +224,7 @@ export default function ProfilePage() {
                       Belum ada trip. Setujui rencana dari AI Assistant untuk menyimpan.
                     </div>
                   )}
-                  {(trips && trips.items?.length > 0 ? trips.items : []).map((t: any, i: number) => {
+                  {(trips && trips.items?.length > 0 ? trips.items : []).map((t, i) => {
                     const STATUS_LABEL: Record<string, string> = { draft: "Draf", planned: "Direncanakan", active: "Berjalan", completed: "Selesai" };
                     const STATUS_COLOR: Record<string, string> = { draft: "bg-surface-container-high text-on-surface-variant", planned: "bg-secondary/10 text-secondary", active: "bg-tertiary/10 text-tertiary", completed: "bg-tertiary-container text-tertiary" };
                     const fmtDate = (d?: string) => d ? new Date(d).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" }) : null;
@@ -320,9 +334,12 @@ export default function ProfilePage() {
                 {(achievements && achievements.length > 0
                   ? (showAllAchievements ? achievements : achievements.slice(0, 4))
                   : BADGES
-                ).map((a: any, i) => {
-                  const code = a.code || "";
+                ).map((a, i) => {
+                  const achievement = a as { code?: string; name?: string; description?: string; label?: string; desc?: string };
+                  const code = achievement.code ?? "";
                   const unlocked = earnedMap.has(code);
+                  const name = achievement.name ?? achievement.label ?? "";
+                  const description = achievement.description ?? achievement.desc ?? "";
                   return (
                     <div
                       key={code || i}
@@ -331,8 +348,8 @@ export default function ProfilePage() {
                       <div className={`w-14 h-14 rounded-full ${unlocked ? "bg-primary/10" : "bg-surface-container-highest"} flex items-center justify-center mb-1 ring-4 ring-white shadow-sm ${unlocked && "group-hover:scale-110 transition-transform"}`}>
                         {unlocked ? <Trophy className="w-6 h-6 text-primary" /> : <Lock className="w-5 h-5 text-on-surface-variant" />}
                       </div>
-                      <span className="text-[14px] font-bold">{a.name}</span>
-                      <span className="text-[10px] text-on-surface-variant">{a.description}</span>
+                      <span className="text-[14px] font-bold">{name}</span>
+                      <span className="text-[10px] text-on-surface-variant">{description}</span>
                       {unlocked && <span className="text-[8px] text-primary font-bold">✓ Diperoleh</span>}
                     </div>
                   );

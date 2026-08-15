@@ -14,6 +14,21 @@ const MapView = nextDynamic(() => import("@/components/map/MapView"), { ssr: fal
 
 const DEFAULT_CENTER: [number, number] = [-2.5, 118.0];
 
+interface SelectedMarker {
+  id: string;
+  name: string;
+  latitude: number;
+  longitude: number;
+  rating_avg?: number;
+  price_level?: string;
+  images?: string[];
+  category_name?: string;
+  city?: string;
+  country?: string;
+  image?: string;
+  description?: string;
+}
+
 const CATEGORY_FILTERS = [
   { key: "pantai", label: "Beach", icon: "beach_access" },
   { key: "candi", label: "Temple", icon: "temple_buddhist" },
@@ -30,7 +45,7 @@ export default function MapPage() {
   const [userLoc, setUserLoc] = useState<[number, number] | null>(null);
   const [activeCat, setActiveCat] = useState<string>("");
   const [focus, setFocus] = useState<[number, number] | null>(null);
-  const [selectedMarker, setSelectedMarker] = useState<any | null>(null);
+  const [selectedMarker, setSelectedMarker] = useState<SelectedMarker | null>(null);
   const [showPopover, setShowPopover] = useState<string | null>(null);
 
   useEffect(() => {
@@ -54,17 +69,17 @@ export default function MapPage() {
   const recommended = results.slice(0, 3);
   const hiddenGems = results.slice(3, 6);
 
-  const boundMarkers = markers.data?.features?.map((f: any) => ({
-    id: f.properties.id,
-    name: f.properties.name,
+  const boundMarkers = markers.data?.features?.map((f) => ({
+    id: f.properties.id as string,
+    name: f.properties.name as string,
     latitude: f.geometry.coordinates[1],
     longitude: f.geometry.coordinates[0],
-    rating_avg: f.properties.rating_avg,
-    price_level: f.properties.price_level,
-    images: f.properties.images,
-    category_name: f.properties.category_name,
-    city: f.properties.city,
-    country: f.properties.country,
+    rating_avg: f.properties.rating_avg as number,
+    price_level: f.properties.price_level as string,
+    images: f.properties.images as string[],
+    category_name: f.properties.category_name as string,
+    city: f.properties.city as string,
+    country: f.properties.country as string,
   })) || [];
 
   // When searching, show matches as markers (and in the list) instead of bounding-box markers.
@@ -86,7 +101,7 @@ export default function MapPage() {
     setShowPopover(showPopover === id ? null : id);
   };
 
-  const handleMarkerClick = (m: any) => {
+  const handleMarkerClick = (m: SelectedMarker) => {
     setSelectedMarker({ ...m, image: destImage(m.images, m.name) });
     setShowPopover(m.id);
   };

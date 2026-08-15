@@ -53,7 +53,7 @@ export function PostComposer() {
           <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white font-bold">
             {user.username[0].toUpperCase()}
           </div>
-          {(user as any).is_verified && <VerifiedBadge className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-background" />}
+          {user.is_verified && <VerifiedBadge className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-background" />}
         </div>
         <div className="flex-1 min-w-0">
           <textarea

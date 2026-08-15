@@ -147,12 +147,12 @@ export default function DestinationPage() {
         </section>
 
         {/* ═══════ SECTION-DRIVEN CONTENT (if sections exist) ═══════ */}
-        {(dest as any).sections && (dest as any).sections.length > 0 ? (
+        {dest.sections && dest.sections.length > 0 ? (
           <div className="space-y-0">
-            {([...(dest as any).sections]
-              .sort((a: any, b: any) => a.order - b.order)
-              .filter((s: any) => s.visible && s.section_type !== "hero-gallery" && s.section_type !== "reviews")
-            ).map((section: any) => (
+            {[...dest.sections]
+              .sort((a, b) => a.order - b.order)
+              .filter((s) => s.visible && s.section_type !== "hero-gallery" && s.section_type !== "reviews")
+            .map((section) => (
               <SectionRenderer key={section.id} section={section} dest={dest} />
             ))}
           </div>
@@ -224,7 +224,7 @@ export default function DestinationPage() {
             <div className="lg:col-span-4 space-y-6">
               <h3 className="text-[20px] font-bold">Nearby Places</h3>
               <div className="space-y-4">
-                {(nearby && nearby.length > 0 ? nearby : []).slice(0, 3).map((place: any, i: number) => (
+                {(nearby && nearby.length > 0 ? nearby : []).slice(0, 3).map((place, i) => (
                   <div key={i} onClick={() => router.push(`/destination/${place.id}`)} className="group flex gap-4 items-center cursor-pointer">
                     <div className="w-20 h-20 rounded-xl overflow-hidden shrink-0 shadow-sm">
                       <img className="w-full h-full object-cover group-hover:scale-110 transition-transform" src={destImage(place.images, place.name)} alt={place.name} />
@@ -315,22 +315,22 @@ export default function DestinationPage() {
             {/* Reviews List */}
             {reviewData.length > 0 ? (
               <div className="space-y-6">
-                {reviewData.map((r: any, i: number) => (
+                {reviewData.map((r, i) => (
                   <div key={r.id || i} className="flex items-start gap-4 border-b border-outline-variant/10 pb-6">
                     <div className="w-12 h-12 rounded-full bg-surface-container shadow-sm flex items-center justify-center font-bold text-sm text-primary flex-shrink-0">
                       {(r.username || "U")[0].toUpperCase()}
                     </div>
                     <div className="flex-grow">
                       <div className="flex justify-between items-center mb-1">
-                        <h5 className="text-[14px] font-bold">{r.username || r.name || "Traveler"}</h5>
-                        <span className="text-on-surface-variant text-[10px]">{r.time || new Date(r.created_at).toLocaleDateString("id-ID")}</span>
+                        <h5 className="text-[14px] font-bold">{r.username || "Traveler"}</h5>
+                        <span className="text-on-surface-variant text-[10px]">{new Date(r.created_at).toLocaleDateString("id-ID")}</span>
                       </div>
                       <div className="flex gap-1 text-yellow-400 mb-2">
                         {Array.from({ length: 5 }).map((_, i) => (
                           <Star key={i} className={`w-4 h-4 ${i < (r.rating || 5) ? "fill-current" : ""}`} />
                         ))}
                       </div>
-                      <p className="text-[14px] text-on-surface-variant leading-relaxed">{r.content || r.text}</p>
+                      <p className="text-[14px] text-on-surface-variant leading-relaxed">{r.content}</p>
                       {r.travel_tips && (
                         <p className="mt-2 flex items-start gap-1.5 text-xs text-emerald-700 bg-emerald-50 p-2 rounded-lg">
                           <Lightbulb className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" /> {r.travel_tips}
@@ -398,7 +398,7 @@ export default function DestinationPage() {
                 </div>
                 <h3 className="text-[20px] font-bold mb-4 text-on-surface">Local Bites</h3>
                 <p className="text-[14px] text-on-surface-variant mb-6">
-                  {(guide?.food?.[0] as any)?.desc || guide?.food?.[0]?.toString() || "Try the Sate Lilit sold near the parking area, or head down to Jimbaran for fresh seafood."}
+                  {guide?.food?.[0]?.desc || guide?.food?.[0]?.name || "Try the Sate Lilit sold near the parking area, or head down to Jimbaran for fresh seafood."}
                 </p>
                 <div className="pt-4 border-t border-outline-variant/20">
                   <span className="text-primary font-bold text-[12px] cursor-pointer hover:underline">Explore 12 nearby restaurants</span>
@@ -411,7 +411,7 @@ export default function DestinationPage() {
                 </div>
                 <h3 className="text-[20px] font-bold mb-4 text-on-surface">Local Customs</h3>
                 <p className="text-[14px] text-on-surface-variant mb-6">
-                  {(guide?.customs?.[0] as any)?.desc || "Sarongs are required for both men and women. Keep your shoulders covered and speak softly."}
+                  {guide?.customs?.[0]?.desc || "Sarongs are required for both men and women. Keep your shoulders covered and speak softly."}
                 </p>
                 <div className="pt-4 border-t border-outline-variant/20">
                   <span className="text-primary font-bold text-[12px] cursor-pointer hover:underline">Read Etiquette Guide</span>
@@ -424,7 +424,7 @@ export default function DestinationPage() {
                 </div>
                 <h3 className="text-[20px] font-bold mb-4 text-on-surface">Hidden Gems</h3>
                 <p className="text-[14px] text-on-surface-variant mb-6">
-                  {(guide?.hidden_gems?.[0] as any)?.desc || "There's a secret cave under the cliff accessible at low tide. Ask the locals for 'Gua Suluban'."}
+                  {guide?.hidden_gems?.[0]?.desc || "There's a secret cave under the cliff accessible at low tide. Ask the locals for 'Gua Suluban'."}
                 </p>
                 <div className="pt-4 border-t border-outline-variant/20">
                   <span className="text-primary font-bold text-[12px] cursor-pointer hover:underline">View on Secret Map</span>

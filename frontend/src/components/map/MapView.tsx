@@ -277,7 +277,7 @@ export default function MapView({
 
         <MapController center={center} zoom={initialZoom} />
         <FocusController focus={focus} />
-        {onBoundsChange && <BoundsListener onChange={(b: any) => onBoundsChange(b.sw, b.ne)} />}
+        {onBoundsChange && <BoundsListener onChange={(b: { sw: [number, number]; ne: [number, number] }) => onBoundsChange(b.sw, b.ne)} />}
         {markers.map((m) => (
           <Marker
             key={m.id}

@@ -76,9 +76,9 @@ export function PostCard({ post }: { post: Post }) {
           <div>
             <p className="text-[14px] font-bold leading-tight flex items-center gap-1">
               {post.username || "Traveler"}
-              {(post as any).is_verified && <VerifiedBadge className="w-3.5 h-3.5" />}
+              {post.is_verified && <VerifiedBadge className="w-3.5 h-3.5" />}
             </p>
-            <p className="text-[10px] text-outline">{timeAgo(post.created_at)}{post.destination_id ? " • " + (post as any).location || "" : ""}</p>
+            <p className="text-[10px] text-outline">{timeAgo(post.created_at)}{post.destination_id ? " • " + (post.location || "") : ""}</p>
           </div>
         </div>
         {canDelete && (
@@ -191,7 +191,7 @@ function Comments({ postId }: { postId: string }) {
             <div className="bg-surface-container-lowest rounded-2xl rounded-tl-sm px-3 py-2 flex-1">
               <p className="text-[10px] font-semibold text-on-surface flex items-center gap-1">
                 {c.username || "Traveler"}
-                {(c as any).is_verified && <VerifiedBadge className="w-3 h-3" />}
+                {c.is_verified && <VerifiedBadge className="w-3 h-3" />}
               </p>
               <p className="text-[12px] text-on-surface-variant">{c.content}</p>
             </div>

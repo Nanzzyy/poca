@@ -42,7 +42,7 @@ export default function AdminAssetsPage() {
   const deleteAsset = useMutation({
     mutationFn: (id: string) => api.delete(`/admin/assets/${id}`),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin", "assets"] }); addToast("Aset dihapus.", "info"); },
-    onError: (e: any) => addToast(e?.message || "Gagal menghapus aset", "error"),
+    onError: (e: Error) => addToast(e?.message || "Gagal menghapus aset", "error"),
   });
 
   const updateAsset = useMutation({
@@ -52,7 +52,7 @@ export default function AdminAssetsPage() {
       setEditAsset(null);
       addToast("Aset diperbarui!", "success");
     },
-    onError: (e: any) => addToast(e?.message || "Gagal memperbarui aset", "error"),
+    onError: (e: Error) => addToast(e?.message || "Gagal memperbarui aset", "error"),
   });
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -67,8 +67,8 @@ export default function AdminAssetsPage() {
       }
       qc.invalidateQueries({ queryKey: ["admin", "assets"] });
       addToast("Upload selesai!", "success");
-    } catch (err: any) {
-      addToast(err?.message || "Upload gagal", "error");
+    } catch (err) {
+      addToast(err instanceof Error ? err.message : "Upload gagal", "error");
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = "";

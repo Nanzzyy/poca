@@ -5,21 +5,28 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api-client";
 import { Plus, Pencil, Trash2, X } from "lucide-react";
 import { useUIStore } from "@/stores";
+import type { AdminCategory } from "@/types";
+
+interface CategoryForm {
+  name: string;
+  slug: string;
+  icon: string;
+}
 
 export default function AdminCategoriesPage() {
   const qc = useQueryClient();
   const { data, isLoading } = useQuery({
     queryKey: ["admin", "categories"],
-    queryFn: () => api.get<any[]>("/admin/categories"),
+    queryFn: () => api.get<AdminCategory[]>("/admin/categories"),
     staleTime: 60_000,
   });
 
-  const [edit, setEdit] = useState<any>(null);
+  const [edit, setEdit] = useState<AdminCategory | null>(null);
   const [showAdd, setShowAdd] = useState(false);
-  const [form, setForm] = useState({ name: "", slug: "", icon: "" });
+  const [form, setForm] = useState<CategoryForm>({ name: "", slug: "", icon: "" });
 
   const save = useMutation({
-    mutationFn: (body: any) =>
+    mutationFn: (body: CategoryForm) =>
       edit?.id ? api.put(`/admin/categories/${edit.id}`, body) : api.post("/admin/categories", body),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin", "categories"] }); setEdit(null); setShowAdd(false); },
   });
@@ -29,7 +36,7 @@ export default function AdminCategoriesPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "categories"] }),
   });
 
-  const openEdit = (c: any) => { setEdit(c); setForm(c); };
+  const openEdit = (c: AdminCategory) => { setEdit(c); setForm({ name: c.name, slug: c.slug, icon: c.icon ?? "" }); };
   const openAdd = () => { setShowAdd(true); setEdit(null); setForm({ name: "", slug: "", icon: "" }); };
 
   return (
@@ -47,7 +54,7 @@ export default function AdminCategoriesPage() {
             <tr><th className="p-3">Nama</th><th className="p-3">Slug</th><th className="p-3">Icon</th><th className="p-3 w-20">Aksi</th></tr>
           </thead>
           <tbody className="divide-y divide-outline-variant/10">
-            {(data || []).map((c: any) => (
+            {(data || []).map((c) => (
               <tr key={c.id} className="hover:bg-surface-container-low/30">
                 <td className="p-3 font-medium">{c.name}</td><td className="p-3 text-on-surface-variant">{c.slug}</td><td className="p-3">{c.icon || "-"}</td>
                 <td className="p-3 flex gap-1">

@@ -5,6 +5,31 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api-client";
 import { Plus, Pencil, Trash2, X, Upload, Brain, Eye, Archive, CheckCircle } from "lucide-react";
 import { useUIStore } from "@/stores";
+import type { AdminKnowledgeDoc } from "@/types";
+
+interface KnowledgeDetail extends AdminKnowledgeDoc {
+  content: string;
+  source_url?: string;
+  trust_level?: string;
+  version?: number;
+}
+
+interface KnowledgeListResponse {
+  items: AdminKnowledgeDoc[];
+  total: number;
+  page: number;
+  size: number;
+}
+
+interface KnowledgeForm {
+  title: string;
+  content: string;
+  topic: string;
+  language: string;
+  source_url: string;
+  source_name: string;
+  trust_level: string;
+}
 
 const STATUS_COLORS = {
   draft: "bg-surface-container-low text-on-surface-variant",
@@ -21,15 +46,15 @@ export default function AdminKnowledgePage() {
   const { data, isLoading } = useQuery({
     queryKey: ["admin", "knowledge", statusFilter, search, page],
     queryFn: () =>
-      api.get<any>("/admin/knowledge", {
+      api.get<KnowledgeListResponse>("/admin/knowledge", {
         params: { status: statusFilter || undefined, q: search || undefined, page, size: 20 },
       }),
     staleTime: 30_000,
   });
 
-  const [edit, setEdit] = useState<any>(null);
+  const [edit, setEdit] = useState<KnowledgeDetail | null>(null);
   const [showAdd, setShowAdd] = useState(false);
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<KnowledgeForm>({
     title: "",
     content: "",
     topic: "",
@@ -40,7 +65,7 @@ export default function AdminKnowledgePage() {
   });
 
   const save = useMutation({
-    mutationFn: (body: any) =>
+    mutationFn: (body: KnowledgeForm) =>
       edit?.id ? api.put(`/admin/knowledge/${edit.id}`, body) : api.post("/admin/knowledge", body),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin", "knowledge"] });
@@ -69,15 +94,15 @@ export default function AdminKnowledgePage() {
     mutationFn: async (file: File) => {
       const formData = new FormData();
       formData.append("file", file);
-      return api.upload<any>("/admin/knowledge/upload", formData);
+      return api.upload<KnowledgeDetail>("/admin/knowledge/upload", formData);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin", "knowledge"] });
     },
   });
 
-  const openEdit = async (k: any) => {
-    const detail = await api.get<any>(`/admin/knowledge/${k.id}`);
+  const openEdit = async (k: AdminKnowledgeDoc) => {
+    const detail = await api.get<KnowledgeDetail>(`/admin/knowledge/${k.id}`);
     setEdit(detail);
     setForm({
       title: detail.title || "",
@@ -169,7 +194,7 @@ export default function AdminKnowledgePage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-outline-variant/10">
-              {(data?.items || []).map((k: any) => (
+              {(data?.items || []).map((k) => (
                 <tr key={k.id} className="hover:bg-surface-container-low/30">
                   <td className="p-3 font-medium">{k.title}</td>
                   <td className="p-3 text-on-surface-variant">{k.topic || "-"}</td>

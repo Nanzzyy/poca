@@ -51,7 +51,7 @@ async function request<T>(method: HttpMethod, path: string, config?: RequestConf
           errorMsg = errData.detail;
         } else if (Array.isArray(errData.detail)) {
           // FastAPI validation error (Array)
-          errorMsg = errData.detail.map((e: any) => `${e.loc?.join(".")}: ${e.msg}`).join(", ");
+          errorMsg = errData.detail.map((e: { loc?: string[]; msg?: string }) => `${e.loc?.join(".")}: ${e.msg}`).join(", ");
         } else if (typeof errData.detail === "object") {
           errorMsg = JSON.stringify(errData.detail);
         }

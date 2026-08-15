@@ -51,13 +51,13 @@ export default function AdminTemplatesPage() {
       setShowAdd(false);
       addToast("Template disimpan!", "success");
     },
-    onError: (e: any) => addToast(e?.message || "Gagal menyimpan template", "error"),
+    onError: (e: Error) => addToast(e?.message || "Gagal menyimpan template", "error"),
   });
 
   const remove = useMutation({
     mutationFn: (id: string) => api.delete(`/admin/templates/${id}`),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin", "templates"] }); addToast("Template dihapus.", "info"); },
-    onError: (e: any) => addToast(e?.message || "Gagal menghapus template", "error"),
+    onError: (e: Error) => addToast(e?.message || "Gagal menghapus template", "error"),
   });
 
   const importJson = useMutation({
@@ -68,7 +68,7 @@ export default function AdminTemplatesPage() {
       setShowAdd(false);
       addToast("Template diimpor!", "success");
     },
-    onError: (e: any) => addToast(e?.message || "Import gagal", "error"),
+    onError: (e: Error) => addToast(e?.message || "Import gagal", "error"),
   });
 
   const startEdit = (t: Template) => {

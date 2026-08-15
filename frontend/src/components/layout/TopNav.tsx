@@ -132,7 +132,7 @@ export function TopNav() {
                   <div className="px-4 py-2 border-b border-outline-variant/20">
                     <p className="text-[13px] font-bold text-on-surface flex items-center gap-1">
                       {user?.username || "User"}
-                      {(user as any)?.is_verified && <VerifiedBadge className="w-3.5 h-3.5" />}
+                      {user?.is_verified && <VerifiedBadge className="w-3.5 h-3.5" />}
                     </p>
                     <p className="text-[10px] text-on-surface-variant truncate">{user?.email}</p>
                   </div>

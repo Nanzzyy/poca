@@ -306,7 +306,7 @@ function ChatPageInner() {
           )}
 
           {/* Messages */}
-          {activeConv && messages.map((m: any) => (
+          {activeConv && messages.map((m) => (
             <div key={m.id}>
               {m.role === "user" && (
                 <div className="flex flex-col items-end gap-1 max-w-2xl ml-auto mb-6">
@@ -329,7 +329,7 @@ function ChatPageInner() {
                   <div className="flex flex-col gap-3 w-full">
                     <div className="text-[14px] leading-relaxed text-on-surface"><FormattedText text={m.content} /></div>
                     {m.msg_metadata?.plan && <PlanCard plan={m.msg_metadata.plan} onEdit={() => handleEditPlan(m.id)} onCancel={handleCancelPlan} />}
-                    {m.msg_metadata?.recommendations?.length > 0 && <RecommendationCards items={m.msg_metadata.recommendations} />}
+                    {(m.msg_metadata?.recommendations?.length ?? 0) > 0 && <RecommendationCards items={m.msg_metadata!.recommendations!} />}
 
                     {/* Refinement actions — show after plan */}
                     {m.msg_metadata?.plan && (

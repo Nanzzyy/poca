@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api-client";
-import type { Comment, MediaItem, PaginatedResponse, Post } from "@/types";
+import type { Comment, MediaItem, PaginatedResponse, Post, Review } from "@/types";
 
 export const feedKeys = {
   all: ["posts", "all"] as const,
@@ -12,7 +12,7 @@ export const feedKeys = {
 export function useAllReviews(page = 1) {
   return useQuery({
     queryKey: ["reviews", "all", page],
-    queryFn: () => api.get<PaginatedResponse<any>>(`/reviews/all`, { params: { page } }),
+    queryFn: () => api.get<PaginatedResponse<Review>>(`/reviews/all`, { params: { page } }),
     staleTime: 60_000,
   });
 }

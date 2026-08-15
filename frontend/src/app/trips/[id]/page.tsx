@@ -213,7 +213,7 @@ export default function TripDetailPage() {
                   { key: "parking", color: "bg-gray-400" },
                   { key: "emergency_reserve", color: "bg-error" }
                 ].map(({ key, color }) => {
-                  const val = (budget as any)[key] || 0;
+                  const val = (budget[key as keyof typeof budget] as number) || 0;
                   if (val === 0 || !budget.total) return null;
                   return <div key={key} className={color} style={{ width: `${(val / budget.total) * 100}%` }} />;
                 })}
