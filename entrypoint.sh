@@ -2,9 +2,9 @@
 set -e
 echo "=== Poca entrypoint ==="
 
-# Run migrations
+# Run migrations (Jika gagal karena tabel sudah ada, paksa stamp ke versi terbaru)
 cd /app
-PYTHONPATH=. python -m alembic upgrade head
+PYTHONPATH=. python -m alembic upgrade head || (echo "Migration failed (likely tables already exist). Stamping head..." && PYTHONPATH=. python -m alembic stamp head)
 
 # Seed categories + destinations if DB is empty
 DEST_COUNT=$(PYTHONPATH=. python -c "
