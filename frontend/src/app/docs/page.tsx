@@ -34,7 +34,7 @@ export default function SystemDocsPage() {
 
   return (
     <main className="min-h-screen bg-background pb-20">
-      <TopNav title="Poca System Docs" />
+      <TopNav />
 
       {/* Hero Section */}
       <div className="relative overflow-hidden bg-gradient-to-br from-primary/10 via-surface to-secondary/10 pt-8 pb-12 border-b border-outline-variant/30">
