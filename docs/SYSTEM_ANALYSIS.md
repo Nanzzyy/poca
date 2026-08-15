@@ -937,7 +937,7 @@ cd frontend && npm install && PORT=3001 npm run dev
 # Postgres: localhost:5433 (tourism/tourism)
 # Redis:    localhost:6379
 
-# Demo login: demo@poca.app / demo123
+# Demo login: demo@poca.app / Demo1234!
 ```
 
 ---

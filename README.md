@@ -87,7 +87,7 @@ curl localhost:8000/health
 PYTHONPATH=. .venv/bin/alembic upgrade head
 
 # seed data demo (kategori, destinasi, achievement)
-# login demo: demo@poca.app / demo123
+# login demo: demo@poca.app / Demo1234!
 PYTHONPATH=. .venv/bin/python -m seed.seed_destinations
 ```
 

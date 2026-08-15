@@ -227,7 +227,7 @@ async def seed():
             email="demo@poca.app",
             username="demo",
             role="admin",
-            hashed_password=bcrypt.hashpw("demo123".encode(), bcrypt.gensalt()).decode(),
+            hashed_password=bcrypt.hashpw("Demo1234!".encode(), bcrypt.gensalt()).decode(),
             preferences={"budget": "mid", "interests": ["alam", "pantai", "budaya"], "travel_style": "comfort"},
         )
         db.add(demo)
@@ -243,7 +243,7 @@ async def seed():
     print(f"  Categories: {len(CATEGORIES)}")
     print(f"  Destinations: {len(DESTINATIONS)}")
     print(f"  Achievements: {len(ACHIEVEMENTS)}")
-    print(f"\nDemo login: demo@poca.app / demo123")
+    print(f"\nDemo login: demo@poca.app / Demo1234!")
 
     await engine.dispose()
 

@@ -11,7 +11,7 @@ async def test():
         print(f"✓ Health: {r.json()['status']}")
 
         # Login
-        r = await c.post("/api/v1/auth/login", json={"email": "demo@poca.app", "password": "demo123"})
+        r = await c.post("/api/v1/auth/login", json={"email": "demo@poca.app", "password": "Demo1234!"})
         assert r.status_code == 200, f"Login: {r.status_code}"
         token = r.json()["access_token"]
         headers = {"Authorization": f"Bearer {token}"}

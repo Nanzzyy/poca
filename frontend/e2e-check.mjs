@@ -37,7 +37,7 @@ const ROUTES = [
   try {
     const r = await fetch(API + "/auth/login", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: "demo@poca.app", password: "demo123" }),
+      body: JSON.stringify({ email: "demo@poca.app", password: "Demo1234!" }),
     });
     token = (await r.json()).access_token;
     console.log("token len", token?.length);
