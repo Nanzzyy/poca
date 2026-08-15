@@ -11,6 +11,7 @@ from src.domain.models.notification import Notification
 from src.domain.models.follower import Follower
 from src.domain.models.page_view import PageView
 from src.domain.models.knowledge import AIKnowledgeDocument, AIKnowledgeRevision
+from src.domain.models.audit_log import AuditLog
 
 __all__ = [
     "User",
@@ -38,4 +39,5 @@ __all__ = [
     "PageView",
     "AIKnowledgeDocument",
     "AIKnowledgeRevision",
+    "AuditLog",
 ]

@@ -33,6 +33,7 @@ from src.domain.models.review import Review
 from src.domain.schemas.notification import NotificationResponse
 from src.repositories.notification_repo import NotificationRepository
 from src.services.notification_service import create_notification
+from src.services.audit_service import log_audit
 from sqlalchemy import func, select, delete
 
 ACCESS_COOKIE = "poca_access"
@@ -96,6 +97,7 @@ def _user_json(user: User) -> JSONResponse:
 @router.post("/auth/register", dependencies=[Depends(rate_limit(limit=3, period=3600))])
 async def register(
     body: UserCreate,
+    request: Request,
     db: AsyncSession = Depends(get_db),
 ) -> JSONResponse:
     repo = UserRepository(db)
@@ -110,6 +112,11 @@ async def register(
         hashed_password=hash_password(body.password),
     )
     user = await repo.create(user)
+    await log_audit(
+        action="register", actor_id=user.id, target_type="user", target_id=str(user.id),
+        ip_address=request.client.host if request.client else None,
+        user_agent=request.headers.get("user-agent", ""),
+    )
     resp = _user_json(user)
     _set_auth_cookies(resp, str(user.id))
     return resp
@@ -122,9 +129,13 @@ async def login(
     db: AsyncSession = Depends(get_db),
 ) -> JSONResponse:
     repo = UserRepository(db)
+    ip = request.client.host if request.client else None
+    ua = request.headers.get("user-agent", "")
     user = await repo.get_by_email(body.email)
     if not user or not verify_password(body.password, user.hashed_password):
+        await log_audit(action="login_failed", target_type="user", target_id=body.email, ip_address=ip, user_agent=ua)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+    await log_audit(action="login_success", actor_id=user.id, target_type="user", target_id=str(user.id), ip_address=ip, user_agent=ua)
     resp = _user_json(user)
     _set_auth_cookies(resp, str(user.id))
     return resp

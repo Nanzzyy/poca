@@ -2,7 +2,7 @@ import os
 import uuid as _uuid
 import re
 
-from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, status
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, status, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import func, select, delete, update
 from datetime import datetime, timedelta, timezone
@@ -34,8 +34,10 @@ from src.services.knowledge_service import KnowledgeService
 from src.services.ai_conversation_service import AIConversationService
 from src.services.free_places_service import FreePlacesService
 from src.services.enrich_job_service import get_enrich_job, start_enrich_job
+from src.services.audit_service import log_audit
 from src.repositories.conversation_repo import ConversationRepository
 from src.domain.models.conversation import Conversation
+from src.domain.models.audit_log import AuditLog
 import json
 import io
 import zipfile
@@ -276,6 +278,7 @@ async def admin_list_destinations(
 @router.post("/destinations", status_code=status.HTTP_201_CREATED)
 async def admin_create_destination(
     body: DestinationCreateRequest,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     _u: User = admin,
 ) -> dict:
@@ -302,6 +305,9 @@ async def admin_create_destination(
     )
     db.add(dest)
     await db.flush()
+    await log_audit(action="destination_create", actor_id=_u.id, target_type="destination",
+                    target_id=str(dest.id), ip_address=request.client.host if request.client else None,
+                    user_agent=request.headers.get("user-agent", ""), meta={"name": name})
 
     # Apply template if provided
     template_id = body.template_id
@@ -372,6 +378,7 @@ async def admin_create_from_template(
 async def admin_update_destination(
     dest_id: str,
     body: DestinationUpdateRequest,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     _u: User = admin,
 ) -> dict:
@@ -389,12 +396,17 @@ async def admin_update_destination(
         # Cap at 3 per destination — enforced in app layer (service + admin + FE).
         dest.images = (values["images"] or [])[:3]
     await db.flush()
+    await log_audit(action="destination_update", actor_id=_u.id, target_type="destination",
+                    target_id=str(dest.id), ip_address=request.client.host if request.client else None,
+                    user_agent=request.headers.get("user-agent", ""),
+                    meta={"fields": list(values.keys())})
     return {"ok": True}
 
 
 @router.delete("/destinations/{dest_id}")
 async def admin_delete_destination(
     dest_id: str,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     _u: User = admin,
 ) -> dict:
@@ -404,6 +416,9 @@ async def admin_delete_destination(
         raise HTTPException(404)
     dest.is_active = False
     await db.flush()
+    await log_audit(action="destination_delete", actor_id=_u.id, target_type="destination",
+                    target_id=str(dest.id), ip_address=request.client.host if request.client else None,
+                    user_agent=request.headers.get("user-agent", ""), meta={"name": dest.name})
     return {"ok": True}
 
 
@@ -1135,6 +1150,7 @@ async def admin_list_users(
 async def admin_update_user(
     user_id: str,
     body: AdminUpdateUserRequest,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     _u: User = admin,
 ) -> dict:
@@ -1148,8 +1164,17 @@ async def admin_update_user(
         if body.is_active is False:
             raise HTTPException(400, detail="You cannot deactivate your own account")
     if body.role is not None:
+        if body.role != user.role:
+            await log_audit(action="role_change", actor_id=_u.id, target_type="user",
+                            target_id=str(user.id), ip_address=request.client.host if request.client else None,
+                            user_agent=request.headers.get("user-agent", ""),
+                            meta={"from": user.role, "to": body.role})
         user.role = body.role
     if body.is_active is not None:
+        if body.is_active is False and user.is_active:
+            await log_audit(action="user_deactivate", actor_id=_u.id, target_type="user",
+                            target_id=str(user.id), ip_address=request.client.host if request.client else None,
+                            user_agent=request.headers.get("user-agent", ""))
         user.is_active = body.is_active
     if body.is_verified is not None:
         user.is_verified = body.is_verified
@@ -1186,6 +1211,7 @@ async def admin_list_categories(
 @router.post("/categories", status_code=status.HTTP_201_CREATED)
 async def admin_create_category(
     body: CreateCategoryRequest,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     _u: User = admin,
 ) -> dict:
@@ -1194,12 +1220,16 @@ async def admin_create_category(
     cat = Category(name=name, slug=slug, icon=body.icon, parent_id=body.parent_id)
     db.add(cat)
     await db.flush()
+    await log_audit(action="category_create", actor_id=_u.id, target_type="category",
+                    target_id=str(cat.id), ip_address=request.client.host if request.client else None,
+                    user_agent=request.headers.get("user-agent", ""), meta={"name": name})
     return {"id": cat.id, "name": cat.name, "slug": cat.slug}
 
 
 @router.put("/categories/{cat_id}")
 async def admin_update_category(
     cat_id: int, body: UpdateCategoryRequest,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     _u: User = admin,
 ) -> dict:
@@ -1211,6 +1241,9 @@ async def admin_update_category(
         if f in values and values[f] is not None:
             setattr(cat, f, values[f])
     await db.flush()
+    await log_audit(action="category_update", actor_id=_u.id, target_type="category",
+                    target_id=str(cat.id), ip_address=request.client.host if request.client else None,
+                    user_agent=request.headers.get("user-agent", ""))
     return {"ok": True}
 
 
@@ -1246,5 +1279,56 @@ async def admin_traffic(
     return {
         "items": [{"id": str(r.id), "path": r.path, "user_id": str(r.user_id) if r.user_id else None,
                     "ip": r.ip, "created_at": r.created_at.isoformat()} for r in rows],
+        "total": total, "page": page, "size": size,
+    }
+
+
+# ── Audit Logs ──
+
+@router.get("/audit-logs")
+async def admin_list_audit_logs(
+    page: int = Query(1, ge=1),
+    size: int = Query(50, ge=1, le=200),
+    action: str = Query(""),
+    actor_id: str = Query(""),
+    date_from: str = Query(""),
+    date_to: str = Query(""),
+    db: AsyncSession = Depends(get_db),
+    _u: User = admin,
+) -> dict:
+    stmt = select(AuditLog)
+    if action:
+        stmt = stmt.where(AuditLog.action == action)
+    if actor_id:
+        try:
+            stmt = stmt.where(AuditLog.actor_id == _uuid.UUID(actor_id))
+        except ValueError:
+            raise HTTPException(400, detail="Invalid actor_id")
+    if date_from:
+        try:
+            stmt = stmt.where(AuditLog.created_at >= datetime.fromisoformat(date_from).replace(tzinfo=timezone.utc))
+        except ValueError:
+            raise HTTPException(400, detail="Invalid date_from (expected ISO 8601)")
+    if date_to:
+        try:
+            stmt = stmt.where(AuditLog.created_at <= datetime.fromisoformat(date_to).replace(tzinfo=timezone.utc))
+        except ValueError:
+            raise HTTPException(400, detail="Invalid date_to (expected ISO 8601)")
+
+    total = (await db.execute(select(func.count()).select_from(stmt.subquery()))).scalar() or 0
+    stmt = stmt.order_by(AuditLog.created_at.desc()).offset((page - 1) * size).limit(size)
+    rows = (await db.execute(stmt)).scalars().all()
+    return {
+        "items": [{
+            "id": str(r.id),
+            "actor_id": str(r.actor_id) if r.actor_id else None,
+            "action": r.action,
+            "target_type": r.target_type,
+            "target_id": r.target_id,
+            "ip_address": r.ip_address,
+            "user_agent": r.user_agent,
+            "meta": r.meta or {},
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+        } for r in rows],
         "total": total, "page": page, "size": size,
     }
