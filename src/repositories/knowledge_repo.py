@@ -1,12 +1,16 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domain.models.knowledge import AIKnowledgeDocument, AIKnowledgeRevision
+
+
+def _escape_like(q: str) -> str:
+    return q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
 class KnowledgeRepository:
@@ -20,9 +24,11 @@ class KnowledgeRepository:
         if topic:
             stmt = stmt.where(AIKnowledgeDocument.topic == topic)
         if q:
-            needle = f"%{q}%"
-            stmt = stmt.where(or_(AIKnowledgeDocument.title.ilike(needle), AIKnowledgeDocument.content.ilike(needle)))
-        from sqlalchemy import func
+            needle = f"%{_escape_like(q)}%"
+            stmt = stmt.where(or_(
+                AIKnowledgeDocument.title.ilike(needle, escape="\\"),
+                AIKnowledgeDocument.content.ilike(needle, escape="\\"),
+            ))
         total = (await self.db.execute(select(func.count()).select_from(stmt.subquery()))).scalar() or 0
         rows = (await self.db.execute(stmt.order_by(AIKnowledgeDocument.updated_at.desc()).offset((page - 1) * size).limit(size))).scalars().all()
         return list(rows), total
@@ -34,7 +40,7 @@ class KnowledgeRepository:
         return list((await self.db.execute(select(AIKnowledgeRevision).where(AIKnowledgeRevision.document_id == document_id).order_by(AIKnowledgeRevision.version.desc()))).scalars().all())
 
     async def published(self):
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         stmt = select(AIKnowledgeDocument).where(
             AIKnowledgeDocument.status == "published",
             or_(AIKnowledgeDocument.effective_from.is_(None), AIKnowledgeDocument.effective_from <= now),

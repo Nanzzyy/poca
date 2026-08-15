@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -156,7 +156,7 @@ async def update_review(
         review.photos = body.photos
     if body.travel_tips is not None:
         review.travel_tips = body.travel_tips
-    review.updated_at = datetime.utcnow()
+    review.updated_at = datetime.now(timezone.utc)
 
     await repo.update(review)
     result = ReviewResponse.model_validate(review)
@@ -183,6 +183,7 @@ async def delete_review(
 @router.post("/reviews/{review_id}/helpful")
 async def mark_helpful(
     review_id: str,
+    user: User = Depends(require_user),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     repo = ReviewRepository(db)

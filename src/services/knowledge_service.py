@@ -4,7 +4,7 @@ import hashlib
 import json
 import math
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -107,7 +107,7 @@ class KnowledgeService:
         doc.embedding = embedding
         doc.status = "published"
         doc.published_by = actor_id
-        doc.published_at = datetime.utcnow()
+        doc.published_at = datetime.now(timezone.utc)
         revision = AIKnowledgeRevision(
             document_id=doc.id, version=doc.version, title=doc.title,
             content=doc.content, content_hash=doc.content_hash, changed_by=actor_id,

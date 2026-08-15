@@ -37,7 +37,8 @@ export default function Home() {
 
   // Live data first; the curated list is only a fallback before hydration / on empty.
   const dests: Destination[] = data?.items?.length ? data.items.slice(0, 8) : [];
-  const heroSlides = buildHero(dests).length ? buildHero(dests) : FALLBACK_HERO;
+  const computedHero = buildHero(dests);
+  const heroSlides = computedHero.length ? computedHero : FALLBACK_HERO;
   const slide = heroSlides[Math.min(heroIdx, heroSlides.length - 1)];
 
   const onLike = (id: string) => {

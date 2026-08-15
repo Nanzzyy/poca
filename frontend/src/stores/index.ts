@@ -6,6 +6,19 @@ interface AuthState {
   logout: () => void;
 }
 
+// Decode the JWT `exp` claim (seconds since epoch). Returns null if missing/invalid.
+function isTokenExpired(token: string): boolean {
+  try {
+    const payload = token.split(".")[1];
+    if (!payload) return true;
+    const decoded = JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/")));
+    if (typeof decoded.exp !== "number") return false;
+    return decoded.exp * 1000 <= Date.now();
+  } catch {
+    return true;
+  }
+}
+
 export const useAuthStore = create<AuthState>((set) => ({
   token: null, // Always start null to match SSR. Hydrated client-side in layout.
   setToken: (token) => {
@@ -22,10 +35,16 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 }));
 
-// Hydrate auth store from localStorage on client startup
+// Hydrate auth store from localStorage on client startup, dropping expired tokens.
 if (typeof window !== "undefined") {
   const stored = localStorage.getItem("auth_token");
-  if (stored) useAuthStore.setState({ token: stored });
+  if (stored) {
+    if (isTokenExpired(stored)) {
+      localStorage.removeItem("auth_token");
+    } else {
+      useAuthStore.setState({ token: stored });
+    }
+  }
 }
 
 interface MapState {

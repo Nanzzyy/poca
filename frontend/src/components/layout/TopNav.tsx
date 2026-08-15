@@ -49,6 +49,18 @@ export function TopNav() {
     return () => document.removeEventListener("mousedown", on);
   }, []);
 
+  // Block background scroll while the mobile drawer is open.
+  useEffect(() => {
+    if (open) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [open]);
+
   return (
     <header className="fixed top-0 left-0 w-full z-50 bg-surface/80 backdrop-blur-md shadow-sm">
       <nav className="max-w-[1280px] mx-auto px-6 h-16 flex items-center justify-between">

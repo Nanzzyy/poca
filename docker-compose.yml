@@ -9,16 +9,16 @@ services:
     ports:
       - "8008:8008"
     environment:
-      - DATABASE_URL=postgresql+asyncpg://tourism:tourism@db:5432/tourism
-      - DATABASE_URL_SYNC=postgresql://tourism:tourism@db:5432/tourism
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-tourism}:${POSTGRES_PASSWORD:-tourism}@db:5432/${POSTGRES_DB:-tourism}
+      - DATABASE_URL_SYNC=postgresql://${POSTGRES_USER:-tourism}:${POSTGRES_PASSWORD:-tourism}@db:5432/${POSTGRES_DB:-tourism}
       - REDIS_URL=redis://redis:6379/0
-      - JWT_SECRET=${JWT_SECRET:-dev-secret-change-in-prod}
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET must be set to a strong random value}
       - AI_API_KEY=${AI_API_KEY:-}
       - AI_PROVIDER=${AI_PROVIDER:-gemini}
       - AI_MODEL=${AI_MODEL:-gemini/gemini-2.0-flash}
       # Comma-separated origins. Set to your Coolify domain in production, e.g.
       # CORS_ORIGINS=https://poca.coolify.app
-      - CORS_ORIGINS=${CORS_ORIGINS:-*}
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3010,http://localhost:3000}
       - DEBUG=${DEBUG:-false}
     depends_on:
       db:
@@ -50,13 +50,13 @@ services:
     expose:
       - "5432"
     environment:
-      POSTGRES_USER: tourism
-      POSTGRES_PASSWORD: tourism
-      POSTGRES_DB: tourism
+      POSTGRES_USER: ${POSTGRES_USER:-tourism}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tourism}
+      POSTGRES_DB: ${POSTGRES_DB:-tourism}
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U tourism"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-tourism}"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -66,6 +66,9 @@ services:
     image: redis:7-alpine
     expose:
       - "6379"
+    volumes:
+      - redisdata:/data
+    command: ["redis-server", "--appendonly", "yes"]
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -74,3 +77,4 @@ services:
 
 volumes:
   pgdata:
+  redisdata:

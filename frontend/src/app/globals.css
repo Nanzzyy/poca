@@ -163,9 +163,12 @@ body {
 .leaflet-popup-content-wrapper { border-radius: var(--radius-sm) !important; box-shadow: var(--shadow-elevated) !important; }
 
 /* ── Focus ── */
-/* ponytail: global focus outline removed per request (was noisy on search inputs).
-   Each control styles its own :focus via ring/border. Add a keyboard-only ring back
-   if a11y auditing requires it. */
+/* Keyboard-only focus ring so keyboard users can see where they are without
+   the noisy ring on mouse-clicked search inputs (WCAG 2.1 AA). */
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
 
 /* ── Masonry grid ── */
 .masonry-grid {

@@ -17,6 +17,23 @@ from src.services.notification_service import create_notification
 router = APIRouter(tags=["posts"])
 
 
+def _sanitize_text(value: str) -> str:
+    """Strip HTML tags and control chars from user content (SEC-12).
+
+    Uses nh3 (ammonia) when available for robust sanitization; falls back to a
+    conservative tag-stripping regex so the app still runs without the extra
+    dependency.
+    """
+    try:
+        import nh3  # type: ignore
+        return nh3.clean(value, tags=set(), attributes={})
+    except ImportError:
+        import re
+        value = re.sub(r"<[^>]*>", "", value)
+        value = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f]", "", value)
+        return value
+
+
 def _to_post_response(p: Post) -> PostResponse:
     resp = PostResponse.model_validate(p)
     resp.username = p.user.username if p.user else None
@@ -66,7 +83,7 @@ async def create_post(
     post = Post(
         user_id=user.id,
         destination_id=body.destination_id,
-        content=body.content.strip(),
+        content=_sanitize_text(body.content.strip()),
         media=[m.model_dump() for m in body.media],
     )
     repo = PostRepository(db)
@@ -146,7 +163,7 @@ async def create_comment(
     post = await post_repo.get_by_id(post_id)
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
-    comment = Comment(post_id=post_id, user_id=user.id, content=body.content.strip())
+    comment = Comment(post_id=post_id, user_id=user.id, content=_sanitize_text(body.content.strip()))
     repo = CommentRepository(db)
     comment = await repo.create(comment)
     resp = CommentResponse.model_validate(comment)

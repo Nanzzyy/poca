@@ -33,7 +33,7 @@ export function timeAgo(date: string | Date) {
   const diff = now.getTime() - past.getTime();
   const mins = Math.floor(diff / 60000);
   const hours = Math.floor(diff / 3600000);
-  const days = Math.floor(diff / 8640000);
+  const days = Math.floor(diff / 86400000);
   if (days > 0) return `${days} hari lalu`;
   if (hours > 0) return `${hours} jam lalu`;
   if (mins > 0) return `${mins} menit lalu`;

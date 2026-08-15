@@ -8,6 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from src.core.config import settings
 from src.core.database import engine, Base
 from src.core.redis import init_redis, close_redis
+from src.middleware.security import SecurityHeadersMiddleware
 from src.api.v1 import (
     admin,
     destinations,
@@ -25,11 +26,13 @@ from src.api.v1 import (
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Auto-create tables on startup (idempotent)
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    # Auto-create tables on startup (idempotent) — dev only. Production relies
+    # on Alembic migrations (see entrypoint.sh).
+    if settings.debug:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
 
-    # Seed full data on first deploy (categories + destinations + templates + demo admin)
+    # Seed full data on first deploy (categories + destinations + templates)
     from sqlalchemy import text
     from src.core.database import async_session_factory
     async with async_session_factory() as db:
@@ -42,16 +45,6 @@ async def lifespan(app: FastAPI):
 
     await init_redis()
     yield
-    # Always ensure demo account is admin
-    async with async_session_factory() as db:
-        from src.domain.models.user import User
-        from sqlalchemy import select
-        r = await db.execute(select(User).where(User.email == "demo@poca.app"))
-        demo = r.scalar_one_or_none()
-        if demo and demo.role != "admin":
-            demo.role = "admin"
-            await db.commit()
-
     await close_redis()
 
 
@@ -68,6 +61,7 @@ _static_dir = os.path.join(os.path.dirname(__file__), "..", "static")
 os.makedirs(os.path.join(_static_dir, "uploads", "assets"), exist_ok=True)
 app.mount("/static", StaticFiles(directory=_static_dir), name="static")
 
+app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins.split(","),

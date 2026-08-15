@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
+from math import radians, cos, sin, asin, sqrt
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.deps import get_db
@@ -45,6 +46,15 @@ async def list_destinations(
     )
 
 
+@router.get("/categories/all")
+async def get_categories(
+    db: AsyncSession = Depends(get_db),
+) -> list[CategoryResponse]:
+    repo = DestinationRepository(db)
+    cats = await repo.get_categories()
+    return [CategoryResponse.model_validate(c) for c in cats]
+
+
 @router.get("/{dest_id}")
 async def get_destination(
     dest_id: str,
@@ -53,7 +63,6 @@ async def get_destination(
     repo = DestinationRepository(db)
     dest = await repo.get_by_id(dest_id)
     if not dest:
-        from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="Destination not found")
     return DestinationDetail.model_validate(dest)
 
@@ -69,7 +78,6 @@ async def get_nearby(
     # Get source coordinates for distance calculation
     source = await repo.get_by_id(dest_id)
     src_lat, src_lng = (source.latitude, source.longitude) if source else (0, 0)
-    from math import radians, cos, sin, asin, sqrt
     def haversine(lat1, lng1, lat2, lng2):
         R = 6371
         dlat, dlng = radians(lat2-lat1), radians(lng2-lng1)
@@ -94,14 +102,4 @@ async def get_local_guide(
         guide = await service.get_local_guide(dest_id)
         return LocalGuideResponse(**guide)
     except ValueError:
-        from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="Destination not found")
-
-
-@router.get("/categories/all")
-async def get_categories(
-    db: AsyncSession = Depends(get_db),
-) -> list[CategoryResponse]:
-    repo = DestinationRepository(db)
-    cats = await repo.get_categories()
-    return [CategoryResponse.model_validate(c) for c in cats]

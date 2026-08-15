@@ -5,7 +5,7 @@ import re
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import func, select, delete, update
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from src.api.deps import get_db, require_admin
 from src.core.config import settings
@@ -21,6 +21,10 @@ from src.domain.schemas.admin import (
     SectionCreate, SectionUpdate, SectionReorder, SectionResponse,
     AssetUpdate, AssetResponse, AssetBulkTag,
     DestinationFromTemplate,
+    AdminUpdateUserRequest, CreateCategoryRequest, UpdateCategoryRequest,
+    DestinationCreateRequest, DestinationUpdateRequest,
+    BulkDestinationRequest, DestinationFromPlaceRequest,
+    TemplateImportRequest, KnowledgePreviewRequest,
 )
 from src.repositories.destination_repo import DestinationRepository
 from src.repositories.knowledge_repo import KnowledgeRepository
@@ -35,6 +39,11 @@ from src.domain.models.conversation import Conversation
 import json
 import io
 import zipfile
+
+
+def _escape_like(q: str) -> str:
+    """Escape LIKE wildcards so user input is matched literally (SEC-09/SEC-23)."""
+    return q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
 def _extract_uploaded_text(filename: str, content: bytes) -> str:
@@ -165,17 +174,17 @@ async def admin_upload_knowledge(file: UploadFile = File(...), db: AsyncSession 
 
 
 @router.post("/knowledge/preview")
-async def admin_preview_knowledge(body: dict, db: AsyncSession = Depends(get_db), _u: User = admin):
-    query = str(body.get("query", "")).strip()
-    if not query or len(query) > 1000:
-        raise HTTPException(400, detail="query is required and must be <= 1000 characters")
+async def admin_preview_knowledge(body: KnowledgePreviewRequest, db: AsyncSession = Depends(get_db), _u: User = admin):
+    query = body.query.strip()
+    if not query:
+        raise HTTPException(400, detail="query is required")
     return {"query": query, "evidence": await KnowledgeService(db).retrieve(query, limit=4)}
 
 
 # ── Dashboard ──
 
 UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), "static", "uploads", "assets")
-ALLOWED_MIME = {"image/jpeg", "image/png", "image/webp", "image/gif", "image/svg+xml", "video/mp4"}
+ALLOWED_MIME = {"image/jpeg", "image/png", "image/webp", "image/gif", "video/mp4"}
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
 
 
@@ -186,7 +195,7 @@ async def admin_dashboard(
     db: AsyncSession = Depends(get_db),
     _u: User = admin,
 ) -> dict:
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     week_ago = now - timedelta(days=7)
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
 
@@ -266,13 +275,11 @@ async def admin_list_destinations(
 
 @router.post("/destinations", status_code=status.HTTP_201_CREATED)
 async def admin_create_destination(
-    body: dict,
+    body: DestinationCreateRequest,
     db: AsyncSession = Depends(get_db),
     _u: User = admin,
 ) -> dict:
-    name = body.get("name", "").strip()
-    if not name:
-        raise HTTPException(400, detail="Name required")
+    name = body.name.strip()
     slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
     existing = (await db.execute(select(Destination).where(Destination.slug == slug))).scalar_one_or_none()
     if existing:
@@ -280,24 +287,24 @@ async def admin_create_destination(
     dest = Destination(
         name=name,
         slug=slug,
-        category_id=body.get("category_id"),
-        latitude=body.get("latitude", 0),
-        longitude=body.get("longitude", 0),
-        country=body.get("country", "Indonesia"),
-        city=body.get("city"),
-        address=body.get("address"),
-        description=body.get("description"),
-        images=body.get("images", []),
-        tags=body.get("tags", []),
-        price_level=body.get("price_level", "mid"),
-        rating_avg=body.get("rating_avg", 0),
-        is_active=body.get("is_active", True),
+        category_id=body.category_id,
+        latitude=body.latitude,
+        longitude=body.longitude,
+        country=body.country,
+        city=body.city,
+        address=body.address,
+        description=body.description,
+        images=body.images,
+        tags=body.tags,
+        price_level=body.price_level,
+        rating_avg=body.rating_avg,
+        is_active=body.is_active,
     )
     db.add(dest)
     await db.flush()
 
     # Apply template if provided
-    template_id = body.get("template_id")
+    template_id = body.template_id
     if template_id:
         template = await db.get(PageTemplate, template_id)
         if template:
@@ -364,7 +371,7 @@ async def admin_create_from_template(
 @router.put("/destinations/{dest_id}")
 async def admin_update_destination(
     dest_id: str,
-    body: dict,
+    body: DestinationUpdateRequest,
     db: AsyncSession = Depends(get_db),
     _u: User = admin,
 ) -> dict:
@@ -372,14 +379,15 @@ async def admin_update_destination(
     dest = await repo.get_by_id(dest_id)
     if not dest:
         raise HTTPException(404, detail="Not found")
+    values = body.model_dump(exclude_unset=True)
     for field in ("name", "slug", "category_id", "latitude", "longitude", "country", "city",
                   "address", "description", "price_level", "rating_avg", "tags", "is_active",
                   "opening_hours", "best_visiting_hours", "local_tips", "seasonal_info"):
-        if field in body:
-            setattr(dest, field, body[field])
-    if "images" in body:
+        if field in values:
+            setattr(dest, field, values[field])
+    if "images" in values:
         # Cap at 3 per destination — enforced in app layer (service + admin + FE).
-        dest.images = (body["images"] or [])[:3]
+        dest.images = (values["images"] or [])[:3]
     await db.flush()
     return {"ok": True}
 
@@ -401,17 +409,17 @@ async def admin_delete_destination(
 
 @router.post("/destinations/bulk")
 async def admin_bulk_import(
-    body: dict,
+    body: BulkDestinationRequest,
     db: AsyncSession = Depends(get_db),
     _u: User = admin,
 ) -> dict:
-    items = body.get("items", [])
+    items = body.items
     if not items:
         raise HTTPException(400, detail="No items provided")
     if len(items) > 500:
         raise HTTPException(400, detail="Maximum 500 items per import")
 
-    template_id = body.get("template_id")
+    template_id = body.template_id
     template = None
     if template_id:
         template = await db.get(PageTemplate, template_id)
@@ -419,10 +427,7 @@ async def admin_bulk_import(
     count = 0
     errors: list[dict] = []
     for i, item in enumerate(items):
-        name = (item.get("name") or "").strip() if isinstance(item, dict) else ""
-        if not name:
-            errors.append({"index": i, "name": "", "error": "missing or empty 'name'"})
-            continue
+        name = item.name.strip()
         try:
             slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
             existing = (await db.execute(select(Destination).where(Destination.slug == slug))).scalar_one_or_none()
@@ -431,12 +436,12 @@ async def admin_bulk_import(
             dest_id = _uuid.uuid4()
             dest = Destination(
                 id=dest_id, name=name, slug=slug,
-                category_id=item.get("category_id"),
-                latitude=item.get("latitude", 0), longitude=item.get("longitude", 0),
-                country=item.get("country", "Indonesia"), city=item.get("city"),
-                address=item.get("address"), description=item.get("description"),
-                images=item.get("images", []), tags=item.get("tags", []),
-                price_level=item.get("price_level", "mid"), rating_avg=item.get("rating_avg", 0),
+                category_id=item.category_id,
+                latitude=item.latitude, longitude=item.longitude,
+                country=item.country, city=item.city,
+                address=item.address, description=item.description,
+                images=item.images, tags=item.tags,
+                price_level=item.price_level, rating_avg=item.rating_avg,
             )
             db.add(dest)
 
@@ -470,21 +475,19 @@ async def admin_search_places(q: str = Query(..., min_length=2), lat: float | No
 
 
 @router.post("/destinations/from-place", status_code=status.HTTP_201_CREATED)
-async def admin_create_from_place(body: dict, db: AsyncSession = Depends(get_db), _u: User = admin):
-    name = (body.get("name") or "").strip()
-    if not name or body.get("lat") is None or body.get("lng") is None:
-        raise HTTPException(400, detail="name, lat, lng required")
+async def admin_create_from_place(body: DestinationFromPlaceRequest, db: AsyncSession = Depends(get_db), _u: User = admin):
+    name = body.name.strip()
     slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
     if (await db.execute(select(Destination).where(Destination.slug == slug))).scalar_one_or_none():
         slug = f"{slug}-{_uuid.uuid4().hex[:6]}"
-    images = [body["image_url"]] if body.get("image_url") else []
+    images = [body.image_url] if body.image_url else []
     dest = Destination(
         name=name, slug=slug,
-        latitude=float(body["lat"]), longitude=float(body["lng"]),
-        country=body.get("country", "Indonesia"), city=body.get("city"),
-        address=body.get("address"), description=body.get("description"),
-        images=images, tags=body.get("tags", []) or ["wisata"],
-        price_level=body.get("price_level", "mid"),
+        latitude=body.lat, longitude=body.lng,
+        country=body.country, city=body.city,
+        address=body.address, description=body.description,
+        images=images, tags=body.tags or ["wisata"],
+        price_level=body.price_level,
     )
     db.add(dest)
     await db.flush()
@@ -681,17 +684,15 @@ async def admin_delete_template(
 
 @router.post("/templates/import", status_code=status.HTTP_201_CREATED)
 async def admin_import_template(
-    body: dict,
+    body: TemplateImportRequest,
     db: AsyncSession = Depends(get_db),
     _u: User = admin,
 ) -> dict:
     """Import a template from JSON (same format as export)."""
-    template_id = body.get("id", "").strip()
-    name = body.get("name", "").strip()
-    if not template_id or not name:
-        raise HTTPException(400, detail="id and name required")
+    template_id = body.id.strip()
+    name = body.name.strip()
 
-    sections = body.get("sections", [])
+    sections = body.sections
     for s in sections:
         stype = s.get("type", "")
         if stype not in SECTION_TYPES:
@@ -701,17 +702,17 @@ async def admin_import_template(
     if existing:
         # Overwrite existing
         existing.name = name
-        existing.description = body.get("description")
+        existing.description = body.description
         existing.sections = sections
-        existing.is_default = body.get("is_default", False)
+        existing.is_default = body.is_default
         await db.flush()
         return {"id": existing.id, "name": existing.name, "updated": True}
 
     template = PageTemplate(
         id=template_id, name=name,
-        description=body.get("description"),
+        description=body.description,
         sections=sections,
-        is_default=body.get("is_default", False),
+        is_default=body.is_default,
     )
     db.add(template)
     await db.flush()
@@ -938,11 +939,20 @@ async def admin_upload_asset(
         raise HTTPException(400, detail="File too large (max 10MB)")
 
     ext = os.path.splitext(file.filename or "file")[1] or ".bin"
+    ext = os.path.basename(ext)
+    if not re.fullmatch(r"\.[a-zA-Z0-9]{1,10}", ext):
+        ext = ".bin"
     asset_uuid = _uuid.uuid4()
     filename = f"{asset_uuid.hex}{ext}"
 
-    # Determine subdirectory
-    subdir = destination_id or "general"
+    # Determine subdirectory — destination_id/section_id must be valid UUIDs to
+    # prevent path traversal via the subdirectory component.
+    subdir = "general"
+    if destination_id:
+        try:
+            subdir = str(_uuid.UUID(destination_id))
+        except ValueError:
+            raise HTTPException(400, detail="Invalid destination_id")
     dest_dir = os.path.join(UPLOAD_DIR, subdir)
     os.makedirs(dest_dir, exist_ok=True)
 
@@ -1108,7 +1118,8 @@ async def admin_list_users(
 ) -> dict:
     stmt = select(User)
     if q:
-        stmt = stmt.where(User.email.ilike(f"%{q}%") | User.username.ilike(f"%{q}%"))
+        needle = f"%{_escape_like(q)}%"
+        stmt = stmt.where(User.email.ilike(needle, escape="\\") | User.username.ilike(needle, escape="\\"))
     total = (await db.execute(select(func.count()).select_from(stmt.subquery()))).scalar() or 0
     stmt = stmt.order_by(User.created_at.desc()).offset((page - 1) * size).limit(size)
     rows = (await db.execute(stmt)).scalars().all()
@@ -1123,19 +1134,25 @@ async def admin_list_users(
 @router.patch("/users/{user_id}")
 async def admin_update_user(
     user_id: str,
-    body: dict,
+    body: AdminUpdateUserRequest,
     db: AsyncSession = Depends(get_db),
     _u: User = admin,
 ) -> dict:
     user = (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
     if not user:
         raise HTTPException(404)
-    if "role" in body and body["role"] in ("user", "admin"):
-        user.role = body["role"]
-    if "is_active" in body and isinstance(body["is_active"], bool):
-        user.is_active = body["is_active"]
-    if "is_verified" in body and isinstance(body["is_verified"], bool):
-        user.is_verified = body["is_verified"]
+    # Prevent an admin from demoting/deactivating themselves (lockout guard).
+    if str(user.id) == str(_u.id):
+        if body.role is not None and body.role != "admin":
+            raise HTTPException(400, detail="You cannot remove your own admin role")
+        if body.is_active is False:
+            raise HTTPException(400, detail="You cannot deactivate your own account")
+    if body.role is not None:
+        user.role = body.role
+    if body.is_active is not None:
+        user.is_active = body.is_active
+    if body.is_verified is not None:
+        user.is_verified = body.is_verified
     await db.flush()
     return {"ok": True}
 
@@ -1168,15 +1185,13 @@ async def admin_list_categories(
 
 @router.post("/categories", status_code=status.HTTP_201_CREATED)
 async def admin_create_category(
-    body: dict,
+    body: CreateCategoryRequest,
     db: AsyncSession = Depends(get_db),
     _u: User = admin,
 ) -> dict:
-    name = body.get("name", "").strip()
-    if not name:
-        raise HTTPException(400)
-    slug = body.get("slug", name.lower().replace(" ", "-"))
-    cat = Category(name=name, slug=slug, icon=body.get("icon"))
+    name = body.name.strip()
+    slug = body.slug or name.lower().replace(" ", "-")
+    cat = Category(name=name, slug=slug, icon=body.icon, parent_id=body.parent_id)
     db.add(cat)
     await db.flush()
     return {"id": cat.id, "name": cat.name, "slug": cat.slug}
@@ -1184,16 +1199,17 @@ async def admin_create_category(
 
 @router.put("/categories/{cat_id}")
 async def admin_update_category(
-    cat_id: int, body: dict,
+    cat_id: int, body: UpdateCategoryRequest,
     db: AsyncSession = Depends(get_db),
     _u: User = admin,
 ) -> dict:
     cat = (await db.execute(select(Category).where(Category.id == cat_id))).scalar_one_or_none()
     if not cat:
         raise HTTPException(404)
+    values = body.model_dump(exclude_unset=True)
     for f in ("name", "slug", "icon"):
-        if f in body:
-            setattr(cat, f, body[f])
+        if f in values and values[f] is not None:
+            setattr(cat, f, values[f])
     await db.flush()
     return {"ok": True}
 

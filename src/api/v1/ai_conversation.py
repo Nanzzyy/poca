@@ -15,6 +15,7 @@ from src.domain.schemas.conversation import (
 from src.repositories.conversation_repo import ConversationRepository
 from src.services.ai_conversation_service import AIConversationService
 from src.core.redis import get_redis
+from src.middleware.rate_limit import rate_limit
 from src.services.cache_service import CacheService
 
 router = APIRouter(prefix="/ai/conversations", tags=["ai"])
@@ -89,7 +90,7 @@ async def rename_conversation(
     return ConversationResponse.model_validate(conv)
 
 
-@router.post("/{conv_id}/messages")
+@router.post("/{conv_id}/messages", dependencies=[Depends(rate_limit(limit=20, period=3600, scope="user"))])
 async def send_message(
     conv_id: str,
     body: MessageSend,

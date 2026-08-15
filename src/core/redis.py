@@ -1,14 +1,20 @@
+import asyncio
+
 from redis.asyncio import Redis
 
 from src.core.config import settings
 
 redis_client: Redis | None = None
+_init_lock = asyncio.Lock()
 
 
 async def init_redis() -> Redis:
     global redis_client
-    redis_client = Redis.from_url(settings.redis_url, decode_responses=True)
-    return redis_client
+    async with _init_lock:
+        if redis_client is not None:
+            return redis_client
+        redis_client = Redis.from_url(settings.redis_url, decode_responses=True)
+        return redis_client
 
 
 async def close_redis() -> None:

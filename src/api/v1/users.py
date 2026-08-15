@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import os
 import uuid
 
@@ -14,12 +14,14 @@ from src.domain.models.user import User
 from src.domain.schemas.user import (
     PublicProfileResponse,
     TokenResponse,
+    TrackPageviewRequest,
     UserCreate,
     UserLogin,
     UserPreferencesUpdate,
     UserResponse,
 )
 from src.domain.schemas.destination import DestinationList, PaginatedResponse
+from src.middleware.rate_limit import rate_limit
 from src.repositories.destination_repo import DestinationRepository
 from src.repositories.user_repo import UserRepository
 from src.domain.models.follower import Follower
@@ -41,11 +43,11 @@ router = APIRouter(tags=["users"])
 
 
 def create_token(user_id: str) -> str:
-    expire = datetime.utcnow() + timedelta(hours=settings.jwt_expiry_hours)
+    expire = datetime.now(timezone.utc) + timedelta(hours=settings.jwt_expiry_hours)
     return jwt.encode({"sub": user_id, "exp": expire}, settings.jwt_secret, algorithm=settings.jwt_algorithm)
 
 
-@router.post("/auth/register")
+@router.post("/auth/register", dependencies=[Depends(rate_limit(limit=3, period=3600))])
 async def register(
     body: UserCreate,
     db: AsyncSession = Depends(get_db),
@@ -66,7 +68,7 @@ async def register(
     return TokenResponse(access_token=token, user=UserResponse.model_validate(user))
 
 
-@router.post("/auth/login")
+@router.post("/auth/login", dependencies=[Depends(rate_limit(limit=5, period=60))])
 async def login(
     body: UserLogin,
     db: AsyncSession = Depends(get_db),
@@ -87,37 +89,22 @@ async def get_me(
 
 
 # ── TRAFFIC (public write path for /admin/traffic + dashboard) ──
-@router.post("/analytics/track")
+@router.post("/analytics/track", dependencies=[Depends(rate_limit(limit=100, period=60))])
 async def track_pageview(
-    body: dict,
+    body: TrackPageviewRequest,
     request: Request,
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     """Fire-and-forget page-view log. No auth — anonymous page hits allowed."""
-    path = (body.get("path") or "").strip()[:500]
-    if not path:
-        raise HTTPException(400, detail="path required")
     ip = request.client.host if request.client else None
     ua = request.headers.get("user-agent", "")[:500]
-    db.add(PageView(id=uuid.uuid4(), path=path, ip=ip, user_agent=ua, created_at=datetime.utcnow()))
+    db.add(PageView(id=uuid.uuid4(), path=body.path, ip=ip, user_agent=ua, created_at=datetime.now(timezone.utc)))
     await db.flush()
     return {"ok": True}
 
 
 @router.put("/users/me")
 async def update_me(
-    body: UserPreferencesUpdate,
-    user: User = Depends(require_user),
-    db: AsyncSession = Depends(get_db),
-) -> UserResponse:
-    user.preferences = body.preferences
-    repo = UserRepository(db)
-    await repo.update(user)
-    return UserResponse.model_validate(user)
-
-
-@router.put("/users/me/preferences")
-async def update_preferences(
     body: UserPreferencesUpdate,
     user: User = Depends(require_user),
     db: AsyncSession = Depends(get_db),
@@ -221,7 +208,7 @@ _AVATAR_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))),
     "static", "uploads", "avatars",
 )
-_AVATAR_MIME = {"image/jpeg", "image/png", "image/webp", "image/gif", "image/svg+xml"}
+_AVATAR_MIME = {"image/jpeg", "image/png", "image/webp", "image/gif"}
 _AVATAR_MAX = 5 * 1024 * 1024  # 5MB
 
 
@@ -235,14 +222,17 @@ async def upload_avatar(
     if len(content) > _AVATAR_MAX:
         raise HTTPException(413, detail="File too large (max 5MB)")
     if file.content_type not in _AVATAR_MIME:
-        raise HTTPException(400, detail="Format tidak didukung (jpg/png/webp/gif/svg)")
+        raise HTTPException(400, detail="Unsupported format (jpg/png/webp/gif)")
     os.makedirs(_AVATAR_DIR, exist_ok=True)
     ext = (file.filename or "").rsplit(".", 1)[-1].lower() if file.filename and "." in file.filename else "jpg"
+    ext = os.path.basename(ext)
+    if ext not in {"jpg", "jpeg", "png", "webp", "gif"}:
+        ext = "jpg"
     fname = f"{user.id}.{ext}"
     with open(os.path.join(_AVATAR_DIR, fname), "wb") as f:
         f.write(content)
     user.avatar_url = f"/static/uploads/avatars/{fname}"
-    await db.commit()
+    await db.flush()
     return {"avatar_url": user.avatar_url}
 
 
@@ -252,7 +242,7 @@ async def remove_avatar(
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     user.avatar_url = None
-    await db.commit()
+    await db.flush()
     return {"ok": True}
 
 
