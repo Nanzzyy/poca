@@ -2,8 +2,9 @@ from datetime import datetime, timedelta, timezone
 import os
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, UploadFile, File, status
-from jose import jwt
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, UploadFile, File, Response, status
+from fastapi.responses import JSONResponse
+from jose import JWTError, jwt
 import bcrypt
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -34,6 +35,10 @@ from src.repositories.notification_repo import NotificationRepository
 from src.services.notification_service import create_notification
 from sqlalchemy import func, select, delete
 
+ACCESS_COOKIE = "poca_access"
+REFRESH_COOKIE = "poca_refresh"
+
+
 def hash_password(password: str) -> str:
     return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
@@ -42,16 +47,57 @@ def verify_password(password: str, hashed: str) -> bool:
 router = APIRouter(tags=["users"])
 
 
+def _encode_token(user_id: str, expiry: timedelta, secret: str) -> str:
+    expire = datetime.now(timezone.utc) + expiry
+    return jwt.encode({"sub": user_id, "exp": expire}, secret, algorithm=settings.jwt_algorithm)
+
+
+def create_access_token(user_id: str) -> str:
+    return _encode_token(user_id, timedelta(minutes=settings.jwt_access_expiry_minutes), settings.jwt_secret)
+
+
+def create_refresh_token(user_id: str) -> str:
+    return _encode_token(user_id, timedelta(days=settings.jwt_refresh_expiry_days), settings.jwt_refresh_secret)
+
+
+# Deprecated — kept for backward compatibility with API clients.
 def create_token(user_id: str) -> str:
-    expire = datetime.now(timezone.utc) + timedelta(hours=settings.jwt_expiry_hours)
-    return jwt.encode({"sub": user_id, "exp": expire}, settings.jwt_secret, algorithm=settings.jwt_algorithm)
+    return create_access_token(user_id)
+
+
+def _set_auth_cookies(response: Response, user_id: str) -> None:
+    access = create_access_token(user_id)
+    refresh = create_refresh_token(user_id)
+    domain = settings.cookie_domain or None
+    response.set_cookie(
+        ACCESS_COOKIE, access,
+        max_age=settings.jwt_access_expiry_minutes * 60,
+        httponly=True, samesite="lax", secure=settings.cookie_secure,
+        path="/api", domain=domain,
+    )
+    response.set_cookie(
+        REFRESH_COOKIE, refresh,
+        max_age=settings.jwt_refresh_expiry_days * 86400,
+        httponly=True, samesite="lax", secure=settings.cookie_secure,
+        path="/api/v1/auth/refresh", domain=domain,
+    )
+
+
+def _clear_auth_cookies(response: Response) -> None:
+    domain = settings.cookie_domain or None
+    response.delete_cookie(ACCESS_COOKIE, path="/api", domain=domain)
+    response.delete_cookie(REFRESH_COOKIE, path="/api/v1/auth/refresh", domain=domain)
+
+
+def _user_json(user: User) -> JSONResponse:
+    return JSONResponse(content=UserResponse.model_validate(user).model_dump(mode="json"))
 
 
 @router.post("/auth/register", dependencies=[Depends(rate_limit(limit=3, period=3600))])
 async def register(
     body: UserCreate,
     db: AsyncSession = Depends(get_db),
-) -> TokenResponse:
+) -> JSONResponse:
     repo = UserRepository(db)
     if await repo.get_by_email(body.email):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered")
@@ -64,21 +110,57 @@ async def register(
         hashed_password=hash_password(body.password),
     )
     user = await repo.create(user)
-    token = create_token(str(user.id))
-    return TokenResponse(access_token=token, user=UserResponse.model_validate(user))
+    resp = _user_json(user)
+    _set_auth_cookies(resp, str(user.id))
+    return resp
 
 
 @router.post("/auth/login", dependencies=[Depends(rate_limit(limit=5, period=60))])
 async def login(
     body: UserLogin,
+    request: Request,
     db: AsyncSession = Depends(get_db),
-) -> TokenResponse:
+) -> JSONResponse:
     repo = UserRepository(db)
     user = await repo.get_by_email(body.email)
     if not user or not verify_password(body.password, user.hashed_password):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
-    token = create_token(str(user.id))
-    return TokenResponse(access_token=token, user=UserResponse.model_validate(user))
+    resp = _user_json(user)
+    _set_auth_cookies(resp, str(user.id))
+    return resp
+
+
+@router.post("/auth/refresh")
+async def refresh_token(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> JSONResponse:
+    token = request.cookies.get(REFRESH_COOKIE)
+    if not token:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="No refresh token")
+    try:
+        payload = jwt.decode(token, settings.jwt_refresh_secret, algorithms=[settings.jwt_algorithm])
+        user_id: str = payload.get("sub")
+        if not user_id:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
+    except JWTError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
+
+    repo = UserRepository(db)
+    user = await repo.get_by_id(user_id)
+    if not user or not user.is_active:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+
+    resp = _user_json(user)
+    _set_auth_cookies(resp, str(user.id))
+    return resp
+
+
+@router.post("/auth/logout")
+async def logout() -> JSONResponse:
+    resp = JSONResponse(content={"ok": True})
+    _clear_auth_cookies(resp)
+    return resp
 
 
 @router.get("/users/me")

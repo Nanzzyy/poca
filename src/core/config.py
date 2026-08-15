@@ -1,4 +1,4 @@
-from pydantic import field_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings
 
 _WEAK_JWT_SECRETS = {"", "dev-secret-change-in-prod", "change-this-to-a-random-secret", "secret", "changeme"}
@@ -21,7 +21,12 @@ class Settings(BaseSettings):
     # Auth — JWT_SECRET is required; a weak/predictable value will refuse to start.
     jwt_secret: str
     jwt_algorithm: str = "HS256"
-    jwt_expiry_hours: int = 24
+    jwt_expiry_hours: int = 24  # deprecated — access token uses jwt_access_expiry_minutes now
+    jwt_refresh_secret: str = ""
+    jwt_access_expiry_minutes: int = 15
+    jwt_refresh_expiry_days: int = 7
+    cookie_secure: bool = False
+    cookie_domain: str = ""
 
     @field_validator("jwt_secret")
     @classmethod
@@ -31,6 +36,18 @@ class Settings(BaseSettings):
         if len(v) < 32:
             raise ValueError("JWT_SECRET must be at least 32 characters long")
         return v
+
+    @field_validator("jwt_refresh_secret")
+    @classmethod
+    def _validate_jwt_refresh_secret(cls, v: str) -> str:
+        # Refresh secret defaults to the access secret when unset (single-secret mode).
+        return v or ""
+
+    @model_validator(mode="after")
+    def _resolve_refresh_secret(self) -> "Settings":
+        if not self.jwt_refresh_secret:
+            self.jwt_refresh_secret = self.jwt_secret
+        return self
 
     @field_validator("cors_origins")
     @classmethod

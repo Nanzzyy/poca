@@ -203,23 +203,23 @@ export function useDeleteTrip() {
 export function useLogin() {
   return useMutation({
     mutationFn: (data: { email: string; password: string }) =>
-      api.post<{ access_token: string; user: User }>("/auth/login", data),
+      api.post<User>("/auth/login", data),
   });
 }
 
 export function useRegister() {
   return useMutation({
     mutationFn: (data: { email: string; username: string; password: string }) =>
-      api.post<{ access_token: string; user: User }>("/auth/register", data),
+      api.post<User>("/auth/register", data),
   });
 }
 
 export function useProfile() {
-  const token = useAuthStore((s) => s.token);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   return useQuery({
     queryKey: keys.user.me,
     queryFn: () => api.get<User>("/users/me"),
-    enabled: !!token,
+    enabled: isAuthenticated,
     staleTime: 300_000,
     gcTime: 600_000,
     retry: false,
@@ -320,21 +320,21 @@ export function useUserPosts(userId: string) {
 
 // Notifications
 export function useNotifications() {
-  const token = useAuthStore((s) => s.token);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   return useQuery({
     queryKey: keys.notifications.list,
     queryFn: () => api.get<AppNotification[]>("/notifications"),
-    enabled: !!token,
+    enabled: isAuthenticated,
     staleTime: 30_000,
   });
 }
 
 export function useUnreadCount() {
-  const token = useAuthStore((s) => s.token);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   return useQuery({
     queryKey: keys.notifications.unread,
     queryFn: () => api.get<{ count: number }>("/notifications/unread-count"),
-    enabled: !!token,
+    enabled: isAuthenticated,
     staleTime: 30_000,
     refetchInterval: 60_000,
   });

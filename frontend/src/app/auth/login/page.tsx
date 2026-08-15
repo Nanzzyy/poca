@@ -12,7 +12,7 @@ import { Compass, LogIn, Eye, EyeOff } from "lucide-react";
 export default function LoginPage() {
   const router = useRouter();
   const login = useLogin();
-  const setToken = useAuthStore((s) => s.setToken);
+  const setAuthenticated = useAuthStore((s) => s.setAuthenticated);
   const addToast = useUIStore((s) => s.addToast);
   const qc = useQueryClient();
   const [email, setEmail] = useState("");
@@ -22,8 +22,8 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const result = await login.mutateAsync({ email, password });
-      setToken(result.access_token);
+      await login.mutateAsync({ email, password });
+      setAuthenticated(true);
       // Flush all query caches so user-specific data (profile, favorites,
       // liked posts, notifications) re-fetches with the new auth context.
       qc.clear();

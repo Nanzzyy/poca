@@ -13,6 +13,9 @@ services:
       - DATABASE_URL_SYNC=postgresql://${POSTGRES_USER:-tourism}:${POSTGRES_PASSWORD:-tourism}@db:5432/${POSTGRES_DB:-tourism}
       - REDIS_URL=redis://redis:6379/0
       - JWT_SECRET=${JWT_SECRET:?JWT_SECRET must be set to a strong random value}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET:-}
+      - COOKIE_SECURE=${COOKIE_SECURE:-false}
+      - COOKIE_DOMAIN=${COOKIE_DOMAIN:-}
       - AI_API_KEY=${AI_API_KEY:-}
       - AI_PROVIDER=${AI_PROVIDER:-gemini}
       - AI_MODEL=${AI_MODEL:-gemini/gemini-2.0-flash}

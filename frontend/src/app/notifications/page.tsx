@@ -28,12 +28,12 @@ const routeFor = (n: AppNotification) => {
 
 export default function NotificationsPage() {
   const router = useRouter();
-  const token = useAuthStore((s) => s.token);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const { data: user } = useProfile();
   const { data: notifications } = useNotifications();
   const markRead = useMarkAllRead();
 
-  if (!token) {
+  if (!isAuthenticated) {
     return (
       <div className="pt-20 flex flex-col items-center justify-center px-5 text-center h-screen">
         <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-primary-container flex items-center justify-center mb-4 shadow-lg">

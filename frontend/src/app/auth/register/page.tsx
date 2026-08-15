@@ -12,7 +12,7 @@ import { Compass, UserPlus, Eye, EyeOff } from "lucide-react";
 export default function RegisterPage() {
   const router = useRouter();
   const register = useRegister();
-  const setToken = useAuthStore((s) => s.setToken);
+  const setAuthenticated = useAuthStore((s) => s.setAuthenticated);
   const addToast = useUIStore((s) => s.addToast);
   const qc = useQueryClient();
   const [form, setForm] = useState({ email: "", username: "", password: "" });
@@ -21,8 +21,8 @@ export default function RegisterPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const result = await register.mutateAsync(form);
-      setToken(result.access_token);
+      await register.mutateAsync(form);
+      setAuthenticated(true);
       qc.clear();
       addToast("Akun berhasil dibuat!", "success");
       router.push("/");

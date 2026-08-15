@@ -1,51 +1,28 @@
 import { create } from "zustand";
 
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8008/api/v1";
+
 interface AuthState {
-  token: string | null;
-  setToken: (token: string | null) => void;
+  isAuthenticated: boolean;
+  setAuthenticated: (v: boolean) => void;
   logout: () => void;
 }
 
-// Decode the JWT `exp` claim (seconds since epoch). Returns null if missing/invalid.
-function isTokenExpired(token: string): boolean {
-  try {
-    const payload = token.split(".")[1];
-    if (!payload) return true;
-    const decoded = JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/")));
-    if (typeof decoded.exp !== "number") return false;
-    return decoded.exp * 1000 <= Date.now();
-  } catch {
-    return true;
-  }
-}
-
 export const useAuthStore = create<AuthState>((set) => ({
-  token: null, // Always start null to match SSR. Hydrated client-side in layout.
-  setToken: (token) => {
-    if (token) localStorage.setItem("auth_token", token);
-    else localStorage.removeItem("auth_token");
-    set({ token });
-  },
-  logout: () => {
-    localStorage.removeItem("auth_token");
-    set({ token: null });
+  isAuthenticated: false,
+  setAuthenticated: (v) => set({ isAuthenticated: v }),
+  logout: async () => {
+    try {
+      await fetch(`${BASE_URL}/auth/logout`, { method: "POST", credentials: "include" });
+    } catch {
+      // ignore network errors — still clear local state
+    }
+    set({ isAuthenticated: false });
     // Force full reload so all React Query caches, zustand stores,
     // and component state reset — avoids stale authed data sticking around.
     window.location.href = "/";
   },
 }));
-
-// Hydrate auth store from localStorage on client startup, dropping expired tokens.
-if (typeof window !== "undefined") {
-  const stored = localStorage.getItem("auth_token");
-  if (stored) {
-    if (isTokenExpired(stored)) {
-      localStorage.removeItem("auth_token");
-    } else {
-      useAuthStore.setState({ token: stored });
-    }
-  }
-}
 
 interface MapState {
   center: [number, number];

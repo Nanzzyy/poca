@@ -1,6 +1,6 @@
 import uuid
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,14 +13,19 @@ security = HTTPBearer(auto_error=False)
 
 
 async def get_current_user(
+    request: Request,
     credentials: HTTPAuthorizationCredentials | None = Depends(security),
     db: AsyncSession = Depends(get_db),
 ) -> User | None:
-    """Get current user from JWT token. Returns None if no token provided."""
-    if not credentials:
+    """Get current user from JWT. Dual-read: httpOnly cookie first, then the
+    legacy Authorization header (for API clients during migration)."""
+    token = request.cookies.get("poca_access")
+    if not token and credentials:
+        token = credentials.credentials
+    if not token:
         return None
     try:
-        payload = jwt.decode(credentials.credentials, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
+        payload = jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
         user_id: str = payload.get("sub")
         if not user_id:
             return None

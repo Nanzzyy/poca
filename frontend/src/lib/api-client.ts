@@ -1,5 +1,5 @@
-// Typed API client — single file, ~50 lines
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+// Typed API client — single file. Auth via httpOnly cookies (credentials: include).
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8008/api/v1";
 
 type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
@@ -9,11 +9,6 @@ interface RequestConfig {
   headers?: Record<string, string>;
 }
 
-function getAuthToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem("auth_token");
-}
-
 async function request<T>(method: HttpMethod, path: string, config?: RequestConfig): Promise<T> {
   const url = new URL(`${BASE_URL}${path}`);
   if (config?.params) {
@@ -21,28 +16,28 @@ async function request<T>(method: HttpMethod, path: string, config?: RequestConf
       if (v !== undefined && v !== null && v !== "") url.searchParams.set(k, String(v));
     });
   }
-  const token = getAuthToken();
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...config?.headers,
   };
 
   const res = await fetch(url.toString(), {
     method,
     headers,
+    credentials: "include",
     body: config?.body ? JSON.stringify(config.body) : undefined,
   });
 
   if (!res.ok) {
     if (res.status === 401) {
-      if (typeof window !== "undefined") localStorage.removeItem("auth_token");
-      if (typeof window !== "undefined" && !window.location.pathname.startsWith("/auth") && !window.location.pathname.startsWith("/admin/login")) {
-        window.location.href = window.location.pathname.startsWith("/admin") ? "/admin/login" : "/auth/login";
+      // Try a single refresh; if it succeeds, retry the original request.
+      const refreshed = await tryRefresh();
+      if (refreshed) {
+        return request<T>(method, path, config);
       }
+      redirectToLogin();
     }
 
-    // Safety check for detail object vs string
     let errorMsg = res.statusText;
     try {
       const errData = await res.json();
@@ -50,7 +45,6 @@ async function request<T>(method: HttpMethod, path: string, config?: RequestConf
         if (typeof errData.detail === "string") {
           errorMsg = errData.detail;
         } else if (Array.isArray(errData.detail)) {
-          // FastAPI validation error (Array)
           errorMsg = errData.detail.map((e: { loc?: string[]; msg?: string }) => `${e.loc?.join(".")}: ${e.msg}`).join(", ");
         } else if (typeof errData.detail === "object") {
           errorMsg = JSON.stringify(errData.detail);
@@ -58,7 +52,7 @@ async function request<T>(method: HttpMethod, path: string, config?: RequestConf
       } else if (errData.message) {
         errorMsg = errData.message;
       }
-    } catch (e) {
+    } catch {
       // Not JSON, stick with statusText
     }
 
@@ -69,6 +63,21 @@ async function request<T>(method: HttpMethod, path: string, config?: RequestConf
   return res.json();
 }
 
+async function tryRefresh(): Promise<boolean> {
+  try {
+    const res = await fetch(`${BASE_URL}/auth/refresh`, { method: "POST", credentials: "include" });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+function redirectToLogin() {
+  if (typeof window === "undefined") return;
+  if (window.location.pathname.startsWith("/auth") || window.location.pathname.startsWith("/admin/login")) return;
+  window.location.href = window.location.pathname.startsWith("/admin") ? "/admin/login" : "/auth/login";
+}
+
 async function uploadFile<T>(path: string, formData: FormData, params?: Record<string, string | undefined>): Promise<T> {
   const url = new URL(`${BASE_URL}${path}`);
   if (params) {
@@ -76,10 +85,8 @@ async function uploadFile<T>(path: string, formData: FormData, params?: Record<s
       if (v !== undefined && v !== null && v !== "") url.searchParams.set(k, v);
     });
   }
-  const token = getAuthToken();
-  const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
 
-  const res = await fetch(url.toString(), { method: "POST", headers, body: formData });
+  const res = await fetch(url.toString(), { method: "POST", headers: {}, credentials: "include", body: formData });
   if (!res.ok) {
     let errorMsg = res.statusText;
     try {

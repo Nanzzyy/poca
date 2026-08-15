@@ -12,7 +12,7 @@ import { timeAgo } from "@/lib/utils";
 export default function PublicProfilePage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const token = useAuthStore((s) => s.token);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const { data: me } = useProfile();
   const { data: profile, isLoading } = usePublicProfile(id);
   const { data: posts } = useUserPosts(id);
@@ -22,7 +22,7 @@ export default function PublicProfilePage() {
   const isFollowing = following ?? profile?.is_following ?? false;
 
   const onFollow = async () => {
-    if (!token) return router.push("/auth/login");
+    if (!isAuthenticated) return router.push("/auth/login");
     const next = !isFollowing;
     setFollowing(next);
     try {

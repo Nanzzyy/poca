@@ -10,7 +10,7 @@ import { Shield, LogIn } from "lucide-react";
 export default function AdminLoginPage() {
   const router = useRouter();
   const login = useLogin();
-  const setToken = useAuthStore((s) => s.setToken);
+  const setAuthenticated = useAuthStore((s) => s.setAuthenticated);
   const addToast = useUIStore((s) => s.addToast);
   const qc = useQueryClient();
   const [email, setEmail] = useState("");
@@ -20,14 +20,13 @@ export default function AdminLoginPage() {
     e.preventDefault();
     try {
       const result = await login.mutateAsync({ email, password });
-      setToken(result.access_token);
       qc.clear();
       // Cek role — redirect admin, reject non-admin
-      if (result.user.role !== "admin") {
-        setToken(null);
+      if (result.role !== "admin") {
         addToast("Akses ditolak. Hanya admin yang bisa masuk.", "error");
         return;
       }
+      setAuthenticated(true);
       addToast("Selamat datang, Admin!", "success");
       router.push("/admin/dashboard");
     } catch {

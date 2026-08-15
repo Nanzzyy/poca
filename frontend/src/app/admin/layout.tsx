@@ -23,27 +23,30 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const router = useRouter();
   const path = usePathname();
   const qc = useQueryClient();
-  const token = useAuthStore((s) => s.token);
-  const setToken = useAuthStore((s) => s.setToken);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const setAuthenticated = useAuthStore((s) => s.setAuthenticated);
   const { data: user } = useProfile();
   const [sidebar, setSidebar] = useState(false);
 
   const isLogin = path === "/admin/login";
 
-  // Admin-scoped logout: clear token, stay in /admin (no full reload to "/").
-  const adminLogout = () => {
-    setToken(null);
+  // Admin-scoped logout: clear session, stay in /admin (no full reload to "/").
+  const adminLogout = async () => {
+    try {
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8008/api/v1"}/auth/logout`, { method: "POST", credentials: "include" });
+    } catch {}
+    setAuthenticated(false);
     qc.clear();
     router.replace("/admin/login");
   };
 
   useEffect(() => {
-    if (!token && !isLogin) router.replace("/admin/login");
-    if (token && user && user.role !== "admin" && !isLogin) {
-      setToken(null);
+    if (!isAuthenticated && !isLogin) router.replace("/admin/login");
+    if (isAuthenticated && user && user.role !== "admin" && !isLogin) {
+      setAuthenticated(false);
       router.replace("/admin/login");
     }
-  }, [token, user, isLogin, router, setToken]);
+  }, [isAuthenticated, user, isLogin, router, setAuthenticated]);
 
   if (isLogin) return <>{children}</>;
 

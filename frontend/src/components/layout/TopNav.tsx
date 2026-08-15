@@ -22,7 +22,7 @@ export function TopNav() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [searchQ, setSearchQ] = useState("");
-  const { token } = useAuthStore();
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
@@ -31,7 +31,7 @@ export function TopNav() {
     return path ? path.startsWith(href) : false;
   };
 
-  const showAuthed = mounted && token;
+  const showAuthed = mounted && isAuthenticated;
   const { data: user } = useProfile();
   const logout = useAuthStore((s) => s.logout);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -144,7 +144,7 @@ export function TopNav() {
                     <User className="w-4 h-4" /> Profil Saya
                   </Link>
                   <button
-                    onClick={() => { logout(); setUserMenuOpen(false); router.push("/"); }}
+                    onClick={() => { void logout(); setUserMenuOpen(false); }}
                     className="flex items-center gap-2 px-4 py-2.5 text-[13px] text-on-surface-variant hover:bg-error/10 hover:text-error transition-colors w-full"
                   >
                     <LogOut className="w-4 h-4" /> Keluar
@@ -220,7 +220,7 @@ export function TopNav() {
                     </Link>
                   );
                 })}
-                {!token && (
+                {!isAuthenticated && (
                   <Link
                     href="/auth/login"
                     onClick={() => setOpen(false)}
