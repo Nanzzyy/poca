@@ -52,9 +52,9 @@ Tiga terminal, atau pakai background.
 docker compose up -d db redis
 ```
 
-**Backend (port 8000, reload aktif):**
+**Backend (port 8008, reload aktif):**
 ```bash
-PYTHONPATH=. .venv/bin/uvicorn src.main:app --reload --port 8000
+PYTHONPATH=. .venv/bin/uvicorn src.main:app --reload --port 8008
 ```
 > `PYTHONPATH=.` wajib — `src` belum installed sebagai package.
 
@@ -68,16 +68,16 @@ cd frontend && PORT=3010 npm run dev
 
 | Service  | URL / alamat               |
 |----------|----------------------------|
-| Backend  | http://localhost:8000      |
+| Backend  | http://localhost:8008      |
 | Frontend | http://localhost:3010      |
 | Postgres | localhost:5433 (db: tourism, user/pass: tourism/tourism) |
 | Redis    | localhost:6379             |
 
-> **Produksi (Coolify/Docker):** backend memakai port 8008 (bukan 8000, menghindari bentrok di host Coolify), frontend 3010. Set `NEXT_PUBLIC_API_URL` & `CORS_ORIGINS` ke domain Coolify-mu.
+> **Produksi (Coolify/Docker):** frontend memakai proxy same-origin `/api/v1` ke backend `backend:8008`, sehingga browser tidak mengakses `localhost` dan login tidak bergantung pada CORS lintas domain. Jika frontend/backend berada di stack terpisah, set `API_PROXY_TARGET` ke URL backend yang dapat dijangkau server Next.js, lalu rebuild frontend.
 
 Cek sehat:
 ```bash
-curl localhost:8000/health
+curl localhost:8008/health
 ```
 
 ## Database
@@ -119,5 +119,5 @@ PYTHONPATH=. .venv/bin/pytest
 
 ```bash
 docker compose up -d --build
-# backend di http://localhost:8000
+# backend di http://localhost:8008
 ```

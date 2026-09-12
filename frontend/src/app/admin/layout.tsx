@@ -33,7 +33,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   // Admin-scoped logout: clear session, stay in /admin (no full reload to "/").
   const adminLogout = async () => {
     try {
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8008/api/v1"}/auth/logout`, { method: "POST", credentials: "include" });
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL || "/api/v1"}/auth/logout`, { method: "POST", credentials: "include" });
     } catch {}
     setAuthenticated(false);
     qc.clear();

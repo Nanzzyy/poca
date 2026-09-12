@@ -1,7 +1,7 @@
 import { chromium } from "playwright";
 
 const BASE = "http://localhost:3001";
-const API = "http://localhost:8000/api/v1";
+const API = "http://localhost:8008/api/v1";
 
 const realErrors = [];
 const addErr = (src, msg) => realErrors.push({ src, msg: String(msg).slice(0, 400) });

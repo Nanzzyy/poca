@@ -6,9 +6,13 @@ COPY package.json package-lock.json* ./
 # Full deps incl devDependencies — build needs tailwindcss/postcss etc.
 RUN npm ci || npm install
 COPY . .
-# NEXT_PUBLIC_* is build-time — pass API URL as build arg from Coolify/env.
-ARG NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
+# Browser requests use the same-origin Next.js proxy by default. Set
+# NEXT_PUBLIC_API_URL only when deliberately calling a public API directly.
+ARG NEXT_PUBLIC_API_URL=/api/v1
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+# Internal backend address used by the Next.js proxy.
+ARG API_PROXY_TARGET=http://backend:8008
+ENV API_PROXY_TARGET=$API_PROXY_TARGET
 RUN npm run build
 
 FROM node:22-alpine AS runner

@@ -1,5 +1,10 @@
 // Typed API client — single file. Auth via httpOnly cookies (credentials: include).
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8008/api/v1";
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "/api/v1";
+
+function buildUrl(path: string): URL {
+  const origin = typeof window === "undefined" ? "http://localhost" : window.location.origin;
+  return new URL(`${BASE_URL}${path}`, origin);
+}
 
 type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
@@ -10,7 +15,7 @@ interface RequestConfig {
 }
 
 async function request<T>(method: HttpMethod, path: string, config?: RequestConfig): Promise<T> {
-  const url = new URL(`${BASE_URL}${path}`);
+  const url = buildUrl(path);
   if (config?.params) {
     Object.entries(config.params).forEach(([k, v]) => {
       if (v !== undefined && v !== null && v !== "") url.searchParams.set(k, String(v));
@@ -79,7 +84,7 @@ function redirectToLogin() {
 }
 
 async function uploadFile<T>(path: string, formData: FormData, params?: Record<string, string | undefined>): Promise<T> {
-  const url = new URL(`${BASE_URL}${path}`);
+  const url = buildUrl(path);
   if (params) {
     Object.entries(params).forEach(([k, v]) => {
       if (v !== undefined && v !== null && v !== "") url.searchParams.set(k, v);

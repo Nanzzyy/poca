@@ -1,6 +1,6 @@
 # Production stack for Coolify. Coolify proxies the public domains to:
 #   - frontend (:3010) — the Next.js app
-#   - backend  (:8008) — the FastAPI API (browser fetches via NEXT_PUBLIC_API_URL)
+#   - backend  (:8008) — the FastAPI API (proxied by Next.js over the Docker network)
 # All ports outside 3000-3007 and 8000 (8000 conflicts on the Coolify host).
 # Local dev: `docker compose up -d db redis`, then run backend (uvicorn) + FE (npm run dev) manually.
 services:
@@ -38,10 +38,10 @@ services:
     build:
       context: ./frontend
       args:
-        # NEXT_PUBLIC_* is build-time — the public URL browsers use to reach the API.
-        # Set to your Coolify backend domain in Coolify env, e.g.
-        # https://api-poca.coolify.app/api/v1
-        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8008/api/v1}
+        # Same-origin API proxy is the safe default. For separate stacks, set
+        # API_PROXY_TARGET to a backend URL reachable by the Next.js server.
+        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-/api/v1}
+        - API_PROXY_TARGET=${API_PROXY_TARGET:-http://backend:8008}
     ports:
       - "3010:3010"
     depends_on:

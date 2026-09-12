@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+const API = process.env.NEXT_PUBLIC_API_URL || "/api/v1";
 
 // Fire-and-forget page-view log to backend (→ /admin/traffic, dashboard).
 export function TrafficTracker() {
