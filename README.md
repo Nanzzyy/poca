@@ -73,7 +73,7 @@ cd frontend && PORT=3010 npm run dev
 | Postgres | localhost:5433 (db: tourism, user/pass: tourism/tourism) |
 | Redis    | localhost:6379             |
 
-> **Produksi (Coolify/Docker):** frontend memakai proxy same-origin `/api/v1` ke backend `backend:8008`, sehingga browser tidak mengakses `localhost` dan login tidak bergantung pada CORS lintas domain. Jika frontend/backend berada di stack terpisah, set `API_PROXY_TARGET` ke URL backend yang dapat dijangkau server Next.js, lalu rebuild frontend.
+> **Produksi (Coolify/Docker):** frontend selalu memakai proxy same-origin `/api/v1` ke backend `backend:8008`; jangan set `NEXT_PUBLIC_API_URL` ke domain API. Jika frontend/backend berada di stack terpisah, set `API_PROXY_TARGET` ke URL backend yang dapat dijangkau server Next.js, lalu rebuild frontend.
 
 Cek sehat:
 ```bash

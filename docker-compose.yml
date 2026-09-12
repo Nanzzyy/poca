@@ -38,9 +38,8 @@ services:
     build:
       context: ./frontend
       args:
-        # Same-origin API proxy is the safe default. For separate stacks, set
-        # API_PROXY_TARGET to a backend URL reachable by the Next.js server.
-        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-/api/v1}
+        # For separate stacks, set API_PROXY_TARGET to a backend URL reachable
+        # by the Next.js server. Browser requests remain same-origin.
         - API_PROXY_TARGET=${API_PROXY_TARGET:-http://backend:8008}
     ports:
       - "3010:3010"

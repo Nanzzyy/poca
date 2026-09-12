@@ -1,5 +1,7 @@
 // Typed API client — single file. Auth via httpOnly cookies (credentials: include).
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "/api/v1";
+// Always use the same-origin Next.js proxy. The proxy target is configured on
+// the server with API_PROXY_TARGET, never exposed to the browser.
+const BASE_URL = "/api/v1";
 
 function buildUrl(path: string): URL {
   const origin = typeof window === "undefined" ? "http://localhost" : window.location.origin;
