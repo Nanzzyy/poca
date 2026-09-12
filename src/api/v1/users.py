@@ -112,6 +112,10 @@ async def register(
         hashed_password=hash_password(body.password),
     )
     user = await repo.create(user)
+    # Commit before writing the audit record in its dedicated session. The
+    # audit row has a foreign key to users.id and cannot see an uncommitted
+    # user from this request's transaction.
+    await db.commit()
     await log_audit(
         action="register", actor_id=user.id, target_type="user", target_id=str(user.id),
         ip_address=request.client.host if request.client else None,
