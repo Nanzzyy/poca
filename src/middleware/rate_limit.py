@@ -12,6 +12,7 @@ from __future__ import annotations
 import asyncio
 import time
 from collections import defaultdict, deque
+from ipaddress import ip_address
 from typing import Awaitable, Callable
 
 from fastapi import Depends, HTTPException, Request, status
@@ -23,10 +24,46 @@ from src.domain.models.user import User
 # In-memory fallback: key -> deque of timestamps.
 _memory: dict[str, deque[float]] = defaultdict(deque)
 _memory_lock = asyncio.Lock()
+_REDIS_KEY_PREFIX = "poca:rl:v2"
+
+
+def _valid_ip(value: str | None) -> str | None:
+    if not value:
+        return None
+    try:
+        return str(ip_address(value.strip()))
+    except ValueError:
+        return None
+
+
+def _is_private_proxy(value: str | None) -> bool:
+    if not value:
+        return False
+    try:
+        address = ip_address(value)
+        return address.is_private or address.is_loopback or address.is_link_local
+    except ValueError:
+        return False
 
 
 def _client_ip(request: Request) -> str:
-    return request.client.host if request.client else "unknown"
+    # Cloudflare overwrites CF-Connecting-IP at its edge. Prefer it when
+    # present so all users do not share the Next.js proxy/container IP.
+    forwarded_ip = _valid_ip(request.headers.get("cf-connecting-ip"))
+    if forwarded_ip:
+        return forwarded_ip
+
+    client_host = request.client.host if request.client else None
+    # Only trust X-Forwarded-For when the immediate peer is an internal
+    # reverse proxy. This avoids letting direct clients bypass rate limits by
+    # sending arbitrary forwarding headers.
+    if _is_private_proxy(client_host):
+        forwarded_for = request.headers.get("x-forwarded-for", "")
+        forwarded_ip = _valid_ip(forwarded_for.split(",", 1)[0])
+        if forwarded_ip:
+            return forwarded_ip
+
+    return _valid_ip(client_host) or "unknown"
 
 
 async def _is_allowed(key: str, limit: int, period: int) -> bool:
@@ -35,9 +72,10 @@ async def _is_allowed(key: str, limit: int, period: int) -> bool:
 
     if redis:
         try:
-            count = await redis.incr(f"poca:rl:{key}")
+            redis_key = f"{_REDIS_KEY_PREFIX}:{key}"
+            count = await redis.incr(redis_key)
             if count == 1:
-                await redis.expire(f"poca:rl:{key}", period)
+                await redis.expire(redis_key, period)
             return count <= limit
         except Exception:
             pass  # fall through to in-memory
