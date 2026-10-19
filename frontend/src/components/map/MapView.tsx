@@ -17,8 +17,8 @@ const defaultIcon = L.icon({
 });
 L.Marker.prototype.options.icon = defaultIcon;
 
-const TILE_URL = "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
-const ATTRIBUTION = '&copy; <a href="https://carto.com/attributions">CARTO</a>';
+const TILE_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
+const ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>';
 
 const MARKER_COLORS: Record<string, string> = {
   recommended: "#2563eb",
@@ -207,8 +207,7 @@ const MapControls = memo(function MapControls({
 
 // ─── Layer Panel ──────────────────────────────────────────
 const LAYER_DEFS = [
-  { name: "Street (OSM)", checked: true, url: "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", attr: "&copy; CARTO" },
-  { name: "Light", url: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", attr: "&copy; CARTO" },
+  { name: "Street (OSM)", checked: true, url: TILE_URL, attr: ATTRIBUTION },
   { name: "Satellite", url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", attr: "Tiles &copy; Esri" },
   { name: "Terrain", url: "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png", attr: "&copy; OpenTopoMap" },
 ];
