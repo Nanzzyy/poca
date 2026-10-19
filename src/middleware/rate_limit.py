@@ -24,7 +24,7 @@ from src.domain.models.user import User
 # In-memory fallback: key -> deque of timestamps.
 _memory: dict[str, deque[float]] = defaultdict(deque)
 _memory_lock = asyncio.Lock()
-_REDIS_KEY_PREFIX = "poca:rl:v2"
+_REDIS_KEY_PREFIX = "poca:rl:v3"
 
 
 def _valid_ip(value: str | None) -> str | None:
@@ -66,6 +66,18 @@ def _client_ip(request: Request) -> str:
     return _valid_ip(client_host) or "unknown"
 
 
+def _endpoint_key(request: Request) -> str:
+    """Return a stable identifier for the matched endpoint.
+
+    FastAPI exposes the route template after routing (for example,
+    ``/users/{user_id}``). Falling back to the request path keeps this helper
+    usable in tests and in early middleware execution.
+    """
+    route = request.scope.get("route")
+    path = getattr(route, "path", request.url.path)
+    return f"{request.method.upper()}:{path}"
+
+
 async def _is_allowed(key: str, limit: int, period: int) -> bool:
     redis = get_redis()
     now = time.time()
@@ -99,8 +111,8 @@ def _scope_dependency(scope: str):
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail="Authentication required",
                 )
-            return f"user:{user.id}"
-        return f"ip:{_client_ip(request)}"
+            return f"{_endpoint_key(request)}:user:{user.id}"
+        return f"{_endpoint_key(request)}:ip:{_client_ip(request)}"
     return _key
 
 
