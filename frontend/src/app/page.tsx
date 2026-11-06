@@ -5,7 +5,6 @@ import { Star, MapPin, Heart, ChevronLeft, ChevronRight, MessageCircle, Sparkles
 import { useState } from "react";
 import { useSearchDestinations, useProfile, useFavoriteIds, useToggleFavorite } from "@/lib/queries";
 import { destImage } from "@/lib/utils";
-import { Loading } from "@/components/ui";
 import type { Destination } from "@/types";
 
 // Hero is built dynamically from top destinations that have a real image.
@@ -23,7 +22,7 @@ function buildHero(dests: Destination[]) {
 }
 
 const FALLBACK_HERO = [
-  { src: "", badge: "Trending", rating: "4.9", title: "Jelajahi Indonesia", desc: "Temukan destinasi terbaik dengan AI.", id: "" },
+  { src: "", badge: "Jelajahi", rating: "", title: "Jelajahi Indonesia", desc: "Temukan destinasi terbaik dengan AI.", id: "" },
 ];
 
 export default function Home() {
@@ -69,29 +68,42 @@ export default function Home() {
               </div>
             </div>
           </div>
-          <div className="relative group h-[480px]">
+            <div className="relative group h-[340px] sm:h-[420px] lg:h-[480px]">
             <div className="absolute inset-0 bg-gradient-to-tr from-primary/10 to-secondary/10 rounded-2xl -rotate-2" />
             <div className="relative h-full w-full bg-white rounded-2xl shadow-lg overflow-hidden border border-outline-variant/30">
-              {slide.src ? (
+              {isLoading && !data ? (
+                <div className="absolute inset-0 animate-pulse bg-gradient-to-br from-surface-container-low via-surface-container-high to-surface-container-low" role="status" aria-label="Memuat destinasi">
+                  <div className="absolute inset-x-0 bottom-0 space-y-3 bg-gradient-to-t from-black/45 to-transparent p-6 pt-16">
+                    <div className="h-5 w-24 rounded-full bg-white/40" />
+                    <div className="h-7 w-3/4 rounded bg-white/40" />
+                    <div className="h-4 w-full max-w-sm rounded bg-white/30" />
+                  </div>
+                </div>
+              ) : slide.src ? (
                 <img className="w-full h-full object-cover transition-opacity duration-500 cursor-pointer" src={slide.src} alt={slide.title} onClick={() => slide.id && router.push(`/destination/${slide.id}`)} />
               ) : (
-                <div className="w-full h-full bg-gradient-to-br from-primary/80 via-primary to-secondary/80 flex items-center justify-center text-white">
-                  <Sparkles className="w-16 h-16 fill-current opacity-50" />
+                <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-primary/80 via-primary to-secondary/80 px-6 text-white">
+                  <div className="flex max-w-xs flex-col items-center gap-3 text-center">
+                    <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-white/30 bg-white/15 shadow-inner">
+                      <MapPin className="h-8 w-8" strokeWidth={1.7} />
+                    </div>
+                    <p className="text-sm font-semibold">Foto destinasi akan tampil di sini</p>
+                  </div>
                 </div>
               )}
-              <div className="absolute bottom-0 left-0 w-full p-6 bg-gradient-to-t from-black/80 via-black/40 to-transparent">
+              {!isLoading && <div className="absolute bottom-0 left-0 w-full bg-gradient-to-t from-black/80 via-black/40 to-transparent p-6">
                 <div className="flex items-center gap-2 mb-2">
                   <span className="px-2 py-0.5 bg-primary text-white text-[10px] font-bold rounded uppercase">{slide.badge}</span>
-                  <div className="flex items-center text-yellow-400"><Star className="w-3.5 h-3.5 fill-current" /><span className="text-[12px] text-white ml-1">{slide.rating}</span></div>
+                  {slide.rating && <div className="flex items-center text-yellow-400"><Star className="w-3.5 h-3.5 fill-current" /><span className="text-[12px] text-white ml-1">{slide.rating}</span></div>}
                 </div>
                 <h3 className="text-[20px] font-semibold text-white mb-1">{slide.title}</h3>
                 <p className="text-[12px] text-white/80 line-clamp-2">{slide.desc}</p>
-              </div>
+              </div>}
               {/* prev/next — always visible on touch, hover-reveal on desktop */}
-              <div className="absolute top-1/2 -translate-y-1/2 w-full px-4 flex justify-between opacity-90 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                <button onClick={() => setHeroIdx(i => (i - 1 + heroSlides.length) % heroSlides.length)} className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-md border border-white/30 text-white hover:bg-white/40 active:scale-90 transition-all"><ChevronLeft className="w-5 h-5" /></button>
-                <button onClick={() => setHeroIdx(i => (i + 1) % heroSlides.length)} className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-md border border-white/30 text-white hover:bg-white/40 active:scale-90 transition-all"><ChevronRight className="w-5 h-5" /></button>
-              </div>
+              {heroSlides.length > 1 && <div className="absolute top-1/2 -translate-y-1/2 w-full px-4 flex justify-between opacity-90 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                <button onClick={() => setHeroIdx(i => (i - 1 + heroSlides.length) % heroSlides.length)} className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/30 bg-white/20 text-white backdrop-blur-md transition-all hover:bg-white/40 active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2"><ChevronLeft className="h-5 w-5" /></button>
+                <button onClick={() => setHeroIdx(i => (i + 1) % heroSlides.length)} className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/30 bg-white/20 text-white backdrop-blur-md transition-all hover:bg-white/40 active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2"><ChevronRight className="h-5 w-5" /></button>
+              </div>}
             </div>
           </div>
         </div>
@@ -104,9 +116,22 @@ export default function Home() {
           <button onClick={() => router.push("/search")} className="text-primary text-[14px] font-bold hover:underline">Lihat Semua</button>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {isLoading && (
-            <div className="col-span-full flex items-center justify-center py-8">
-              <Loading variant="search" />
+          {isLoading && !data && Array.from({ length: 4 }, (_, index) => (
+            <div key={index} className="overflow-hidden rounded-2xl border border-outline-variant/30 bg-white" aria-hidden="true">
+              <div className="h-48 animate-pulse bg-surface-container-high" />
+              <div className="space-y-3 p-4">
+                <div className="h-4 w-3/4 animate-pulse rounded bg-surface-container-high" />
+                <div className="h-3 w-1/2 animate-pulse rounded bg-surface-container-high" />
+                <div className="flex gap-2"><div className="h-6 w-16 animate-pulse rounded bg-surface-container-high" /><div className="h-6 w-20 animate-pulse rounded bg-surface-container-high" /></div>
+              </div>
+            </div>
+          ))}
+          {!isLoading && dests.length === 0 && (
+            <div className="col-span-full flex flex-col items-center rounded-2xl border border-dashed border-outline-variant/50 bg-surface-container-low/40 px-6 py-10 text-center">
+              <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary"><MapPin className="h-6 w-6" /></div>
+              <p className="text-sm font-semibold text-on-surface">Destinasi belum tersedia</p>
+              <p className="mt-1 max-w-sm text-xs leading-relaxed text-on-surface-variant">Jelajahi peta untuk melihat tempat yang bisa dikunjungi.</p>
+              <button onClick={() => router.push("/map")} className="mt-4 rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-on-primary focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">Buka peta</button>
             </div>
           )}
           {dests.map(d => {
@@ -120,10 +145,10 @@ export default function Home() {
                 </div>
                 <div className="p-4 space-y-2">
                   <div className="flex justify-between items-start">
-                    <h4 className="text-[14px] font-bold text-on-surface">{d.name}</h4>
-                    <div className="flex items-center text-[14px] font-bold"><Star className="w-3.5 h-3.5 text-yellow-500 fill-current" />{d.rating_avg}</div>
+                    <h4 className="min-w-0 truncate text-[14px] font-bold text-on-surface">{d.name}</h4>
+                    <div className="flex shrink-0 items-center text-[14px] font-bold"><Star className="w-3.5 h-3.5 shrink-0 text-yellow-500 fill-current" />{d.rating_avg}</div>
                   </div>
-                  <p className="text-[12px] text-on-surface flex items-center gap-1"><MapPin className="w-3.5 h-3.5" />{d.city ? `${d.city}, ` : ""}{d.country}</p>
+                  <p className="flex items-center gap-1 truncate text-[12px] text-on-surface"><MapPin className="h-3.5 w-3.5 shrink-0" /><span className="truncate">{d.city ? `${d.city}, ` : ""}{d.country}</span></p>
                   <div className="flex gap-2 pt-1">
                     {d.category?.name && <span className="px-2 py-1 bg-surface-container text-on-surface text-[10px] rounded">{d.category.name}</span>}
                     {(d.tags || []).slice(0, 2).map(t => <span key={t} className="px-2 py-1 bg-surface-container text-on-surface text-[10px] rounded">{t}</span>)}

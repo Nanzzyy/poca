@@ -4,13 +4,24 @@ export const dynamic = "force-dynamic";
 
 import { useState, useEffect, useMemo } from "react";
 import nextDynamic from "next/dynamic";
-import { useMapMarkers, useSearchDestinations, useCategories } from "@/lib/queries";
+import { useMapMarkers, useSearchDestinations } from "@/lib/queries";
 import { useRouter } from "next/navigation";
-import { Star, MapPin, X, Navigation, Search, Compass, Sparkles, ArrowRight } from "lucide-react";
+import { Star, MapPin, X, Navigation, Search, Compass, Sparkles, Waves, Landmark, Mountain, Utensils, Palette } from "lucide-react";
 import type { Destination } from "@/types";
 import { destImage } from "@/lib/utils";
 
-const MapView = nextDynamic(() => import("@/components/map/MapView"), { ssr: false });
+const MapView = nextDynamic(() => import("@/components/map/MapView"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-full w-full flex-col items-center justify-center bg-surface-container-low p-4 text-center" role="status" aria-live="polite">
+      <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+        <MapPin className="h-6 w-6" strokeWidth={1.8} />
+      </div>
+      <p className="text-sm font-semibold text-on-surface">Menyiapkan peta</p>
+      <p className="mt-1 text-xs text-on-surface-variant">Memuat peta dan lokasi di sekitarmu.</p>
+    </div>
+  ),
+});
 
 const DEFAULT_CENTER: [number, number] = [-2.5, 118.0];
 
@@ -30,11 +41,11 @@ interface SelectedMarker {
 }
 
 const CATEGORY_FILTERS = [
-  { key: "pantai", label: "Beach", icon: "beach_access" },
-  { key: "candi", label: "Temple", icon: "temple_buddhist" },
-  { key: "gunung", label: "Mountain", icon: "landscape" },
-  { key: "kuliner", label: "Food", icon: "restaurant" },
-  { key: "budaya", label: "Nightlife", icon: "nightlife" },
+  { key: "pantai", label: "Pantai", Icon: Waves },
+  { key: "candi", label: "Candi", Icon: Landmark },
+  { key: "gunung", label: "Gunung", Icon: Mountain },
+  { key: "kuliner", label: "Kuliner", Icon: Utensils },
+  { key: "budaya", label: "Budaya", Icon: Palette },
 ];
 
 export default function MapPage() {
@@ -57,13 +68,13 @@ export default function MapPage() {
     );
   }, []);
 
-  const { data: cats } = useCategories();
   const markers = useMapMarkers(
     bounds || [-10, 114],
     ne || [-7, 116],
     activeCat || undefined
   );
-  const { data: searchResults } = useSearchDestinations(q);
+  const searchQuery = useSearchDestinations(q);
+  const { data: searchResults } = searchQuery;
 
   const results = useMemo(() => searchResults?.items || [], [searchResults]);
   const recommended = results.slice(0, 3);
@@ -90,15 +101,14 @@ export default function MapPage() {
         category_name: d.category?.name, city: d.city, country: d.country,
       }))
     : boundMarkers;
+  const resultCount = q.trim()
+    ? searchResults?.total ?? results.length
+    : markers.data?.features.length ?? 0;
 
   const focusDest = (d: Destination) => {
     setFocus([d.latitude, d.longitude]);
     setSelectedMarker({ id: d.id, name: d.name, latitude: d.latitude, longitude: d.longitude, rating_avg: d.rating_avg, category_name: d.category?.name, city: d.city, country: d.country, image: destImage(d.images, d.name), description: d.description, price_level: d.price_level });
     setShowPopover(d.id);
-  };
-
-  const togglePopover = (id: string | null) => {
-    setShowPopover(showPopover === id ? null : id);
   };
 
   const handleMarkerClick = (m: SelectedMarker) => {
@@ -107,16 +117,20 @@ export default function MapPage() {
   };
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden">
+    <div className="flex h-[calc(100dvh-var(--bottom-nav-h)-var(--safe-b)-0.5rem)] min-h-0 flex-col overflow-hidden md:h-dvh">
       {/* ═══════ MAIN CONTENT: SIDEBAR + MAP ═══════ */}
-      <main className="flex flex-1 overflow-hidden pt-16">
-        {/* ═══ LEFT SIDEBAR (40%) ═══ */}
-        <aside className="w-[40%] bg-surface flex flex-col border-r border-outline-variant/20 z-10">
+      <main className="relative flex min-h-0 flex-1 flex-col overflow-hidden pt-16 md:flex-row">
+        {/* Destination search and results */}
+        <aside className="order-2 flex h-[44%] min-h-0 w-full shrink-0 flex-col border-t border-outline-variant/20 bg-surface shadow-[0_-8px_24px_rgba(19,27,46,0.06)] md:order-1 md:h-auto md:w-[40%] md:max-w-[420px] md:border-r md:border-t-0 md:shadow-none">
           {/* Search & Filter Header */}
-          <div className="p-5 space-y-4 shadow-sm bg-surface-container-lowest">
-            <div className="flex items-center justify-between">
-              <h1 className="text-[28px] font-bold text-on-surface leading-tight">Explore</h1>
-              <span className="text-[12px] text-outline">{results.length || mapMarkers.length || "128"} Results Found</span>
+          <div className="space-y-3 bg-surface-container-lowest px-4 py-3 shadow-sm md:space-y-4 md:p-5">
+            <div className="flex items-center justify-between gap-3">
+              <h1 className="text-[20px] font-bold leading-tight text-on-surface md:text-[28px]">Jelajahi peta</h1>
+              <span className="inline-flex shrink-0 items-center rounded-full bg-primary/8 px-2.5 py-1 text-[11px] font-semibold text-primary md:text-[12px]">
+                {searchQuery.isLoading && !searchResults ? (
+                  <span className="h-3 w-12 animate-pulse rounded bg-primary/20" aria-label="Memuat jumlah hasil" />
+                ) : `${resultCount} tempat`}
+              </span>
             </div>
             {/* Search — filters markers + list in-map (no redirect) */}
             <div className="flex items-center bg-surface-container-low rounded-xl px-3 py-2.5 border border-outline-variant/30">
@@ -129,22 +143,24 @@ export default function MapPage() {
                 onChange={(e) => setQ(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter" && results[0]) focusDest(results[0]); }}
               />
-              {q && <button onClick={() => setQ("")} className="text-outline hover:text-on-surface ml-2"><X className="w-4 h-4" /></button>}
+              {q && <button onClick={() => setQ("")} className="ml-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-outline hover:text-on-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2" aria-label="Hapus pencarian"><X className="h-4 w-4" /></button>}
             </div>
             {/* Category Filters */}
-            <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-1">
-              {CATEGORY_FILTERS.map(({ key, label }) => {
+            <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-0.5 md:grid md:grid-cols-3 md:overflow-visible" aria-label="Filter kategori">
+              {CATEGORY_FILTERS.map(({ key, label, Icon }) => {
                 const on = activeCat === key;
                 return (
                   <button
                     key={key}
                     onClick={() => setActiveCat(on ? "" : key)}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-full whitespace-nowrap active:scale-95 transition-all text-[14px] font-semibold ${
+                    className={`inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-full px-3 whitespace-nowrap text-[12px] font-semibold transition-colors active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 md:h-10 md:w-full md:px-2 md:text-[13px] ${
                       on
                         ? "bg-primary text-on-primary"
                         : "bg-surface-container text-on-surface-variant hover:bg-surface-container-high"
                     }`}
+                    aria-pressed={on}
                   >
+                    <Icon className="h-4 w-4 shrink-0" strokeWidth={1.8} />
                     {label}
                   </button>
                 );
@@ -153,13 +169,13 @@ export default function MapPage() {
           </div>
 
           {/* Destination List */}
-          <div className="flex-1 overflow-y-auto p-5 space-y-6 custom-scrollbar bg-surface-container-low/30">
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto bg-surface-container-low/30 p-4 custom-scrollbar md:space-y-6 md:p-5">
             {/* Recommended Section */}
             {recommended.length > 0 && (
               <div className="space-y-4">
                 <h2 className="text-[11px] font-bold uppercase tracking-widest text-primary flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-primary" />
-                  Recommended For You
+                  <Sparkles className="h-4 w-4 shrink-0" />
+                  Rekomendasi
                 </h2>
                 {recommended.map((d, i) => (
                   <div
@@ -175,7 +191,7 @@ export default function MapPage() {
                       </div>
                       <div className="absolute bottom-3 left-3">
                         <span className="bg-primary/20 backdrop-blur-md text-white border border-white/30 px-2 py-1 rounded text-[10px] font-bold uppercase">
-                          {i === 0 ? "Must Visit" : d.price_level === "budget" ? "Budget" : "Recommended"}
+                          {i === 0 ? "Wajib dikunjungi" : d.price_level === "budget" ? "Hemat" : "Pilihan"}
                         </span>
                       </div>
                     </div>
@@ -189,7 +205,7 @@ export default function MapPage() {
                         </div>
                         <div className="flex items-center gap-1 text-outline text-[12px]">
                           <Compass className="w-4 h-4" />
-                          <span>{d.price_level === "budget" ? "Budget" : d.price_level === "luxury" ? "Luxury" : "Mid"}</span>
+                          <span>{d.price_level === "budget" ? "Hemat" : d.price_level === "luxury" ? "Premium" : "Menengah"}</span>
                         </div>
                       </div>
                     </div>
@@ -203,7 +219,7 @@ export default function MapPage() {
               <div className="space-y-4">
                 <h2 className="text-[11px] font-bold uppercase tracking-widest text-tertiary flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-tertiary" />
-                  Hidden Gems
+                  Tersembunyi
                 </h2>
                 {hiddenGems.slice(0, 2).map((d) => (
                   <div
@@ -218,7 +234,7 @@ export default function MapPage() {
                       <h4 className="text-[16px] font-bold text-on-surface truncate">{d.name}</h4>
                       <p className="text-[12px] text-on-surface-variant mb-2 line-clamp-1">{d.description || `${d.city}, ${d.country}`}</p>
                       <div className="flex items-center gap-2">
-                        <span className="bg-tertiary/10 text-tertiary px-2 py-[2px] rounded text-[10px] font-bold uppercase">Emerald Badge</span>
+                        <span className="bg-tertiary/10 text-tertiary px-2 py-[2px] rounded text-[10px] font-bold uppercase">Permata lokal</span>
                         <span className="text-[10px] text-outline">{d.city}</span>
                       </div>
                     </div>
@@ -227,17 +243,47 @@ export default function MapPage() {
               </div>
             )}
 
-            {results.length === 0 && !searchResults && (
-              <div className="flex flex-col items-center justify-center h-full text-center py-20">
-                <Compass className="w-16 h-16 text-outline/30 mb-4" />
-                <p className="text-on-surface-variant text-[14px]">Cari destinasi atau pilih kategori</p>
+            {searchQuery.isLoading && !searchResults && (
+              <div className="space-y-3" aria-label="Memuat destinasi" aria-busy="true">
+                {[0, 1].map((item) => (
+                  <div key={item} className="overflow-hidden rounded-xl border border-outline-variant/20 bg-surface-container-lowest">
+                    <div className="h-20 animate-pulse bg-surface-container-high md:h-36" />
+                    <div className="space-y-2 p-3">
+                      <div className="h-4 w-2/3 animate-pulse rounded bg-surface-container-high" />
+                      <div className="h-3 w-full animate-pulse rounded bg-surface-container-high" />
+                      <div className="h-3 w-1/2 animate-pulse rounded bg-surface-container-high" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {searchQuery.isError && (
+              <div className="flex flex-col items-center rounded-2xl border border-outline-variant/30 bg-surface-container-lowest px-4 py-6 text-center" role="alert">
+                <MapPin className="mb-2 h-7 w-7 text-outline" />
+                <p className="text-sm font-semibold text-on-surface">Destinasi belum bisa dimuat</p>
+                <p className="mt-1 text-xs text-on-surface-variant">Periksa koneksi, lalu coba lagi.</p>
+                <button onClick={() => { void searchQuery.refetch(); }} className="mt-3 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-on-primary focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">Coba lagi</button>
+              </div>
+            )}
+
+            {!searchQuery.isLoading && !searchQuery.isError && results.length === 0 && (
+              <div className="flex flex-col items-center rounded-2xl border border-dashed border-outline-variant/50 bg-surface-container-lowest/80 px-4 py-5 text-center md:py-8">
+                <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-primary/8 text-primary">
+                  <Compass className="h-5 w-5" strokeWidth={1.8} />
+                </div>
+                <p className="text-sm font-semibold text-on-surface">{q.trim() ? "Belum ada hasil" : "Belum ada destinasi di area ini"}</p>
+                <p className="mt-1 max-w-xs text-xs leading-relaxed text-on-surface-variant">
+                  {q.trim() ? "Coba kata kunci atau kategori lain." : "Cari nama tempat atau pilih kategori untuk mulai menjelajah."}
+                </p>
+                {q.trim() && <button onClick={() => setQ("")} className="mt-3 text-xs font-semibold text-primary">Hapus pencarian</button>}
               </div>
             )}
           </div>
         </aside>
 
-        {/* ═══ MAP CANVAS (60%) ═══ */}
-        <section className="flex-1 relative bg-surface-container-highest">
+        {/* Map stays prominent on mobile; results sit in a separate, scrollable sheet. */}
+        <section className="relative order-1 h-[56%] min-h-0 w-full shrink-0 bg-surface-container-highest md:order-2 md:h-auto md:flex-1">
           <MapView
             center={userLoc || DEFAULT_CENTER}
             zoom={userLoc ? 12 : 5}
@@ -250,27 +296,27 @@ export default function MapPage() {
 
 
           {/* AI Insight Floating Badge */}
-          <div className="absolute bottom-5 left-1/2 -translate-x-1/2 z-20 max-w-[600px] w-full px-4">
+          {resultCount > 0 && <div className="absolute bottom-5 left-1/2 z-20 hidden w-full max-w-[600px] -translate-x-1/2 px-4 md:block">
             <div className="bg-surface-container-lowest/90 backdrop-blur-md border border-primary/20 rounded-full px-5 py-3 shadow-xl flex items-center gap-4">
               <div className="flex items-center gap-1">
-                <div className="w-8 h-8 rounded-full border-2 border-white bg-primary/20 flex items-center justify-center text-[10px] font-bold text-primary">+{results.length || 12}</div>
+                <div className="flex h-8 min-w-8 items-center justify-center rounded-full border-2 border-white bg-primary/10 px-2 text-[10px] font-bold text-primary">{resultCount}</div>
               </div>
               <div className="h-6 w-px bg-outline-variant/30" />
               <div className="flex items-center gap-2 min-w-0">
                 <Sparkles className="w-4 h-4 text-primary flex-shrink-0" />
                 <p className="text-[12px] font-semibold text-on-surface truncate">
-                  Poca AI merekomendasikan <span className="text-primary">destinasi terdekat</span> dalam jangkauan.
+                  {resultCount} destinasi tersedia di area peta ini.
                 </p>
               </div>
             </div>
-          </div>
+          </div>}
 
           {/* Popover Detail */}
           {selectedMarker && showPopover && (
-            <div className="absolute top-[15%] left-[10%] w-72 bg-white/80 backdrop-blur-md rounded-2xl shadow-2xl z-30 p-4 border border-primary/20">
+            <div className="absolute left-3 right-3 top-20 z-30 mx-auto w-full max-w-[18rem] rounded-2xl border border-primary/20 bg-white/95 p-4 shadow-2xl backdrop-blur-md md:left-[10%] md:right-auto md:top-[15%]">
               <div className="relative h-32 rounded-xl overflow-hidden mb-3">
                 <img className="w-full h-full object-cover" src={selectedMarker.image || destImage([], selectedMarker.name)} alt={`Foto ${selectedMarker.name}`} />
-                <button onClick={() => setShowPopover(null)} className="absolute top-2 right-2 bg-white/20 hover:bg-white/40 backdrop-blur-md rounded-full p-1 text-white transition-all">
+                <button onClick={() => setShowPopover(null)} className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-md transition-all hover:bg-white/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
                   <X className="w-4 h-4" />
                 </button>
               </div>
@@ -291,7 +337,7 @@ export default function MapPage() {
                   >
                     Lihat Detail
                   </button>
-                  <button className="px-3 py-2 rounded-lg border border-outline-variant/30 hover:bg-surface-container-high transition-all">
+                  <button className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-outline-variant/30 transition-all hover:bg-surface-container-high focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2" aria-label="Buka petunjuk arah">
                     <Navigation className="w-4 h-4 text-primary" />
                   </button>
                 </div>

@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useRef, memo, useState } from "react";
-import { MapContainer, TileLayer, Marker, Popup, ZoomControl, useMap, useMapEvents } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, useMap, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { Plus, Minus, Locate, Layers } from "lucide-react";
+import { Plus, Minus, Locate, Layers, MapPin } from "lucide-react";
 
 // Fix default marker icons — run once outside component
 const defaultIcon = L.icon({
@@ -38,11 +38,11 @@ function getIcon(type: string, categoryName?: string): L.DivIcon {
   const icon = L.divIcon({
     className: "poca-marker",
     html: `<div style="
-      width:36px;height:36px;background:${color};border:2px solid white;
+      box-sizing:border-box;width:36px;height:36px;background:${color};border:2px solid white;
       border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,0.15);
       display:flex;align-items:center;justify-content:center;
       color:white;cursor:pointer;padding:4px;
-    ">${svg}</div>`,
+    "><span style="width:20px;height:20px;display:flex;align-items:center;justify-content:center;flex:none">${svg.replace("<svg ", '<svg width="20" height="20" style="display:block;flex:none" ')}</span></div>`,
     iconSize: [36, 36],
     iconAnchor: [18, 36],
     popupAnchor: [0, -38],
@@ -128,22 +128,6 @@ const BoundsListener = memo(function BoundsListener({ onChange }: { onChange?: (
   return null;
 });
 
-const PopupContent = memo(function PopupContent({ marker }: { marker: MapMarkerData }) {
-  return (
-    <div className="min-w-[160px]">
-      <strong className="text-sm">{marker.name}</strong>
-      {marker.rating_avg != null && (
-        <p className="text-xs text-yellow-600">
-          {"★".repeat(Math.round(marker.rating_avg))} {marker.rating_avg}
-        </p>
-      )}
-      <p className="text-[10px] text-gray-500">
-        {marker.city ? `${marker.city}, ` : ""}{marker.country}
-      </p>
-    </div>
-  );
-});
-
 // ─── MapControls ───────────────────────────────────────────
 // Working +/- zoom, locate, and layers toggle inside the map.
 const MapControls = memo(function MapControls({
@@ -163,7 +147,7 @@ const MapControls = memo(function MapControls({
       <div className="bg-white/80 backdrop-blur-md rounded-xl p-1 flex flex-col shadow-lg border border-white/30">
         <button
           onClick={() => map.zoomIn()}
-          className="p-2 hover:bg-surface-container-high rounded-lg text-on-surface-variant transition-colors"
+          className="flex h-10 w-10 items-center justify-center rounded-lg text-on-surface-variant transition-colors hover:bg-surface-container-high"
           aria-label="Zoom in"
         >
           <Plus className="w-5 h-5" />
@@ -171,7 +155,7 @@ const MapControls = memo(function MapControls({
         <div className="h-px bg-outline-variant/30 mx-2" />
         <button
           onClick={() => map.zoomOut()}
-          className="p-2 hover:bg-surface-container-high rounded-lg text-on-surface-variant transition-colors"
+          className="flex h-10 w-10 items-center justify-center rounded-lg text-on-surface-variant transition-colors hover:bg-surface-container-high"
           aria-label="Zoom out"
         >
           <Minus className="w-5 h-5" />
@@ -206,41 +190,29 @@ const MapControls = memo(function MapControls({
 });
 
 // ─── Layer Panel ──────────────────────────────────────────
-const LAYER_DEFS = [
-  { name: "Street (OSM)", checked: true, url: TILE_URL, attr: ATTRIBUTION },
+interface MapLayer {
+  name: string;
+  url: string;
+  attr: string;
+}
+
+const LAYER_DEFS: MapLayer[] = [
+  { name: "Jalan (OSM)", url: TILE_URL, attr: ATTRIBUTION },
   { name: "Satellite", url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", attr: "Tiles &copy; Esri" },
-  { name: "Terrain", url: "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png", attr: "&copy; OpenTopoMap" },
+  { name: "Medan", url: "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png", attr: "&copy; OpenTopoMap" },
 ];
 
-const LayerPanel = memo(function LayerPanel({ open, onSelect }: { open: boolean; onSelect?: (layer: string) => void }) {
-  const map = useMap();
-  const tileRef = useRef<L.TileLayer | null>(null);
-  const [active, setActive] = useState("Street (OSM)");
-
-  // Add default tile on mount
-  useEffect(() => {
-    if (!tileRef.current) {
-      tileRef.current = L.tileLayer(LAYER_DEFS[0].url, { attribution: LAYER_DEFS[0].attr }).addTo(map);
-    }
-  }, [map]);
-
+const LayerPanel = memo(function LayerPanel({ open, activeName, onSelect }: { open: boolean; activeName: string; onSelect: (layer: MapLayer) => void }) {
   if (!open) return null;
-
-  const switchLayer = (def: typeof LAYER_DEFS[0]) => {
-    if (tileRef.current) map.removeLayer(tileRef.current);
-    tileRef.current = L.tileLayer(def.url, { attribution: def.attr }).addTo(map);
-    setActive(def.name);
-    onSelect?.(def.name);
-  };
 
   return (
     <div className="absolute top-5 right-20 z-[1000] bg-white/95 backdrop-blur-md rounded-xl shadow-xl border border-outline-variant/30 p-2 min-w-[160px]">
       {LAYER_DEFS.map((def) => (
         <button
           key={def.name}
-          onClick={() => switchLayer(def)}
+          onClick={() => onSelect(def)}
           className={`w-full text-left px-3 py-2 rounded-lg text-[12px] transition-colors ${
-            active === def.name ? "bg-primary/10 text-primary font-bold" : "text-on-surface-variant hover:bg-surface-container-low"
+            activeName === def.name ? "bg-primary/10 text-primary font-bold" : "text-on-surface-variant hover:bg-surface-container-low"
           }`}
         >
           {def.name}
@@ -262,6 +234,16 @@ export default function MapView({
 }: MapViewProps) {
   const center = initialCenter || [-2.5, 118.0];
   const [layerOpen, setLayerOpen] = useState(false);
+  const [activeLayer, setActiveLayer] = useState<MapLayer>(LAYER_DEFS[0]);
+  const [tileStatus, setTileStatus] = useState<"loading" | "loaded" | "error">("loading");
+  const [tileRevision, setTileRevision] = useState(0);
+  const loadedTileCount = useRef(0);
+
+  useEffect(() => {
+    if (tileStatus !== "loading") return;
+    const timeout = window.setTimeout(() => setTileStatus("error"), 12_000);
+    return () => window.clearTimeout(timeout);
+  }, [tileRevision, tileStatus]);
 
   return (
     <div style={{ height }} className={`${className} relative`}>
@@ -272,8 +254,19 @@ export default function MapView({
         zoomControl={false}
         scrollWheelZoom={true}
       >
-        <ZoomControl position="bottomright" />
-
+        <TileLayer
+          key={`${activeLayer.name}-${tileRevision}`}
+          url={activeLayer.url}
+          attribution={activeLayer.attr}
+          eventHandlers={{
+            loading: () => {
+              loadedTileCount.current = 0;
+              setTileStatus("loading");
+            },
+            tileload: () => { loadedTileCount.current += 1; },
+            load: () => setTileStatus(loadedTileCount.current > 0 ? "loaded" : "error"),
+          }}
+        />
         <MapController center={center} zoom={initialZoom} />
         <FocusController focus={focus} />
         {onBoundsChange && <BoundsListener onChange={(b: { sw: [number, number]; ne: [number, number] }) => onBoundsChange(b.sw, b.ne)} />}
@@ -288,17 +281,53 @@ export default function MapView({
 
         {/* Working map controls: +/- zoom, locate, layers */}
         <MapControls layerOpen={layerOpen} onToggleLayers={() => setLayerOpen((o) => !o)} />
-        <LayerPanel open={layerOpen} onSelect={() => setLayerOpen(false)} />
+        <LayerPanel
+          open={layerOpen}
+          activeName={activeLayer.name}
+          onSelect={(layer) => {
+            setActiveLayer(layer);
+            setTileStatus("loading");
+            setLayerOpen(false);
+          }}
+        />
       </MapContainer>
+      {tileStatus !== "loaded" && (
+        <div className="absolute inset-0 z-[900] flex items-center justify-center bg-surface-container-low/95 p-4" role={tileStatus === "error" ? "alert" : "status"}>
+          <div className="flex max-w-xs flex-col items-center text-center">
+            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+              <MapPin className="h-6 w-6" strokeWidth={1.8} />
+            </div>
+            {tileStatus === "error" ? (
+              <>
+                <p className="text-sm font-semibold text-on-surface">Peta belum bisa dimuat</p>
+                <p className="mt-1 text-xs text-on-surface-variant">Periksa koneksi internet, lalu coba lagi.</p>
+                <button
+                  onClick={() => { setTileStatus("loading"); setTileRevision((revision) => revision + 1); }}
+                  className="mt-3 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-on-primary focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                >
+                  Muat ulang peta
+                </button>
+              </>
+            ) : (
+              <>
+                <p className="text-sm font-semibold text-on-surface">Menyiapkan peta</p>
+                <div className="mt-3 h-1.5 w-28 overflow-hidden rounded-full bg-primary/10">
+                  <div className="h-full w-1/2 animate-pulse rounded-full bg-primary/50" />
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
       {/* Legend */}
-      <div className="absolute bottom-4 left-2 z-[1000] bg-white/90 backdrop-blur rounded-lg p-2 shadow text-[10px] space-y-0.5">
-        {Object.entries({ recommended: "Rec", trending: "Trend", hidden_gem: "Hidden", community_favorite: "Fav", crowded: "Busy" }).map(([key, label]) => (
+      {markers.length > 0 && <div className="absolute bottom-4 left-2 z-[1000] hidden rounded-lg bg-white/90 p-2 text-[10px] shadow backdrop-blur md:block">
+        {Object.entries({ recommended: "Pilihan", trending: "Tren", hidden_gem: "Tersembunyi", community_favorite: "Favorit", crowded: "Ramai" }).map(([key, label]) => (
           <div key={key} className="flex items-center space-x-1.5">
             <span className="w-2 h-2 rounded-full" style={{ backgroundColor: MARKER_COLORS[key] || "#6b7280" }} />
             <span className="text-gray-500">{label}</span>
           </div>
         ))}
-      </div>
+      </div>}
     </div>
   );
 }
