@@ -2,9 +2,11 @@
 
 import { AlertTriangle } from "lucide-react";
 import { useUIStore } from "@/stores";
+import { useScrollLock } from "@/hooks/useScrollLock";
 
 export function ConfirmDialog() {
   const { confirmState, resolveConfirm } = useUIStore();
+  useScrollLock(confirmState.open);
   if (!confirmState.open) return null;
 
   return (

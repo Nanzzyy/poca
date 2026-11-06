@@ -8,6 +8,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useAuthStore } from "@/stores";
 import { useUnreadCount, useProfile } from "@/lib/queries";
 import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
+import { useScrollLock } from "@/hooks/useScrollLock";
 
 const links = [
   { href: "/", label: "Home" },
@@ -50,16 +51,7 @@ export function TopNav() {
   }, []);
 
   // Block background scroll while the mobile drawer is open.
-  useEffect(() => {
-    if (open) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
-    }
-    return () => {
-      document.body.style.overflow = "";
-    };
-  }, [open]);
+  useScrollLock(open);
 
   return (
     <header className="fixed top-0 left-0 w-full z-50 bg-surface/80 backdrop-blur-md shadow-sm">

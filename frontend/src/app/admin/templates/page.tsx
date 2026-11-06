@@ -6,6 +6,7 @@ import { api } from "@/lib/api-client";
 import { useUIStore } from "@/stores";
 import { SECTION_TYPES, type SectionTypeDef } from "@/lib/section-types";
 import { Plus, Pencil, Trash2, Download, Upload, FileJson, X, GripVertical, Eye, EyeOff } from "lucide-react";
+import { useScrollLock } from "@/hooks/useScrollLock";
 
 interface TemplateSection {
   type: string;
@@ -32,6 +33,7 @@ export default function AdminTemplatesPage() {
   const addToast = useUIStore(s => s.addToast);
   const [editItem, setEditItem] = useState<Template | null>(null);
   const [showAdd, setShowAdd] = useState(false);
+  useScrollLock(showAdd);
   const [form, setForm] = useState<Template & { importJson?: string }>({ ...emptyTemplate });
 
   const { data: templates, isLoading } = useQuery({

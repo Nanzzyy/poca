@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { X, Compass, Sparkles, MapPin } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useScrollLock } from "@/hooks/useScrollLock";
 
 interface Slide {
   id: string;
@@ -63,6 +64,8 @@ export function AnnouncementModal() {
       return () => clearTimeout(t);
     }
   }, []);
+
+  useScrollLock(open);
 
   const close = () => {
     setOpen(false);

@@ -9,6 +9,7 @@ import { destImage } from "@/lib/utils";
 import { SECTION_TYPES, ICON_OPTIONS } from "@/lib/section-types";
 import { Plus, Trash2, X, GripVertical, Eye, EyeOff, ChevronUp, ChevronDown, ChevronLeft, ArrowDown, ArrowUp, Image as ImageIcon } from "lucide-react";
 import AssetPicker from "@/components/admin/AssetPicker";
+import { useScrollLock } from "@/hooks/useScrollLock";
 
 interface Section {
   id: string;
@@ -34,6 +35,7 @@ export default function AdminSectionsPage() {
   const [editSection, setEditSection] = useState<Section | null>(null);
   const [sectionData, setSectionData] = useState<Record<string, unknown>>({});
   const [showAdd, setShowAdd] = useState(false);
+  useScrollLock(!!(editSection || showAdd));
 
   const { data: dest } = useQuery({
     queryKey: ["admin", "destinations", id],

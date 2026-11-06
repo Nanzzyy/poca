@@ -6,6 +6,7 @@ import { api } from "@/lib/api-client";
 import { Plus, Pencil, Trash2, X } from "lucide-react";
 import { useUIStore } from "@/stores";
 import type { AdminCategory } from "@/types";
+import { useScrollLock } from "@/hooks/useScrollLock";
 
 interface CategoryForm {
   name: string;
@@ -24,6 +25,7 @@ export default function AdminCategoriesPage() {
   const [edit, setEdit] = useState<AdminCategory | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState<CategoryForm>({ name: "", slug: "", icon: "" });
+  useScrollLock(!!(edit || showAdd));
 
   const save = useMutation({
     mutationFn: (body: CategoryForm) =>

@@ -6,6 +6,7 @@ import { api } from "@/lib/api-client";
 import { Plus, Pencil, Trash2, X, Upload, Brain, Eye, Archive, CheckCircle } from "lucide-react";
 import { useUIStore } from "@/stores";
 import type { AdminKnowledgeDoc } from "@/types";
+import { useScrollLock } from "@/hooks/useScrollLock";
 
 interface KnowledgeDetail extends AdminKnowledgeDoc {
   content: string;
@@ -54,6 +55,7 @@ export default function AdminKnowledgePage() {
 
   const [edit, setEdit] = useState<KnowledgeDetail | null>(null);
   const [showAdd, setShowAdd] = useState(false);
+  useScrollLock(!!(edit || showAdd));
   const [form, setForm] = useState<KnowledgeForm>({
     title: "",
     content: "",

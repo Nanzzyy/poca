@@ -4,6 +4,7 @@ import { useState, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api-client";
 import { Upload, X, Check, ChevronLeft, ChevronRight, Image as ImageIcon } from "lucide-react";
+import { useScrollLock } from "@/hooks/useScrollLock";
 
 interface AssetItem {
   id: string;
@@ -45,6 +46,7 @@ export default function AssetPicker({ open, onClose, onSelect, onConfirm, multip
     staleTime: 10_000,
   });
 
+  useScrollLock(open);
   if (!open) return null;
 
   const items = data?.items || [];

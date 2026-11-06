@@ -12,6 +12,7 @@ import { PlanCard } from "@/components/chat/PlanCard";
 import { FormattedText } from "@/components/chat/FormattedText";
 import { PlanInputForm } from "@/components/chat/PlanInputForm";
 import { Loading } from "@/components/ui";
+import { useScrollLock } from "@/hooks/useScrollLock";
 
 const QUICK_PROMPTS = [
   "Lagi jenuh nih, butuh rekomendasi liburan di Bali.",
@@ -52,6 +53,8 @@ function ChatPageInner() {
   const [pendingImg, setPendingImg] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  // Block background scroll while the mobile sidebar overlay is open.
+  useScrollLock(showSidebar);
 
   const messages = conv?.messages || (activeConv ? [] : []);
 

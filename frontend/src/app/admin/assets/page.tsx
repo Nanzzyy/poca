@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api-client";
 import { useUIStore } from "@/stores";
 import { Upload, Trash2, X, Tag, Image as ImageIcon, Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { useScrollLock } from "@/hooks/useScrollLock";
 
 interface AssetItem {
   id: string;
@@ -27,6 +28,7 @@ export default function AdminAssetsPage() {
   const [page, setPage] = useState(1);
   const [destFilter, setDestFilter] = useState("");
   const [editAsset, setEditAsset] = useState<AssetItem | null>(null);
+  useScrollLock(!!editAsset);
   const [altText, setAltText] = useState("");
   const [assetTags, setAssetTags] = useState("");
   const [uploading, setUploading] = useState(false);

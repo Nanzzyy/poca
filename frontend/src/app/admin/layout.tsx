@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useAuthStore } from "@/stores";
 import { useProfile } from "@/lib/queries";
 import { LayoutDashboard, MapPin, Users, BarChart3, Tags, LogOut, Menu, FileJson, Image as ImageIcon, Brain } from "lucide-react";
+import { useScrollLock } from "@/hooks/useScrollLock";
 
 const NAV = [
   { href: "/admin/knowledge", label: "AI Knowledge", icon: Brain },
@@ -27,6 +28,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const setAuthenticated = useAuthStore((s) => s.setAuthenticated);
   const { data: user } = useProfile();
   const [sidebar, setSidebar] = useState(false);
+  useScrollLock(sidebar);
 
   const isLogin = path === "/admin/login";
 

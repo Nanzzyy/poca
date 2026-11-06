@@ -7,6 +7,7 @@ import { useUIStore } from "@/stores";
 import { Plus, Pencil, Trash2, Search, X, Upload, Layers, FileJson, Sparkles, Image as ImageIcon } from "lucide-react";
 import Link from "next/link";
 import { destImage } from "@/lib/utils";
+import { useScrollLock } from "@/hooks/useScrollLock";
 import type {
   AdminDestination, AdminDestinationForm, AdminTemplate, AdminPoiItem,
   AdminEnrichResult, AdminEnrichJob, PaginatedResponse,
@@ -155,6 +156,7 @@ export default function AdminDestinationsPage() {
   const MAX_IMAGES = 3;
   const [imgItem, setImgItem] = useState<AdminDestination | null>(null);
   const [imgList, setImgList] = useState<string[]>([]);
+  useScrollLock(!!(editItem || showAdd || showPoi || imgItem));
 
   const openImages = (item: AdminDestination) => { setImgItem(item); setImgList([...(item.images || [])]); };
 
