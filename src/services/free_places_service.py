@@ -28,6 +28,16 @@ from src.repositories.destination_repo import DestinationRepository
 logger = logging.getLogger(__name__)
 
 USER_AGENT = "Poca-POI/1.0 (tourism seed; contact admin)"
+
+
+def _escape_sparql_string(value: str) -> str:
+    """Escape a value interpolated into a SPARQL string literal.
+
+    `name` here is admin-controlled (destination name, incl. via bulk
+    import) but still untrusted input to the outbound Wikidata query —
+    escape backslashes and double quotes so it can't break out of the
+    `"..."@id` literal and alter the query."""
+    return value.replace("\\", "\\\\").replace('"', '\\"')
 COMMONS_BASE = "https://commons.wikimedia.org/wiki/Special:FilePath/"
 NOMINATIM_SEARCH = "https://nominatim.openstreetmap.org/search"
 NOMINATIM_REVERSE = "https://nominatim.openstreetmap.org/reverse"
@@ -180,7 +190,7 @@ class FreePlacesService:
         client = await self._http()
         sparql = (
             "SELECT ?item ?itemLabel ?image ?desc WHERE {\n"
-            f'  ?item rdfs:label "{name}"@id .\n'
+            f'  ?item rdfs:label "{_escape_sparql_string(name)}"@id .\n'
             "  ?item wdt:P17 wd:Q252 .\n"           # country = Indonesia
             "  OPTIONAL { ?item wdt:P18 ?image . }\n"
             "  OPTIONAL { ?item schema:description ?desc . FILTER(LANG(?desc) = \"id\") }\n"
