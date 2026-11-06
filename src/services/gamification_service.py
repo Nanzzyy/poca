@@ -4,11 +4,19 @@ from sqlalchemy import select, func
 from src.domain.models.gamification import Achievement, UserAchievement, Badge, UserBadge
 from src.domain.models.review import Review
 from src.domain.models.trip import Trip
+from src.repositories.gamification_repo import GamificationRepository
 
 
 class GamificationService:
     def __init__(self, db: AsyncSession):
+        self.repo = GamificationRepository(db)
         self.db = db
+
+    async def get_achievements(self) -> list[Achievement]:
+        return await self.repo.get_all()
+
+    async def get_user_achievements(self, user_id: str) -> list[UserAchievement]:
+        return await self.repo.get_user_achievements(user_id)
 
     async def get_user_stats(self, user_id: str) -> dict:
         # XP and level
@@ -48,9 +56,7 @@ class GamificationService:
 
     async def check_achievements(self, user_id: str) -> list[Achievement]:
         """Check and award any newly unlocked achievements."""
-        stmt = select(Achievement)
-        result = await self.db.execute(stmt)
-        all_achievements = list(result.scalars().all())
+        all_achievements = await self.repo.get_all()
 
         # Get user's current achievements
         stmt = select(UserAchievement.achievement_id).where(UserAchievement.user_id == user_id)

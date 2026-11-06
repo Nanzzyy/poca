@@ -9,7 +9,6 @@ from src.domain.schemas.gamification import (
     UserAchievementResponse,
     UserStatsResponse,
 )
-from src.repositories.gamification_repo import GamificationRepository
 from src.services.gamification_service import GamificationService
 
 router = APIRouter(prefix="/gamification", tags=["gamification"])
@@ -20,8 +19,7 @@ async def get_my_achievements(
     user: User = Depends(require_user),
     db: AsyncSession = Depends(get_db),
 ) -> list[UserAchievementResponse]:
-    repo = GamificationRepository(db)
-    uas = await repo.get_user_achievements(user.id)
+    uas = await GamificationService(db).get_user_achievements(user.id)
     return [UserAchievementResponse.model_validate(ua) for ua in uas]
 
 
@@ -39,8 +37,7 @@ async def get_my_stats(
 async def list_achievements(
     db: AsyncSession = Depends(get_db),
 ) -> list[AchievementResponse]:
-    repo = GamificationRepository(db)
-    achievements = await repo.get_all()
+    achievements = await GamificationService(db).get_achievements()
     return [AchievementResponse.model_validate(a) for a in achievements]
 
 
