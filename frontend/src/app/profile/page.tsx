@@ -2,6 +2,8 @@
 
 export const dynamic = "force-dynamic";
 
+import { User as AuthIcon } from "lucide-react";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { useRouter } from "next/navigation";
 import { useProfile, useUserStats, useTrips, useAchievements, useLeaderboard, useMyFavorites, useMyReviews, useMyAchievements } from "@/lib/queries";
 import { useAuthStore } from "@/stores";
@@ -51,17 +53,9 @@ export default function ProfilePage() {
   });
 
   if (!user) {
-    return (
-      <div className="pt-20 flex flex-col items-center justify-center px-5 text-center h-screen">
-        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-primary-container flex items-center justify-center mb-4 shadow-lg">
-          <User className="w-8 h-8 text-on-primary" />
-        </div>
-        <p className="mb-4 text-body-md text-on-surface-variant">Masuk untuk melihat profilmu</p>
-        <button onClick={() => router.push("/auth/login")} className="px-6 py-2.5 bg-primary text-on-primary rounded-xl font-medium hover:bg-primary/90 transition-colors">
-          Masuk
-        </button>
-      </div>
-    );
+    return <div className="pt-20 min-h-screen px-5 flex items-center justify-center">
+      <EmptyState icon={AuthIcon} title="Profil kamu" description="Masuk untuk melihat profilmu" action={{ label: "Masuk", href: "/auth/login" }} />
+    </div>;
   }
 
   const level = stats?.level || 1;

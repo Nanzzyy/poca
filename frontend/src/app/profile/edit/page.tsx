@@ -1,5 +1,7 @@
 "use client";
 
+import { User as AuthIcon } from "lucide-react";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useProfile, useUpdatePreferences, useUploadAvatar, useRemoveAvatar } from "@/lib/queries";
@@ -28,12 +30,9 @@ export default function EditProfilePage() {
   const [website, setWebsite] = useState<string>((prefs.website as string) || "");
 
   if (!user) {
-    return (
-      <div className="pt-20 flex flex-col items-center justify-center px-5 text-center h-screen">
-        <p className="mb-4 text-body-md text-on-surface-variant">Masuk untuk mengedit profil</p>
-        <button onClick={() => router.push("/auth/login")} className="px-6 py-2.5 bg-primary text-on-primary rounded-xl font-bold">Masuk</button>
-      </div>
-    );
+    return <div className="pt-20 min-h-screen px-5 flex items-center justify-center">
+      <EmptyState icon={AuthIcon} title="Edit profil" description="Masuk untuk mengedit profil" action={{ label: "Masuk", href: "/auth/login" }} />
+    </div>;
   }
 
   const save = async () => {

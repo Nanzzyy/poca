@@ -2,6 +2,7 @@
 
 export const dynamic = "force-dynamic";
 
+import { EmptyState } from "@/components/ui/EmptyState";
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { usePublicProfile, useToggleFollow, useUserPosts, useProfile } from "@/lib/queries";
@@ -42,12 +43,9 @@ export default function PublicProfilePage() {
   }
 
   if (!profile) {
-    return (
-      <div className="pt-16 min-h-screen bg-background flex flex-col items-center justify-center gap-4">
-        <p className="text-on-surface-variant">Profil tidak ditemukan</p>
-        <button onClick={() => router.push("/")} className="text-primary font-bold">Kembali ke Beranda</button>
-      </div>
-    );
+    return <div className="pt-16 min-h-screen flex items-center justify-center">
+      <EmptyState icon={User} title="Profil tidak ditemukan" action={{ label: "Kembali ke Beranda", href: "/" }} />
+    </div>;
   }
 
   return (

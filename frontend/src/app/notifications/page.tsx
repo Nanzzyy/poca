@@ -2,6 +2,8 @@
 
 export const dynamic = "force-dynamic";
 
+import { Bell as AuthIcon } from "lucide-react";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { useRouter } from "next/navigation";
 import { useNotifications, useMarkAllRead, useProfile } from "@/lib/queries";
 import { useAuthStore } from "@/stores";
@@ -34,17 +36,9 @@ export default function NotificationsPage() {
   const markRead = useMarkAllRead();
 
   if (!isAuthenticated) {
-    return (
-      <div className="pt-20 flex flex-col items-center justify-center px-5 text-center h-screen">
-        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-primary-container flex items-center justify-center mb-4 shadow-lg">
-          <Bell className="w-8 h-8 text-on-primary" />
-        </div>
-        <p className="mb-4 text-body-md text-on-surface-variant">Masuk untuk melihat notifikasi</p>
-        <button onClick={() => router.push("/auth/login")} className="px-6 py-2.5 bg-primary text-on-primary rounded-xl font-bold hover:bg-primary/90 transition-colors">
-          Masuk
-        </button>
-      </div>
-    );
+    return <div className="pt-20 min-h-screen px-5 flex items-center justify-center">
+      <EmptyState icon={AuthIcon} title="Notifikasi" description="Masuk untuk melihat notifikasi" action={{ label: "Masuk", href: "/auth/login" }} />
+    </div>;
   }
 
   const items = notifications || [];
