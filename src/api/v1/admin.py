@@ -38,14 +38,10 @@ from src.services.audit_service import log_audit
 from src.repositories.conversation_repo import ConversationRepository
 from src.domain.models.conversation import Conversation
 from src.domain.models.audit_log import AuditLog
+from src.core.text_safety import escape_like as _escape_like
 import json
 import io
 import zipfile
-
-
-def _escape_like(q: str) -> str:
-    """Escape LIKE wildcards so user input is matched literally (SEC-09/SEC-23)."""
-    return q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
 def _extract_uploaded_text(filename: str, content: bytes) -> str:

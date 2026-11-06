@@ -2,6 +2,7 @@ from sqlalchemy import select, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from math import radians, sin, cos, acos
+from src.core.text_safety import escape_like
 from src.domain.models.destination import Destination, Category, DestinationSection
 
 
@@ -49,12 +50,13 @@ class DestinationRepository:
             query = query.where(Destination.is_active == True)
 
         if q:
+            needle = f"%{escape_like(q)}%"
             query = query.where(
                 or_(
-                    Destination.name.ilike(f"%{q}%"),
-                    Destination.description.ilike(f"%{q}%"),
-                    Destination.city.ilike(f"%{q}%"),
-                    Destination.country.ilike(f"%{q}%"),
+                    Destination.name.ilike(needle, escape="\\"),
+                    Destination.description.ilike(needle, escape="\\"),
+                    Destination.city.ilike(needle, escape="\\"),
+                    Destination.country.ilike(needle, escape="\\"),
                 )
             )
         if category_id:
@@ -66,11 +68,11 @@ class DestinationRepository:
         if rating_min:
             query = query.where(Destination.rating_avg >= rating_min)
         if city:
-            query = query.where(Destination.city.ilike(f"%{city}%"))
+            query = query.where(Destination.city.ilike(f"%{escape_like(city)}%", escape="\\"))
         if cities:
             # OR across multiple city names — used for region lookups where the
             # user says "bali" but the DB stores Denpasar/Badung/Tabanan/etc.
-            query = query.where(or_(*[Destination.city.ilike(f"%{c}%") for c in cities]))
+            query = query.where(or_(*[Destination.city.ilike(f"%{escape_like(c)}%", escape="\\") for c in cities]))
         if tags:
             query = query.where(Destination.tags.has_any(tags))
         if lat is not None and lng is not None and radius_km is not None:
@@ -169,7 +171,7 @@ class DestinationRepository:
             .options(selectinload(Destination.category))
         )
         if cities:
-            stmt = stmt.where(or_(*[Destination.city.ilike(f"%{c}%") for c in cities]))
+            stmt = stmt.where(or_(*[Destination.city.ilike(f"%{escape_like(c)}%", escape="\\") for c in cities]))
         if category_id:
             stmt = stmt.where(Destination.category_id == category_id)
         if exclude_category_ids:

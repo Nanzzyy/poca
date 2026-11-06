@@ -6,11 +6,8 @@ import json
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.text_safety import escape_like as _escape_like
 from src.domain.models.knowledge import AIKnowledgeDocument, AIKnowledgeRevision
-
-
-def _escape_like(q: str) -> str:
-    return q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
 class KnowledgeRepository:

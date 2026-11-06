@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.deps import get_db, require_user
+from src.core.text_safety import sanitize_html
 from src.domain.models.review import Review
 from src.domain.models.user import User
 from src.domain.schemas.review import (
@@ -99,12 +100,12 @@ async def create_review(
         user_id=user.id,
         destination_id=dest_id,
         rating=body.rating,
-        title=body.title,
-        content=body.content,
+        title=sanitize_html(body.title) if body.title else body.title,
+        content=sanitize_html(body.content) if body.content else body.content,
         photos=body.photos,
         visit_date=body.visit_date,
         actual_spending=body.actual_spending or {},
-        travel_tips=body.travel_tips,
+        travel_tips=sanitize_html(body.travel_tips) if body.travel_tips else body.travel_tips,
     )
     repo = ReviewRepository(db)
     review = await repo.create(review)
@@ -149,13 +150,13 @@ async def update_review(
     if body.rating is not None:
         review.rating = body.rating
     if body.title is not None:
-        review.title = body.title
+        review.title = sanitize_html(body.title)
     if body.content is not None:
-        review.content = body.content
+        review.content = sanitize_html(body.content)
     if body.photos is not None:
         review.photos = body.photos
     if body.travel_tips is not None:
-        review.travel_tips = body.travel_tips
+        review.travel_tips = sanitize_html(body.travel_tips)
     review.updated_at = datetime.now(timezone.utc)
 
     await repo.update(review)

@@ -11,27 +11,11 @@ from src.domain.schemas.post import (
     PostCreate,
     PostResponse,
 )
+from src.core.text_safety import sanitize_html as _sanitize_text
 from src.repositories.post_repo import CommentRepository, PostRepository
 from src.services.notification_service import create_notification
 
 router = APIRouter(tags=["posts"])
-
-
-def _sanitize_text(value: str) -> str:
-    """Strip HTML tags and control chars from user content (SEC-12).
-
-    Uses nh3 (ammonia) when available for robust sanitization; falls back to a
-    conservative tag-stripping regex so the app still runs without the extra
-    dependency.
-    """
-    try:
-        import nh3  # type: ignore
-        return nh3.clean(value, tags=set(), attributes={})
-    except ImportError:
-        import re
-        value = re.sub(r"<[^>]*>", "", value)
-        value = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f]", "", value)
-        return value
 
 
 def _to_post_response(p: Post) -> PostResponse:
