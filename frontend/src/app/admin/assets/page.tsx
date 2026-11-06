@@ -1,5 +1,6 @@
 "use client";
 
+import { QueryError } from "@/components/admin/QueryError";
 import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api-client";
@@ -33,7 +34,7 @@ export default function AdminAssetsPage() {
   const [assetTags, setAssetTags] = useState("");
   const [uploading, setUploading] = useState(false);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ["admin", "assets", page, destFilter],
     queryFn: () => api.get<{ items: AssetItem[]; total: number; page: number; size: number }>("/admin/assets", {
       params: { page, size: 30, destination_id: destFilter || undefined },
@@ -102,6 +103,8 @@ export default function AdminAssetsPage() {
 
   const total = data?.total || 0;
   const totalPages = Math.ceil(total / 30);
+
+  if (isError) return <QueryError onRetry={() => { void refetch(); }} retrying={isFetching} />;
 
   return (
     <div className="space-y-6">

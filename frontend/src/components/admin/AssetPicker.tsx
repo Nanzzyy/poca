@@ -1,5 +1,6 @@
 "use client";
 
+import { QueryError } from "@/components/admin/QueryError";
 import { useState, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api-client";
@@ -37,7 +38,7 @@ export default function AssetPicker({ open, onClose, onSelect, onConfirm, multip
   const [uploading, setUploading] = useState(false);
   const [picked, setPicked] = useState<Set<string>>(new Set(selected));
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ["admin", "assets", "picker", page, destinationId],
     queryFn: () => api.get<{ items: AssetItem[]; total: number; page: number; size: number }>("/admin/assets", {
       params: { page, size: 30, destination_id: destinationId || undefined },
@@ -107,7 +108,7 @@ export default function AssetPicker({ open, onClose, onSelect, onConfirm, multip
         </div>
 
         <div className="overflow-y-auto flex-1 -mx-1 px-1">
-          {isLoading ? (
+          {isError ? <QueryError onRetry={() => { void refetch(); }} retrying={isFetching} /> : isLoading ? (
             <p className="text-on-surface-variant text-[13px] text-center py-12">Memuat...</p>
           ) : items.length ? (
             <div className="grid grid-cols-4 sm:grid-cols-5 gap-2">

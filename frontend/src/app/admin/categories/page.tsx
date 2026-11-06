@@ -1,5 +1,6 @@
 "use client";
 
+import { QueryError } from "@/components/admin/QueryError";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api-client";
@@ -16,7 +17,7 @@ interface CategoryForm {
 
 export default function AdminCategoriesPage() {
   const qc = useQueryClient();
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ["admin", "categories"],
     queryFn: () => api.get<AdminCategory[]>("/admin/categories"),
     staleTime: 60_000,
@@ -40,6 +41,8 @@ export default function AdminCategoriesPage() {
 
   const openEdit = (c: AdminCategory) => { setEdit(c); setForm({ name: c.name, slug: c.slug, icon: c.icon ?? "" }); };
   const openAdd = () => { setShowAdd(true); setEdit(null); setForm({ name: "", slug: "", icon: "" }); };
+
+  if (isError) return <QueryError onRetry={() => { void refetch(); }} retrying={isFetching} />;
 
   return (
     <div>

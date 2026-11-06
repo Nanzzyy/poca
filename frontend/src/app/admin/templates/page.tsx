@@ -1,5 +1,6 @@
 "use client";
 
+import { QueryError } from "@/components/admin/QueryError";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api-client";
@@ -36,7 +37,7 @@ export default function AdminTemplatesPage() {
   useScrollLock(showAdd);
   const [form, setForm] = useState<Template & { importJson?: string }>({ ...emptyTemplate });
 
-  const { data: templates, isLoading } = useQuery({
+  const { data: templates, isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ["admin", "templates"],
     queryFn: () => api.get<Template[]>("/admin/templates"),
     staleTime: 30_000,
@@ -146,6 +147,8 @@ export default function AdminTemplatesPage() {
     reader.readAsText(file);
     e.target.value = "";
   };
+
+  if (isError) return <QueryError onRetry={() => { void refetch(); }} retrying={isFetching} />;
 
   return (
     <div className="space-y-6">

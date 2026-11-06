@@ -1,5 +1,6 @@
 "use client";
 
+import { QueryError } from "@/components/admin/QueryError";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api-client";
@@ -14,7 +15,7 @@ interface AdminTrafficResponse {
 
 export default function AdminTrafficPage() {
   const [page, setPage] = useState(1);
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ["admin", "traffic", page],
     queryFn: () => api.get<AdminTrafficResponse>("/admin/traffic", { params: { page, size: 50 } }),
     staleTime: 15_000,
@@ -22,6 +23,8 @@ export default function AdminTrafficPage() {
 
   const items = data?.items || [];
   const total = data?.total || 0;
+
+  if (isError) return <QueryError onRetry={() => { void refetch(); }} retrying={isFetching} />;
 
   return (
     <div>

@@ -1,5 +1,6 @@
 "use client";
 
+import { QueryError } from "@/components/admin/QueryError";
 import { FormField } from "@/components/admin/FormField";
 
 import { useEffect, useState } from "react";
@@ -32,7 +33,7 @@ export default function AdminDestinationsPage() {
   const [form, setForm] = useState<AdminDestinationForm>({});
   const [enrichJobId, setEnrichJobId] = useState<string | null>(null);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ["admin", "destinations", page, q],
     queryFn: () => api.get<AdminDestinationsResponse>(`/admin/destinations`, { params: { page, size: 15, q } }),
     staleTime: 30_000,
@@ -188,6 +189,8 @@ export default function AdminDestinationsPage() {
 
   const items = data?.items || [];
   const total = data?.total || 0;
+
+  if (isError) return <QueryError onRetry={() => { void refetch(); }} retrying={isFetching} />;
 
   return (
     <div>

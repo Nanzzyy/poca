@@ -1,5 +1,6 @@
 "use client";
 
+import { QueryError } from "@/components/admin/QueryError";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api-client";
@@ -23,7 +24,7 @@ export default function AdminUsersPage() {
   const qc = useQueryClient();
   const [page, setPage] = useState(1);
   const [q, setQ] = useState("");
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ["admin", "users", page, q],
     queryFn: () => api.get<AdminUsersResponse>("/admin/users", { params: { page, size: 15, q } }),
     staleTime: 30_000,
@@ -36,6 +37,8 @@ export default function AdminUsersPage() {
 
   const items = data?.items || [];
   const total = data?.total || 0;
+
+  if (isError) return <QueryError onRetry={() => { void refetch(); }} retrying={isFetching} />;
 
   return (
     <div>

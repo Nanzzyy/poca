@@ -1,13 +1,13 @@
 "use client";
 
+import { QueryError } from "@/components/admin/QueryError";
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api-client";
 import { useUIStore } from "@/stores";
-import { destImage } from "@/lib/utils";
-import { SECTION_TYPES, ICON_OPTIONS } from "@/lib/section-types";
-import { Plus, Trash2, X, GripVertical, Eye, EyeOff, ChevronUp, ChevronDown, ChevronLeft, ArrowDown, ArrowUp, Image as ImageIcon } from "lucide-react";
+import { SECTION_TYPES } from "@/lib/section-types";
+import { Plus, Trash2, X, GripVertical, Eye, EyeOff, ChevronLeft, ArrowDown, ArrowUp } from "lucide-react";
 import SectionFieldEditor from "@/components/admin/SectionFieldEditor";
 import { useScrollLock } from "@/hooks/useScrollLock";
 
@@ -37,13 +37,13 @@ export default function AdminSectionsPage() {
   const [showAdd, setShowAdd] = useState(false);
   useScrollLock(!!(editSection || showAdd));
 
-  const { data: dest } = useQuery({
+  const { data: dest, isError: destError, refetch: refetchDest, isFetching: fetchingDest } = useQuery({
     queryKey: ["admin", "destinations", id],
     queryFn: () => api.get<Destination>(`/destinations/${id}`),
     enabled: !!id,
   });
 
-  const { data: sections, isLoading } = useQuery({
+  const { data: sections, isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ["admin", "sections", id],
     queryFn: () => api.get<Section[]>(`/admin/destinations/${id}/sections`),
     enabled: !!id,
@@ -116,6 +116,8 @@ export default function AdminSectionsPage() {
   const availableTypes = Object.entries(SECTION_TYPES).filter(
     ([key]) => !sections?.some(s => s.section_type === key) || !SECTION_TYPES[key]?.auto
   );
+
+  if (isError || destError) return <QueryError onRetry={() => { void refetch(); void refetchDest(); }} retrying={isFetching || fetchingDest} />;
 
   return (
     <div className="space-y-6">
@@ -238,5 +240,3 @@ export default function AdminSectionsPage() {
     </div>
   );
 }
-
-

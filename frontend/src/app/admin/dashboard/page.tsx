@@ -1,12 +1,13 @@
 "use client";
 
+import { QueryError } from "@/components/admin/QueryError";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api-client";
 import { Users, MapPin, FileText, Eye, TrendingUp } from "lucide-react";
 import type { AdminDashboardData } from "@/types";
 
 export default function AdminDashboardPage() {
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ["admin", "dashboard"],
     queryFn: () => api.get<AdminDashboardData>("/admin/dashboard"),
     staleTime: 30_000,
@@ -22,6 +23,8 @@ export default function AdminDashboardPage() {
   ];
 
   const maxView = Math.max(1, ...(data?.weekly_views || []).map((v) => v.count));
+
+  if (isError) return <QueryError onRetry={() => { void refetch(); }} retrying={isFetching} />;
 
   return (
     <div>
