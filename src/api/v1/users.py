@@ -34,6 +34,7 @@ from src.domain.schemas.notification import NotificationResponse
 from src.repositories.notification_repo import NotificationRepository
 from src.services.notification_service import create_notification
 from src.services.audit_service import log_audit
+from src.services.token_service import is_refresh_token_revoked, revoke_refresh_token
 from sqlalchemy import func, select, delete
 
 ACCESS_COOKIE = "poca_access"
@@ -48,9 +49,12 @@ def verify_password(password: str, hashed: str) -> bool:
 router = APIRouter(tags=["users"])
 
 
-def _encode_token(user_id: str, expiry: timedelta, secret: str) -> str:
+def _encode_token(user_id: str, expiry: timedelta, secret: str, jti: str | None = None) -> str:
     expire = datetime.now(timezone.utc) + expiry
-    return jwt.encode({"sub": user_id, "exp": expire}, secret, algorithm=settings.jwt_algorithm)
+    payload = {"sub": user_id, "exp": expire}
+    if jti:
+        payload["jti"] = jti
+    return jwt.encode(payload, secret, algorithm=settings.jwt_algorithm)
 
 
 def create_access_token(user_id: str) -> str:
@@ -58,7 +62,10 @@ def create_access_token(user_id: str) -> str:
 
 
 def create_refresh_token(user_id: str) -> str:
-    return _encode_token(user_id, timedelta(days=settings.jwt_refresh_expiry_days), settings.jwt_refresh_secret)
+    return _encode_token(
+        user_id, timedelta(days=settings.jwt_refresh_expiry_days), settings.jwt_refresh_secret,
+        jti=str(uuid.uuid4()),
+    )
 
 
 # Deprecated — kept for backward compatibility with API clients.
@@ -161,6 +168,9 @@ async def refresh_token(
     except JWTError:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
 
+    if await is_refresh_token_revoked(payload.get("jti")):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token revoked")
+
     repo = UserRepository(db)
     user = await repo.get_by_id(user_id)
     if not user or not user.is_active:
@@ -172,7 +182,10 @@ async def refresh_token(
 
 
 @router.post("/auth/logout")
-async def logout() -> JSONResponse:
+async def logout(request: Request) -> JSONResponse:
+    refresh = request.cookies.get(REFRESH_COOKIE)
+    if refresh:
+        await revoke_refresh_token(refresh)
     resp = JSONResponse(content={"ok": True})
     _clear_auth_cookies(resp)
     return resp
