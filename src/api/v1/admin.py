@@ -12,7 +12,6 @@ from src.core.config import settings
 from src.domain.models.user import User
 from src.domain.models.destination import Category, Destination, DestinationSection
 from src.domain.models.template import PageTemplate
-from src.domain.models.asset import Asset
 from src.domain.models.post import Post
 from src.domain.models.page_view import PageView
 from src.domain.section_types import SECTION_TYPES
@@ -30,6 +29,7 @@ from src.repositories.destination_repo import DestinationRepository
 from src.repositories.knowledge_repo import KnowledgeRepository
 from src.domain.models.knowledge import AIKnowledgeDocument
 from src.domain.schemas.knowledge import KnowledgeCreate, KnowledgeUpdate, knowledge_item
+from src.services.asset_service import AssetService
 from src.services.destination_service import DestinationService
 from src.services.knowledge_service import KnowledgeService
 from src.services.ai_conversation_service import AIConversationService
@@ -883,50 +883,18 @@ async def admin_upload_asset(
     if len(content) > MAX_FILE_SIZE:
         raise HTTPException(400, detail="File too large (max 10MB)")
 
-    ext = os.path.splitext(file.filename or "file")[1] or ".bin"
-    ext = os.path.basename(ext)
-    if not re.fullmatch(r"\.[a-zA-Z0-9]{1,10}", ext):
-        ext = ".bin"
-    asset_uuid = _uuid.uuid4()
-    filename = f"{asset_uuid.hex}{ext}"
-
-    # Determine subdirectory — destination_id/section_id must be valid UUIDs to
-    # prevent path traversal via the subdirectory component.
-    subdir = "general"
-    if destination_id:
-        try:
-            subdir = str(_uuid.UUID(destination_id))
-        except ValueError:
-            raise HTTPException(400, detail="Invalid destination_id")
-    dest_dir = os.path.join(UPLOAD_DIR, subdir)
-    os.makedirs(dest_dir, exist_ok=True)
-
-    file_path = os.path.join(dest_dir, filename)
-    with open(file_path, "wb") as f:
-        f.write(content)
-
-    relative_path = f"uploads/assets/{subdir}/{filename}"
-    base_url = getattr(settings, "asset_base_url", None) or f"/static"
-    url = f"{base_url}/{relative_path}"
-
     parsed_tags = [t.strip() for t in tags.split(",") if t.strip()] if tags else []
+    base_url = getattr(settings, "asset_base_url", None) or "/static"
 
-    asset = Asset(
-        id=asset_uuid,
-        filename=filename,
-        original_name=file.filename or "upload",
-        mime_type=file.content_type,
-        size_bytes=len(content),
-        path=relative_path,
-        url=url,
-        destination_id=destination_id,
-        section_id=section_id,
-        alt_text=alt_text or None,
-        tags=parsed_tags,
-        uploaded_by=_u.id,
-    )
-    db.add(asset)
-    await db.flush()
+    try:
+        asset = await AssetService(db).upload(
+            content=content, original_filename=file.filename, content_type=file.content_type,
+            upload_dir=UPLOAD_DIR, base_url=base_url,
+            destination_id=destination_id, section_id=section_id,
+            alt_text=alt_text, tags=parsed_tags, uploaded_by=_u.id,
+        )
+    except ValueError as exc:
+        raise HTTPException(400, detail=str(exc))
 
     return {
         "id": str(asset.id),
@@ -947,33 +915,9 @@ async def admin_list_assets(
     db: AsyncSession = Depends(get_db),
     _u: User = admin,
 ) -> dict:
-    stmt = select(Asset)
-    if destination_id:
-        stmt = stmt.where(Asset.destination_id == destination_id)
-    if section_id:
-        stmt = stmt.where(Asset.section_id == section_id)
-
-    total_stmt = select(func.count()).select_from(stmt.subquery())
-    total = (await db.execute(total_stmt)).scalar() or 0
-
-    stmt = stmt.order_by(Asset.created_at.desc()).offset((page - 1) * size).limit(size)
-    rows = (await db.execute(stmt)).scalars().all()
-
-    items = []
-    for a in rows:
-        if tag and tag not in (a.tags or []):
-            continue
-        items.append({
-            "id": str(a.id), "filename": a.filename, "original_name": a.original_name,
-            "url": a.url, "mime_type": a.mime_type, "size_bytes": a.size_bytes,
-            "destination_id": str(a.destination_id) if a.destination_id else None,
-            "section_id": str(a.section_id) if a.section_id else None,
-            "alt_text": a.alt_text, "tags": a.tags or [],
-            "uploaded_by": str(a.uploaded_by) if a.uploaded_by else None,
-            "created_at": a.created_at.isoformat() if a.created_at else None,
-        })
-
-    return {"items": items, "total": total, "page": page, "size": size}
+    return await AssetService(db).list_assets(
+        destination_id=destination_id, section_id=section_id, tag=tag, page=page, size=size,
+    )
 
 
 @router.put("/assets/{asset_id}")
@@ -983,21 +927,13 @@ async def admin_update_asset(
     db: AsyncSession = Depends(get_db),
     _u: User = admin,
 ) -> dict:
-    asset = (await db.execute(
-        select(Asset).where(Asset.id == asset_id)
-    )).scalar_one_or_none()
-    if not asset:
-        raise HTTPException(404)
-
-    if body.alt_text is not None:
-        asset.alt_text = body.alt_text
-    if body.tags is not None:
-        asset.tags = body.tags
-    if body.destination_id is not None:
-        asset.destination_id = body.destination_id
-    if body.section_id is not None:
-        asset.section_id = body.section_id
-    await db.flush()
+    try:
+        await AssetService(db).update_asset(
+            asset_id, alt_text=body.alt_text, tags=body.tags,
+            destination_id=body.destination_id, section_id=body.section_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(404, detail=str(exc))
     return {"ok": True}
 
 
@@ -1007,22 +943,10 @@ async def admin_delete_asset(
     db: AsyncSession = Depends(get_db),
     _u: User = admin,
 ) -> dict:
-    asset = (await db.execute(
-        select(Asset).where(Asset.id == asset_id)
-    )).scalar_one_or_none()
-    if not asset:
-        raise HTTPException(404)
-
-    # Delete file from disk
-    full_path = os.path.join(os.path.dirname(UPLOAD_DIR), "..", asset.path)
     try:
-        if os.path.isfile(full_path):
-            os.remove(full_path)
-    except OSError:
-        pass
-
-    await db.delete(asset)
-    await db.flush()
+        await AssetService(db).delete_asset(asset_id, upload_dir=UPLOAD_DIR)
+    except ValueError as exc:
+        raise HTTPException(404, detail=str(exc))
     return {"ok": True}
 
 
@@ -1032,22 +956,7 @@ async def admin_bulk_tag_assets(
     db: AsyncSession = Depends(get_db),
     _u: User = admin,
 ) -> dict:
-    updated = 0
-    for asset_id in body.asset_ids:
-        asset = (await db.execute(
-            select(Asset).where(Asset.id == asset_id)
-        )).scalar_one_or_none()
-        if not asset:
-            continue
-        if body.mode == "replace":
-            asset.tags = body.tags
-        else:
-            existing = set(asset.tags or [])
-            existing.update(body.tags)
-            asset.tags = list(existing)
-        updated += 1
-
-    await db.flush()
+    updated = await AssetService(db).bulk_tag(body.asset_ids, mode=body.mode, tags=body.tags)
     return {"updated": updated}
 
 
