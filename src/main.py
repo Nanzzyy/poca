@@ -26,22 +26,24 @@ from src.api.v1 import (
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Auto-create tables on startup (idempotent) — dev only. Production relies
-    # on Alembic migrations (see entrypoint.sh).
+    # Auto-create tables + seed sample/demo data on startup — dev only.
+    # Production relies on Alembic migrations (see entrypoint.sh) and must
+    # never auto-seed: a fresh production database should start empty, not
+    # with sample destinations or a demo login.
     if settings.debug:
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
 
-    # Seed full data on first deploy (categories + destinations + templates)
-    from sqlalchemy import text
-    from src.core.database import async_session_factory
-    async with async_session_factory() as db:
-        r = await db.execute(text("SELECT count(*) FROM categories"))
-        if r.scalar() == 0:
-            from seed.seed_destinations import seed as seed_dest
-            from seed.seed_templates import seed as seed_tmpl
-            await seed_dest()
-            await seed_tmpl()
+        from sqlalchemy import text
+        from src.core.database import async_session_factory
+        async with async_session_factory() as db:
+            r = await db.execute(text("SELECT count(*) FROM categories"))
+            if r.scalar() == 0:
+                from seed.seed_destinations import seed as seed_dest, seed_demo_user
+                from seed.seed_templates import seed as seed_tmpl
+                await seed_dest()
+                await seed_tmpl()
+                await seed_demo_user()
 
     await init_redis()
     yield

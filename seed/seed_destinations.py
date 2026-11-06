@@ -222,16 +222,6 @@ async def seed():
             )
             db.add(dest)
 
-        # Demo user
-        demo = User(
-            email="demo@poca.app",
-            username="demo",
-            role="admin",
-            hashed_password=bcrypt.hashpw("Demo1234!".encode(), bcrypt.gensalt()).decode(),
-            preferences={"budget": "mid", "interests": ["alam", "pantai", "budaya"], "travel_style": "comfort"},
-        )
-        db.add(demo)
-
         # Achievements
         for a in ACHIEVEMENTS:
             ach = Achievement(code=a["code"], name=a["name"], description=a["desc"], icon=a["icon"], xp_reward=a["xp"])
@@ -243,8 +233,40 @@ async def seed():
     print(f"  Categories: {len(CATEGORIES)}")
     print(f"  Destinations: {len(DESTINATIONS)}")
     print(f"  Achievements: {len(ACHIEVEMENTS)}")
-    print(f"\nDemo login: demo@poca.app / Demo1234!")
 
+    await engine.dispose()
+
+
+async def seed_demo_user() -> None:
+    """Create a demo/dev-only login. Intentionally NOT called from seed() —
+    that function also backs the admin-triggered /admin/seed endpoint, which
+    is reachable in any environment. Only the debug-gated startup path in
+    src/main.py may call this, so a demo account can never be created (or
+    re-created) outside local development."""
+    if not settings.debug:
+        return
+
+    engine = create_async_engine(settings.database_url, echo=False)
+    session_factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+
+    async with session_factory() as db:
+        existing = await db.execute(select(User).where(User.email == "demo@poca.app"))
+        if existing.scalar_one_or_none():
+            print("Demo user already exists. Skipping.")
+            await engine.dispose()
+            return
+
+        demo = User(
+            email="demo@poca.app",
+            username="demo",
+            role="user",
+            hashed_password=bcrypt.hashpw("Demo1234!".encode(), bcrypt.gensalt()).decode(),
+            preferences={"budget": "mid", "interests": ["alam", "pantai", "budaya"], "travel_style": "comfort"},
+        )
+        db.add(demo)
+        await db.commit()
+
+    print("\nDemo login: demo@poca.app / Demo1234! (debug only, role=user)")
     await engine.dispose()
 
 

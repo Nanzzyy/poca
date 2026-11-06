@@ -535,8 +535,9 @@ async def admin_enrich_free_status(job_id: str, _u: User = admin):
 
 @router.post("/seed")
 async def admin_seed_all(db: AsyncSession = Depends(get_db), _u: User = admin):
-    """Seed destinations + categories + demo user + achievements + templates.
-    Idempotent — skips if data already exists."""
+    """Seed destinations + categories + achievements + templates.
+    Idempotent — skips if data already exists. Does not create the debug-only
+    demo user (see seed.seed_destinations.seed_demo_user)."""
     from seed.seed_destinations import seed as seed_dest
     from seed.seed_templates import seed as seed_tmpl
     result = {"destinations": "skipped", "templates": "skipped"}
