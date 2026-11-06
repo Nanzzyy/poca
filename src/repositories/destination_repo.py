@@ -43,6 +43,15 @@ class DestinationRepository:
         for admin mutation endpoints that don't need category/sections."""
         return await self.db.get(Destination, dest_id)
 
+    async def get_existing_slugs(self, slugs: set[str]) -> set[str]:
+        """Batch slug-uniqueness check — avoids an N+1 SELECT-per-item loop
+        (e.g. bulk import)."""
+        if not slugs:
+            return set()
+        stmt = select(Destination.slug).where(Destination.slug.in_(slugs))
+        result = await self.db.execute(stmt)
+        return set(result.scalars().all())
+
     # ── Sections (admin) ────────────────────────────────────────────────
 
     async def get_sections(self, dest_id: str) -> list[DestinationSection]:

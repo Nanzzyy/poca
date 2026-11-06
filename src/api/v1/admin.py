@@ -436,42 +436,7 @@ async def admin_bulk_import(
     if template_id:
         template = await db.get(PageTemplate, template_id)
 
-    count = 0
-    errors: list[dict] = []
-    for i, item in enumerate(items):
-        name = item.name.strip()
-        try:
-            slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
-            existing = (await db.execute(select(Destination).where(Destination.slug == slug))).scalar_one_or_none()
-            if existing:
-                slug = f"{slug}-{_uuid.uuid4().hex[:6]}"
-            dest_id = _uuid.uuid4()
-            dest = Destination(
-                id=dest_id, name=name, slug=slug,
-                category_id=item.category_id,
-                latitude=item.latitude, longitude=item.longitude,
-                country=item.country, city=item.city,
-                address=item.address, description=item.description,
-                images=item.images, tags=item.tags,
-                price_level=item.price_level, rating_avg=item.rating_avg,
-            )
-            db.add(dest)
-
-            if template:
-                for s in template.sections:
-                    db.add(DestinationSection(
-                        destination_id=dest_id,
-                        section_type=s.get("type", ""),
-                        title=s.get("title"),
-                        order=s.get("order", 0),
-                        data=s.get("defaults", {}),
-                    ))
-
-            count += 1
-        except Exception as e:  # per-item construction error — record, don't abort batch
-            errors.append({"index": i, "name": name, "error": str(e)})
-
-    await db.flush()
+    count, errors = await DestinationService(db).bulk_import(items, template)
     return {"imported": count, "skipped": len(errors), "errors": errors[:50]}
 
 

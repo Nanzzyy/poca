@@ -1,3 +1,6 @@
+import re
+import uuid
+
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
@@ -92,6 +95,58 @@ class DestinationService:
 
         await self.repo.db.flush()
         return len(template.sections)
+
+    async def bulk_import(self, items: list, template) -> tuple[int, list[dict]]:
+        """Create many destinations in one request. Slug-uniqueness is
+        checked with a single batched query up front (get_existing_slugs)
+        instead of one SELECT per item — also incidentally fixes a latent
+        bug where two items with the same name in the same batch could both
+        resolve to the same slug (neither saw the other, since nothing was
+        flushed until the end)."""
+        candidates = []
+        for i, item in enumerate(items):
+            name = item.name.strip()
+            slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+            candidates.append((i, name, slug, item))
+
+        used_slugs = await self.repo.get_existing_slugs({c[2] for c in candidates})
+
+        count = 0
+        errors: list[dict] = []
+        for i, name, slug, item in candidates:
+            try:
+                if slug in used_slugs:
+                    slug = f"{slug}-{uuid.uuid4().hex[:6]}"
+                used_slugs.add(slug)
+
+                dest_id = uuid.uuid4()
+                dest = Destination(
+                    id=dest_id, name=name, slug=slug,
+                    category_id=item.category_id,
+                    latitude=item.latitude, longitude=item.longitude,
+                    country=item.country, city=item.city,
+                    address=item.address, description=item.description,
+                    images=item.images, tags=item.tags,
+                    price_level=item.price_level, rating_avg=item.rating_avg,
+                )
+                self.repo.db.add(dest)
+
+                if template:
+                    for s in template.sections:
+                        self.repo.db.add(DestinationSection(
+                            destination_id=dest_id,
+                            section_type=s.get("type", ""),
+                            title=s.get("title"),
+                            order=s.get("order", 0),
+                            data=s.get("defaults", {}),
+                        ))
+
+                count += 1
+            except Exception as e:  # per-item construction error — record, don't abort batch
+                errors.append({"index": i, "name": name, "error": str(e)})
+
+        await self.repo.db.flush()
+        return count, errors
 
     async def get_local_guide(self, destination_id: str) -> dict:
         dest = await self.repo.get_by_id(destination_id)
