@@ -115,7 +115,7 @@ export default function PublicProfilePage() {
                     {p.media[0].type === "video" ? (
                       <video src={p.media[0].url} className="w-full h-full object-cover" muted />
                     ) : (
-                      <img src={p.media[0].url} alt="" className="w-full h-full object-cover" />
+                      <img src={p.media[0].url} alt={p.content ? `Foto postingan: ${p.content.slice(0, 80)}` : "Foto postingan"} className="w-full h-full object-cover" />
                     )}
                   </div>
                 )}

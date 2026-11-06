@@ -195,7 +195,7 @@ export default function AdminAssetsPage() {
 
             <div className="mb-4 rounded-xl overflow-hidden bg-surface-container-high">
               {editAsset.mime_type.startsWith("image/") ? (
-                <img src={editAsset.url} alt="" className="w-full max-h-48 object-contain" />
+                <img src={editAsset.url} alt={editAsset.alt_text || editAsset.original_name} className="w-full max-h-48 object-contain" />
               ) : (
                 <div className="h-32 flex items-center justify-center"><ImageIcon className="w-10 h-10 text-on-surface-variant/30" /></div>
               )}

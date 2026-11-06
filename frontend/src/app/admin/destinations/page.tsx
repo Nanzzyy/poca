@@ -343,7 +343,7 @@ export default function AdminDestinationsPage() {
               {poiItems.map((p, i) => (
                 <div key={i} className="flex items-center gap-3 p-3 border border-outline-variant/20 rounded-xl">
                   {p.image_url
-                    ? <img src={p.image_url} alt={p.name} className="w-16 h-16 rounded-lg object-cover bg-surface-container-low" />
+                    ? <img src={p.image_url} alt={`Foto ${p.name}`} className="w-16 h-16 rounded-lg object-cover bg-surface-container-low" />
                     : <div className="w-16 h-16 rounded-lg bg-surface-container-low flex items-center justify-center text-outline"><Layers className="w-5 h-5" /></div>}
                   <div className="flex-1 min-w-0">
                     <p className="text-[13px] font-bold truncate">{p.name}</p>
@@ -379,7 +379,7 @@ export default function AdminDestinationsPage() {
               <div className="grid grid-cols-3 gap-3 mb-4">
                 {imgList.map((url, i) => (
                   <div key={i} className="relative">
-                    <img src={destImage([url], imgItem.name)} alt="" className="w-full aspect-square object-cover rounded-lg border border-outline-variant" />
+                    <img src={destImage([url], imgItem.name)} alt={`Foto ${imgItem.name} ${i + 1}`} className="w-full aspect-square object-cover rounded-lg border border-outline-variant" />
                     <button onClick={() => setImgList(imgList.filter((_, j) => j !== i))}
                       className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-error text-white flex items-center justify-center"><X className="w-3 h-3" /></button>
                   </div>

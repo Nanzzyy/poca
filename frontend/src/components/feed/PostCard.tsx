@@ -102,7 +102,7 @@ export function PostCard({ post }: { post: Post }) {
                 {m.type === "video" ? (
                   <video src={m.url} className="w-full h-full object-cover" muted loop controls={multi} />
                 ) : (
-                  <img className="w-full h-full object-cover" src={m.url} alt="" loading="lazy" />
+                  <img className="w-full h-full object-cover" src={m.url} alt={post.content ? `Foto postingan: ${post.content.slice(0, 80)}` : "Foto postingan"} loading="lazy" />
                 )}
               </div>
             ))}

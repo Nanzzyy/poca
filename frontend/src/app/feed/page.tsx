@@ -99,7 +99,7 @@ export default function FeedPage() {
                     {media.map((m, i) => (
                       <div key={i} className="relative aspect-square rounded-xl overflow-hidden bg-surface-container">
                         {m.type === "image" ? (
-                          <img src={m.url} alt="" className="w-full h-full object-cover" />
+                          <img src={m.url} alt="Preview media yang akan diposting" className="w-full h-full object-cover" />
                         ) : (
                           <video src={m.url} className="w-full h-full object-cover" muted />
                         )}

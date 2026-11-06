@@ -268,7 +268,7 @@ export default function ProfilePage() {
                       className="bg-surface-container-lowest rounded-2xl overflow-hidden hover:-translate-y-1 transition-all cursor-pointer group shadow-sm border border-outline-variant/20"
                     >
                       <div className="h-36 overflow-hidden">
-                        <img className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" src={destImage(d.images, d.name)} alt={d.name} />
+                        <img className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" src={destImage(d.images, d.name)} alt={`Foto ${d.name}`} />
                       </div>
                       <div className="p-4">
                         <h3 className="text-[16px] font-semibold group-hover:text-primary transition-colors">{d.name}</h3>

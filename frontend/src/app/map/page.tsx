@@ -168,7 +168,7 @@ export default function MapPage() {
                     className="group relative flex flex-col bg-surface-container-lowest rounded-xl border border-outline-variant/30 shadow-sm hover:shadow-md transition-all cursor-pointer overflow-hidden active:scale-[0.99]"
                   >
                     <div className="h-48 relative overflow-hidden">
-                      <img className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" src={destImage(d.images, d.name)} alt={d.name} />
+                      <img className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" src={destImage(d.images, d.name)} alt={`Foto ${d.name}`} />
                       <div className="absolute top-3 right-3 bg-primary/90 backdrop-blur-sm text-on-primary px-2 py-1 rounded-lg flex items-center gap-1">
                         <Star className="w-3.5 h-3.5 fill-current" />
                         <span className="text-[10px] font-bold">{d.rating_avg}</span>
@@ -212,7 +212,7 @@ export default function MapPage() {
                     className="flex gap-4 bg-surface-container-lowest p-3 rounded-xl border border-outline-variant/20 hover:border-tertiary/30 transition-all cursor-pointer group active:scale-[0.99]"
                   >
                     <div className="w-24 h-24 rounded-lg overflow-hidden flex-shrink-0">
-                      <img className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" src={destImage(d.images, d.name)} alt={d.name} />
+                      <img className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" src={destImage(d.images, d.name)} alt={`Foto ${d.name}`} />
                     </div>
                     <div className="flex flex-col justify-center min-w-0">
                       <h4 className="text-[16px] font-bold text-on-surface truncate">{d.name}</h4>
@@ -269,7 +269,7 @@ export default function MapPage() {
           {selectedMarker && showPopover && (
             <div className="absolute top-[15%] left-[10%] w-72 bg-white/80 backdrop-blur-md rounded-2xl shadow-2xl z-30 p-4 border border-primary/20">
               <div className="relative h-32 rounded-xl overflow-hidden mb-3">
-                <img className="w-full h-full object-cover" src={selectedMarker.image || destImage([], selectedMarker.name)} alt={selectedMarker.name} />
+                <img className="w-full h-full object-cover" src={selectedMarker.image || destImage([], selectedMarker.name)} alt={`Foto ${selectedMarker.name}`} />
                 <button onClick={() => setShowPopover(null)} className="absolute top-2 right-2 bg-white/20 hover:bg-white/40 backdrop-blur-md rounded-full p-1 text-white transition-all">
                   <X className="w-4 h-4" />
                 </button>

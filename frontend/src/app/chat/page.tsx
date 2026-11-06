@@ -370,7 +370,7 @@ function ChatPageInner() {
             <div className="flex-1 relative">
               {pendingImg && (
                 <div className="mb-2 inline-block relative">
-                  <img src={pendingImg} alt="" className="h-20 w-20 object-cover rounded-xl border border-outline-variant" />
+                  <img src={pendingImg} alt="Lampiran gambar yang akan dikirim" className="h-20 w-20 object-cover rounded-xl border border-outline-variant" />
                   <button onClick={() => setPendingImg(null)} className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-error text-white flex items-center justify-center"><X className="w-3 h-3" /></button>
                 </div>
               )}

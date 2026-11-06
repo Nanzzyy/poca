@@ -25,7 +25,7 @@ export function DestinationCard({ destination: d, onClick }: { destination: Dest
       className="group bg-surface-container-lowest rounded-2xl border border-outline-variant/30 overflow-hidden shadow-sm hover:shadow-md transition-all active:scale-[0.98] cursor-pointer"
     >
       <div className={`relative h-48 sm:h-52 bg-surface-container-low overflow-hidden`}>
-        <img src={image} alt={d.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" />
+        <img src={image} alt={`Foto ${d.name}`} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" />
 
         {/* Favorite button */}
         <button

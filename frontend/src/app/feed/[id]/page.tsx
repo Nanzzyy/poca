@@ -114,7 +114,7 @@ export default function PostDetailPage() {
                     {m.type === "video" ? (
                       <video src={m.url} className="w-full h-full object-cover" muted loop controls={post.media.length > 1} />
                     ) : (
-                      <img className="w-full h-full object-cover" src={m.url} alt="" />
+                      <img className="w-full h-full object-cover" src={m.url} alt={post.content ? `Foto postingan: ${post.content.slice(0, 80)}` : "Foto postingan"} />
                     )}
                   </div>
                 ))}

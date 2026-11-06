@@ -350,7 +350,7 @@ function SectionFieldEditor({ sectionType, data, onChange }: {
               <label className="text-[11px] font-medium text-on-surface-variant uppercase tracking-wider">{field.label}</label>
               {url && (
                 <div className="mt-1 mb-2 relative inline-block">
-                  <img src={destImage([url], "Poca")} alt="" className="w-24 h-24 object-cover rounded-lg border border-outline-variant" />
+                  <img src={destImage([url], "Poca")} alt={`Preview gambar ${field.label}`} className="w-24 h-24 object-cover rounded-lg border border-outline-variant" />
                   <button onClick={() => setField(field.key, "")}
                     className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-error text-white flex items-center justify-center"><X className="w-3 h-3" /></button>
                 </div>
@@ -383,7 +383,7 @@ function SectionFieldEditor({ sectionType, data, onChange }: {
                 <div className="mt-2 grid grid-cols-5 gap-2">
                   {imgs.map((url, i) => (
                     <div key={i} className="relative">
-                      <img src={destImage([url], "Poca")} alt="" className="w-full aspect-square object-cover rounded-lg border border-outline-variant" />
+                      <img src={destImage([url], "Poca")} alt={`Preview gambar ${field.label} ${i + 1}`} className="w-full aspect-square object-cover rounded-lg border border-outline-variant" />
                       <button onClick={() => setField(field.key, imgs.filter((_, j) => j !== i))}
                         className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-error text-white flex items-center justify-center"><X className="w-3 h-3" /></button>
                     </div>
@@ -459,7 +459,7 @@ function SectionFieldEditor({ sectionType, data, onChange }: {
                         ) : f.type === "asset" ? (
                           <div className="flex items-center gap-2 mt-0.5">
                             {item[f.key] ? (
-                              <img src={String(item[f.key])} alt="" className="w-12 h-12 object-cover rounded border border-outline-variant" />
+                              <img src={String(item[f.key])} alt={`Preview ${f.label}`} className="w-12 h-12 object-cover rounded border border-outline-variant" />
                             ) : (
                               <div className="w-12 h-12 rounded border border-outline-variant bg-surface-container-high flex items-center justify-center"><ImageIcon className="w-4 h-4 text-on-surface-variant/30" /></div>
                             )}

@@ -88,7 +88,7 @@ export default function DestinationPage() {
             <img
               className="w-full h-full object-cover transition-opacity duration-300"
               src={imgs[imgIdx]}
-              alt={dest.name}
+              alt={`Foto ${dest.name}, gambar ${imgIdx + 1} dari ${imgs.length}`}
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
             {rawImgs.length > 1 && (
@@ -140,7 +140,7 @@ export default function DestinationPage() {
                 onClick={() => setImgIdx(rawImgs.length > n ? n : 0)}
                 className={`rounded-2xl overflow-hidden shadow-md relative group transition-all ${imgIdx === n || (rawImgs.length <= n && imgIdx === 0) ? "ring-2 ring-primary" : ""}`}
               >
-                <img className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" src={imgs[n] || imgs[0]} alt="" />
+                <img className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" src={imgs[n] || imgs[0]} alt={`Lihat foto ${rawImgs.length > n ? n + 1 : 1} ${dest.name}`} />
               </button>
             ))}
           </div>
@@ -227,7 +227,7 @@ export default function DestinationPage() {
                 {(nearby && nearby.length > 0 ? nearby : []).slice(0, 3).map((place, i) => (
                   <div key={i} onClick={() => router.push(`/destination/${place.id}`)} className="group flex gap-4 items-center cursor-pointer">
                     <div className="w-20 h-20 rounded-xl overflow-hidden shrink-0 shadow-sm">
-                      <img className="w-full h-full object-cover group-hover:scale-110 transition-transform" src={destImage(place.images, place.name)} alt={place.name} />
+                      <img className="w-full h-full object-cover group-hover:scale-110 transition-transform" src={destImage(place.images, place.name)} alt={`Foto ${place.name}`} />
                     </div>
                     <div>
                       <h4 className="text-[14px] font-bold group-hover:text-primary transition-colors">{place.name}</h4>

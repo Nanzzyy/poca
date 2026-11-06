@@ -114,7 +114,7 @@ export default function Home() {
             return (
               <div key={d.id} onClick={() => router.push(`/destination/${d.id}`)} className="group bg-white rounded-2xl border border-outline-variant/30 overflow-hidden shadow-sm hover:shadow-md transition-all active:scale-[0.98] cursor-pointer">
                 <div className="relative h-48 overflow-hidden">
-                  <img className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" src={destImage(d.images, d.name)} alt={d.name} />
+                  <img className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" src={destImage(d.images, d.name)} alt={`Foto ${d.name}`} />
                   <button onClick={e => { e.stopPropagation(); onLike(d.id); }} className={`absolute top-3 right-3 w-8 h-8 rounded-full backdrop-blur-sm flex items-center justify-center transition-all ${liked ? "bg-red-500 text-white" : "bg-white/50 text-on-surface hover:bg-white"}`}><Heart className={`w-5 h-5 ${liked ? "fill-current" : ""}`} /></button>
                   {d.rating_avg >= 4.9 && <div className="absolute bottom-3 left-3 px-2 py-1 bg-primary/90 text-white text-[10px] font-bold rounded">RECOMMENDED</div>}
                 </div>
