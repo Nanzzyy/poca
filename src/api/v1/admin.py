@@ -1,19 +1,16 @@
 import os
-import uuid as _uuid
 import re
 
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, status, Request
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import func, select
-from datetime import datetime, timedelta, timezone
+from sqlalchemy import select
+from datetime import datetime, timezone
 
 from src.api.deps import get_db, require_admin
 from src.core.config import settings
 from src.domain.models.user import User
-from src.domain.models.destination import Category, Destination, DestinationSection
+from src.domain.models.destination import Destination, DestinationSection
 from src.domain.models.template import PageTemplate
-from src.domain.models.post import Post
-from src.domain.models.page_view import PageView
 from src.domain.section_types import SECTION_TYPES
 from src.domain.schemas.admin import (
     TemplateCreate, TemplateUpdate, TemplateResponse,
@@ -29,6 +26,7 @@ from src.repositories.destination_repo import DestinationRepository
 from src.repositories.knowledge_repo import KnowledgeRepository
 from src.domain.models.knowledge import AIKnowledgeDocument
 from src.domain.schemas.knowledge import KnowledgeCreate, KnowledgeUpdate, knowledge_item
+from src.services.analytics_service import AnalyticsService
 from src.services.asset_service import AssetService
 from src.services.category_service import CategoryService
 from src.services.destination_service import DestinationService
@@ -41,7 +39,6 @@ from src.services.enrich_job_service import get_enrich_job, start_enrich_job
 from src.services.audit_service import log_audit
 from src.repositories.conversation_repo import ConversationRepository
 from src.domain.models.conversation import Conversation
-from src.domain.models.audit_log import AuditLog
 import json
 import io
 import zipfile
@@ -196,53 +193,7 @@ async def admin_dashboard(
     db: AsyncSession = Depends(get_db),
     _u: User = admin,
 ) -> dict:
-    now = datetime.now(timezone.utc)
-    week_ago = now - timedelta(days=7)
-    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-
-    async def count(tbl, *where):
-        q = select(func.count()).select_from(tbl)
-        for w in where:
-            q = q.where(w)
-        return (await db.execute(q)).scalar() or 0
-
-    total_users = await count(User, User.is_active == True)
-    total_dests = await count(Destination, Destination.is_active == True)
-    total_posts = await count(Post)
-    total_views_today = await count(PageView, PageView.created_at >= today_start)
-
-    weekly_views = await db.execute(
-        select(
-            func.date(PageView.created_at),
-            func.count()
-        ).where(
-            PageView.created_at >= week_ago
-        ).group_by(
-            func.date(PageView.created_at)
-        ).order_by(func.date(PageView.created_at))
-    )
-    views_chart = [{"date": str(d), "count": c} for d, c in weekly_views.all()]
-
-    new_users = await count(User, User.created_at >= week_ago)
-
-    top_paths = await db.execute(
-        select(PageView.path, func.count().label("c"))
-        .where(PageView.created_at >= week_ago)
-        .group_by(PageView.path)
-        .order_by(func.count().desc())
-        .limit(5)
-    )
-    top_pages = [{"path": p, "count": c} for p, c in top_paths.all()]
-
-    return {
-        "total_users": total_users,
-        "total_destinations": total_dests,
-        "total_posts": total_posts,
-        "total_views_today": total_views_today,
-        "weekly_views": views_chart,
-        "new_users_week": new_users,
-        "top_pages": top_pages,
-    }
+    return await AnalyticsService(db).dashboard()
 
 
 # ── Destinations CRUD ──
@@ -882,14 +833,7 @@ async def admin_traffic(
     db: AsyncSession = Depends(get_db),
     _u: User = admin,
 ) -> dict:
-    stmt = select(PageView).order_by(PageView.created_at.desc())
-    total = (await db.execute(select(func.count()).select_from(stmt.subquery()))).scalar() or 0
-    rows = (await db.execute(stmt.offset((page - 1) * size).limit(size))).scalars().all()
-    return {
-        "items": [{"id": str(r.id), "path": r.path, "user_id": str(r.user_id) if r.user_id else None,
-                    "ip": r.ip, "created_at": r.created_at.isoformat()} for r in rows],
-        "total": total, "page": page, "size": size,
-    }
+    return await AnalyticsService(db).traffic(page, size)
 
 
 # ── Audit Logs ──
@@ -905,39 +849,9 @@ async def admin_list_audit_logs(
     db: AsyncSession = Depends(get_db),
     _u: User = admin,
 ) -> dict:
-    stmt = select(AuditLog)
-    if action:
-        stmt = stmt.where(AuditLog.action == action)
-    if actor_id:
-        try:
-            stmt = stmt.where(AuditLog.actor_id == _uuid.UUID(actor_id))
-        except ValueError:
-            raise HTTPException(400, detail="Invalid actor_id")
-    if date_from:
-        try:
-            stmt = stmt.where(AuditLog.created_at >= datetime.fromisoformat(date_from).replace(tzinfo=timezone.utc))
-        except ValueError:
-            raise HTTPException(400, detail="Invalid date_from (expected ISO 8601)")
-    if date_to:
-        try:
-            stmt = stmt.where(AuditLog.created_at <= datetime.fromisoformat(date_to).replace(tzinfo=timezone.utc))
-        except ValueError:
-            raise HTTPException(400, detail="Invalid date_to (expected ISO 8601)")
-
-    total = (await db.execute(select(func.count()).select_from(stmt.subquery()))).scalar() or 0
-    stmt = stmt.order_by(AuditLog.created_at.desc()).offset((page - 1) * size).limit(size)
-    rows = (await db.execute(stmt)).scalars().all()
-    return {
-        "items": [{
-            "id": str(r.id),
-            "actor_id": str(r.actor_id) if r.actor_id else None,
-            "action": r.action,
-            "target_type": r.target_type,
-            "target_id": r.target_id,
-            "ip_address": r.ip_address,
-            "user_agent": r.user_agent,
-            "meta": r.meta or {},
-            "created_at": r.created_at.isoformat() if r.created_at else None,
-        } for r in rows],
-        "total": total, "page": page, "size": size,
-    }
+    try:
+        return await AnalyticsService(db).audit_logs(
+            page=page, size=size, action=action, actor_id=actor_id, date_from=date_from, date_to=date_to,
+        )
+    except ValueError as exc:
+        raise HTTPException(400, detail=str(exc))
