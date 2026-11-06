@@ -4,7 +4,7 @@ import re
 
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, status, Request
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import func, select, delete, update
+from sqlalchemy import func, select
 from datetime import datetime, timedelta, timezone
 
 from src.api.deps import get_db, require_admin
@@ -32,6 +32,7 @@ from src.domain.schemas.knowledge import KnowledgeCreate, KnowledgeUpdate, knowl
 from src.services.asset_service import AssetService
 from src.services.category_service import CategoryService
 from src.services.destination_service import DestinationService
+from src.services.template_service import TemplateService
 from src.services.user_service import UserService
 from src.services.knowledge_service import KnowledgeService
 from src.services.ai_conversation_service import AIConversationService
@@ -546,16 +547,7 @@ async def admin_list_templates(
     db: AsyncSession = Depends(get_db),
     _u: User = admin,
 ) -> list[dict]:
-    rows = (await db.execute(select(PageTemplate).order_by(PageTemplate.id))).scalars().all()
-    return [
-        {
-            "id": t.id, "name": t.name, "description": t.description,
-            "sections": t.sections, "is_default": t.is_default,
-            "created_at": t.created_at.isoformat() if t.created_at else None,
-            "updated_at": t.updated_at.isoformat() if t.updated_at else None,
-        }
-        for t in rows
-    ]
+    return await TemplateService(db).list_all()
 
 
 @router.get("/templates/section-types")
@@ -571,15 +563,10 @@ async def admin_get_template(
     db: AsyncSession = Depends(get_db),
     _u: User = admin,
 ) -> dict:
-    t = await db.get(PageTemplate, template_id)
-    if not t:
-        raise HTTPException(404)
-    return {
-        "id": t.id, "name": t.name, "description": t.description,
-        "sections": t.sections, "is_default": t.is_default,
-        "created_at": t.created_at.isoformat() if t.created_at else None,
-        "updated_at": t.updated_at.isoformat() if t.updated_at else None,
-    }
+    try:
+        return await TemplateService(db).get(template_id)
+    except ValueError as exc:
+        raise HTTPException(404, detail=str(exc))
 
 
 @router.post("/templates", status_code=status.HTTP_201_CREATED)
@@ -588,31 +575,15 @@ async def admin_create_template(
     db: AsyncSession = Depends(get_db),
     _u: User = admin,
 ) -> dict:
-    existing = await db.get(PageTemplate, body.id)
-    if existing:
-        raise HTTPException(409, detail="Template ID already exists")
-
-    # Validate section types
-    for s in body.sections:
-        if s.type not in SECTION_TYPES:
-            raise HTTPException(400, detail=f"Unknown section type: {s.type}")
-
-    template = PageTemplate(
-        id=body.id,
-        name=body.name,
-        description=body.description,
-        sections=[s.model_dump() for s in body.sections],
-        is_default=body.is_default,
-    )
-    db.add(template)
-
-    # If marking as default, unset others
-    if body.is_default:
-        await db.execute(
-            update(PageTemplate).where(PageTemplate.is_default == True).values(is_default=False)
+    try:
+        template = await TemplateService(db).create(
+            id=body.id, name=body.name, description=body.description,
+            sections=body.sections, is_default=body.is_default,
         )
-
-    await db.flush()
+    except FileExistsError as exc:
+        raise HTTPException(409, detail=str(exc))
+    except ValueError as exc:
+        raise HTTPException(400, detail=str(exc))
     return {"id": template.id, "name": template.name}
 
 
@@ -623,27 +594,14 @@ async def admin_update_template(
     db: AsyncSession = Depends(get_db),
     _u: User = admin,
 ) -> dict:
-    t = await db.get(PageTemplate, template_id)
-    if not t:
-        raise HTTPException(404)
-
-    if body.name is not None:
-        t.name = body.name
-    if body.description is not None:
-        t.description = body.description
-    if body.sections is not None:
-        for s in body.sections:
-            if s.type not in SECTION_TYPES:
-                raise HTTPException(400, detail=f"Unknown section type: {s.type}")
-        t.sections = [s.model_dump() for s in body.sections]
-    if body.is_default is not None:
-        if body.is_default:
-            await db.execute(
-                update(PageTemplate).where(PageTemplate.is_default == True).values(is_default=False)
-            )
-        t.is_default = body.is_default
-
-    await db.flush()
+    try:
+        await TemplateService(db).update(
+            template_id, name=body.name, description=body.description,
+            sections=body.sections, is_default=body.is_default,
+        )
+    except ValueError as exc:
+        detail = str(exc)
+        raise HTTPException(404 if detail == "Template not found" else 400, detail=detail)
     return {"ok": True}
 
 
@@ -653,11 +611,10 @@ async def admin_delete_template(
     db: AsyncSession = Depends(get_db),
     _u: User = admin,
 ) -> dict:
-    t = await db.get(PageTemplate, template_id)
-    if not t:
-        raise HTTPException(404)
-    await db.delete(t)
-    await db.flush()
+    try:
+        await TemplateService(db).delete(template_id)
+    except ValueError as exc:
+        raise HTTPException(404, detail=str(exc))
     return {"ok": True}
 
 
@@ -668,34 +625,14 @@ async def admin_import_template(
     _u: User = admin,
 ) -> dict:
     """Import a template from JSON (same format as export)."""
-    template_id = body.id.strip()
-    name = body.name.strip()
-
-    sections = body.sections
-    for s in sections:
-        stype = s.get("type", "")
-        if stype not in SECTION_TYPES:
-            raise HTTPException(400, detail=f"Unknown section type: {stype}")
-
-    existing = await db.get(PageTemplate, template_id)
-    if existing:
-        # Overwrite existing
-        existing.name = name
-        existing.description = body.description
-        existing.sections = sections
-        existing.is_default = body.is_default
-        await db.flush()
-        return {"id": existing.id, "name": existing.name, "updated": True}
-
-    template = PageTemplate(
-        id=template_id, name=name,
-        description=body.description,
-        sections=sections,
-        is_default=body.is_default,
-    )
-    db.add(template)
-    await db.flush()
-    return {"id": template.id, "name": template.name, "created": True}
+    try:
+        template, created = await TemplateService(db).import_template(
+            id=body.id.strip(), name=body.name.strip(), description=body.description,
+            sections=body.sections, is_default=body.is_default,
+        )
+    except ValueError as exc:
+        raise HTTPException(400, detail=str(exc))
+    return {"id": template.id, "name": template.name, "created": created, "updated": not created}
 
 
 @router.get("/templates/{template_id}/export")
@@ -704,16 +641,10 @@ async def admin_export_template(
     db: AsyncSession = Depends(get_db),
     _u: User = admin,
 ) -> dict:
-    t = await db.get(PageTemplate, template_id)
-    if not t:
-        raise HTTPException(404)
-    return {
-        "id": t.id,
-        "name": t.name,
-        "description": t.description,
-        "sections": t.sections,
-        "is_default": t.is_default,
-    }
+    try:
+        return await TemplateService(db).export(template_id)
+    except ValueError as exc:
+        raise HTTPException(404, detail=str(exc))
 
 
 # ── Sections CRUD (per destination) ──
