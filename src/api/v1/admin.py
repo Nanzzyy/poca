@@ -281,49 +281,12 @@ async def admin_create_destination(
     db: AsyncSession = Depends(get_db),
     _u: User = admin,
 ) -> dict:
-    name = body.name.strip()
-    slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
-    existing = (await db.execute(select(Destination).where(Destination.slug == slug))).scalar_one_or_none()
-    if existing:
-        slug = f"{slug}-{_uuid.uuid4().hex[:6]}"
-    dest = Destination(
-        name=name,
-        slug=slug,
-        category_id=body.category_id,
-        latitude=body.latitude,
-        longitude=body.longitude,
-        country=body.country,
-        city=body.city,
-        address=body.address,
-        description=body.description,
-        images=body.images,
-        tags=body.tags,
-        price_level=body.price_level,
-        rating_avg=body.rating_avg,
-        is_active=body.is_active,
+    template = await db.get(PageTemplate, body.template_id) if body.template_id else None
+    dest = await DestinationService(db).admin_create_with_template(
+        body, template, actor_id=_u.id,
+        ip_address=request.client.host if request.client else None,
+        user_agent=request.headers.get("user-agent", ""),
     )
-    db.add(dest)
-    await db.flush()
-    await log_audit(action="destination_create", actor_id=_u.id, target_type="destination",
-                    target_id=str(dest.id), ip_address=request.client.host if request.client else None,
-                    user_agent=request.headers.get("user-agent", ""), meta={"name": name})
-
-    # Apply template if provided
-    template_id = body.template_id
-    if template_id:
-        template = await db.get(PageTemplate, template_id)
-        if template:
-            for s in template.sections:
-                section = DestinationSection(
-                    destination_id=dest.id,
-                    section_type=s.get("type", ""),
-                    title=s.get("title"),
-                    order=s.get("order", 0),
-                    data=s.get("defaults", {}),
-                )
-                db.add(section)
-            await db.flush()
-
     return {"id": str(dest.id), "name": dest.name, "slug": dest.slug}
 
 
@@ -337,39 +300,10 @@ async def admin_create_from_template(
     if not template:
         raise HTTPException(404, detail="Template not found")
 
-    name = body.name.strip()
-    if not name:
-        raise HTTPException(400, detail="Name required")
-    slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
-    existing = (await db.execute(select(Destination).where(Destination.slug == slug))).scalar_one_or_none()
-    if existing:
-        slug = f"{slug}-{_uuid.uuid4().hex[:6]}"
-
-    dest = Destination(
-        name=name, slug=slug,
-        category_id=body.category_id,
-        latitude=body.latitude, longitude=body.longitude,
-        country=body.country, city=body.city,
-        address=body.address, description=body.description,
-        images=body.images, tags=body.tags,
-        price_level=body.price_level,
-    )
-    db.add(dest)
-    await db.flush()
-
-    for idx, s in enumerate(template.sections):
-        section_key = s.get("type", "") + f"_{idx}"
-        override = body.section_overrides.get(section_key, {})
-        section = DestinationSection(
-            destination_id=dest.id,
-            section_type=s.get("type", ""),
-            title=s.get("title"),
-            order=s.get("order", idx),
-            data={**s.get("defaults", {}), **override},
-        )
-        db.add(section)
-    await db.flush()
-
+    try:
+        dest = await DestinationService(db).create_from_template(body, template)
+    except ValueError as exc:
+        raise HTTPException(400, detail=str(exc))
     return {"id": str(dest.id), "name": dest.name, "slug": dest.slug}
 
 
@@ -381,24 +315,14 @@ async def admin_update_destination(
     db: AsyncSession = Depends(get_db),
     _u: User = admin,
 ) -> dict:
-    repo = DestinationRepository(db)
-    dest = await repo.get_by_id(dest_id)
-    if not dest:
-        raise HTTPException(404, detail="Not found")
-    values = body.model_dump(exclude_unset=True)
-    for field in ("name", "slug", "category_id", "latitude", "longitude", "country", "city",
-                  "address", "description", "price_level", "rating_avg", "tags", "is_active",
-                  "opening_hours", "best_visiting_hours", "local_tips", "seasonal_info"):
-        if field in values:
-            setattr(dest, field, values[field])
-    if "images" in values:
-        # Cap at 3 per destination — enforced in app layer (service + admin + FE).
-        dest.images = (values["images"] or [])[:3]
-    await db.flush()
-    await log_audit(action="destination_update", actor_id=_u.id, target_type="destination",
-                    target_id=str(dest.id), ip_address=request.client.host if request.client else None,
-                    user_agent=request.headers.get("user-agent", ""),
-                    meta={"fields": list(values.keys())})
+    try:
+        await DestinationService(db).admin_update(
+            dest_id, body.model_dump(exclude_unset=True), actor_id=_u.id,
+            ip_address=request.client.host if request.client else None,
+            user_agent=request.headers.get("user-agent", ""),
+        )
+    except ValueError as exc:
+        raise HTTPException(404, detail=str(exc))
     return {"ok": True}
 
 
@@ -409,15 +333,14 @@ async def admin_delete_destination(
     db: AsyncSession = Depends(get_db),
     _u: User = admin,
 ) -> dict:
-    repo = DestinationRepository(db)
-    dest = await repo.get_by_id(dest_id)
-    if not dest:
-        raise HTTPException(404)
-    dest.is_active = False
-    await db.flush()
-    await log_audit(action="destination_delete", actor_id=_u.id, target_type="destination",
-                    target_id=str(dest.id), ip_address=request.client.host if request.client else None,
-                    user_agent=request.headers.get("user-agent", ""), meta={"name": dest.name})
+    try:
+        await DestinationService(db).admin_soft_delete(
+            dest_id, actor_id=_u.id,
+            ip_address=request.client.host if request.client else None,
+            user_agent=request.headers.get("user-agent", ""),
+        )
+    except ValueError as exc:
+        raise HTTPException(404, detail=str(exc))
     return {"ok": True}
 
 
@@ -455,21 +378,7 @@ async def admin_search_places(q: str = Query(..., min_length=2), lat: float | No
 
 @router.post("/destinations/from-place", status_code=status.HTTP_201_CREATED)
 async def admin_create_from_place(body: DestinationFromPlaceRequest, db: AsyncSession = Depends(get_db), _u: User = admin):
-    name = body.name.strip()
-    slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
-    if (await db.execute(select(Destination).where(Destination.slug == slug))).scalar_one_or_none():
-        slug = f"{slug}-{_uuid.uuid4().hex[:6]}"
-    images = [body.image_url] if body.image_url else []
-    dest = Destination(
-        name=name, slug=slug,
-        latitude=body.lat, longitude=body.lng,
-        country=body.country, city=body.city,
-        address=body.address, description=body.description,
-        images=images, tags=body.tags or ["wisata"],
-        price_level=body.price_level,
-    )
-    db.add(dest)
-    await db.flush()
+    dest = await DestinationService(db).create_from_place(body)
     return {"id": str(dest.id), "name": dest.name, "slug": dest.slug}
 
 

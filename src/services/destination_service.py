@@ -8,6 +8,11 @@ from sqlalchemy.orm import selectinload
 from src.domain.models.destination import Destination, Category, DestinationSection
 from src.domain.section_types import SECTION_TYPES
 from src.repositories.destination_repo import DestinationRepository
+from src.services.audit_service import log_audit
+
+
+def _slugify(name: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
 
 
 class DestinationService:
@@ -147,6 +152,129 @@ class DestinationService:
 
         await self.repo.db.flush()
         return count, errors
+
+    async def _unique_slug(self, name: str) -> str:
+        slug = _slugify(name)
+        taken = await self.repo.get_existing_slugs({slug})
+        if slug in taken:
+            slug = f"{slug}-{uuid.uuid4().hex[:6]}"
+        return slug
+
+    async def admin_create(
+        self, body, *, actor_id, ip_address: str | None, user_agent: str,
+    ) -> Destination:
+        name = body.name.strip()
+        slug = await self._unique_slug(name)
+        dest = Destination(
+            name=name, slug=slug, category_id=body.category_id,
+            latitude=body.latitude, longitude=body.longitude,
+            country=body.country, city=body.city, address=body.address,
+            description=body.description, images=body.images, tags=body.tags,
+            price_level=body.price_level, rating_avg=body.rating_avg, is_active=body.is_active,
+        )
+        self.repo.db.add(dest)
+        await self.repo.db.flush()
+        await log_audit(
+            action="destination_create", actor_id=actor_id, target_type="destination",
+            target_id=str(dest.id), ip_address=ip_address, user_agent=user_agent, meta={"name": name},
+        )
+        return dest
+
+    async def admin_create_with_template(
+        self, body, template, *, actor_id, ip_address: str | None, user_agent: str,
+    ) -> Destination:
+        """Same as admin_create, but applies an already-fetched template's
+        sections (router fetches the PageTemplate — this service doesn't own
+        that model)."""
+        dest = await self.admin_create(body, actor_id=actor_id, ip_address=ip_address, user_agent=user_agent)
+        if template:
+            for s in template.sections:
+                self.repo.db.add(DestinationSection(
+                    destination_id=dest.id, section_type=s.get("type", ""),
+                    title=s.get("title"), order=s.get("order", 0), data=s.get("defaults", {}),
+                ))
+            await self.repo.db.flush()
+        return dest
+
+    async def create_from_template(self, body, template) -> Destination:
+        name = body.name.strip()
+        if not name:
+            raise ValueError("Name required")
+        slug = await self._unique_slug(name)
+
+        dest = Destination(
+            name=name, slug=slug, category_id=body.category_id,
+            latitude=body.latitude, longitude=body.longitude,
+            country=body.country, city=body.city, address=body.address,
+            description=body.description, images=body.images, tags=body.tags,
+            price_level=body.price_level,
+        )
+        self.repo.db.add(dest)
+        await self.repo.db.flush()
+
+        for idx, s in enumerate(template.sections):
+            section_key = s.get("type", "") + f"_{idx}"
+            override = body.section_overrides.get(section_key, {})
+            self.repo.db.add(DestinationSection(
+                destination_id=dest.id, section_type=s.get("type", ""),
+                title=s.get("title"), order=s.get("order", idx),
+                data={**s.get("defaults", {}), **override},
+            ))
+        await self.repo.db.flush()
+        return dest
+
+    async def create_from_place(self, body) -> Destination:
+        name = body.name.strip()
+        slug = await self._unique_slug(name)
+        images = [body.image_url] if body.image_url else []
+        dest = Destination(
+            name=name, slug=slug,
+            latitude=body.lat, longitude=body.lng,
+            country=body.country, city=body.city, address=body.address,
+            description=body.description, images=images, tags=body.tags or ["wisata"],
+            price_level=body.price_level,
+        )
+        self.repo.db.add(dest)
+        await self.repo.db.flush()
+        return dest
+
+    async def admin_update(
+        self, dest_id: str, values: dict, *, actor_id, ip_address: str | None, user_agent: str,
+    ) -> None:
+        dest = await self.repo.get_bare(dest_id)
+        if not dest:
+            raise ValueError("Destination not found")
+
+        for field in (
+            "name", "slug", "category_id", "latitude", "longitude", "country", "city",
+            "address", "description", "price_level", "rating_avg", "tags", "is_active",
+            "opening_hours", "best_visiting_hours", "local_tips", "seasonal_info",
+        ):
+            if field in values:
+                setattr(dest, field, values[field])
+        if "images" in values:
+            # Cap at 3 per destination — enforced in app layer (service + admin + FE).
+            dest.images = (values["images"] or [])[:3]
+
+        await self.repo.db.flush()
+        await log_audit(
+            action="destination_update", actor_id=actor_id, target_type="destination",
+            target_id=str(dest.id), ip_address=ip_address, user_agent=user_agent,
+            meta={"fields": list(values.keys())},
+        )
+
+    async def admin_soft_delete(
+        self, dest_id: str, *, actor_id, ip_address: str | None, user_agent: str,
+    ) -> None:
+        dest = await self.repo.get_bare(dest_id)
+        if not dest:
+            raise ValueError("Destination not found")
+        dest.is_active = False
+        await self.repo.db.flush()
+        await log_audit(
+            action="destination_delete", actor_id=actor_id, target_type="destination",
+            target_id=str(dest.id), ip_address=ip_address, user_agent=user_agent, meta={"name": dest.name},
+        )
 
     async def get_local_guide(self, destination_id: str) -> dict:
         dest = await self.repo.get_by_id(destination_id)
