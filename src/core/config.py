@@ -49,6 +49,15 @@ class Settings(BaseSettings):
             self.jwt_refresh_secret = self.jwt_secret
         return self
 
+    @model_validator(mode="after")
+    def _require_secure_cookies_outside_debug(self) -> "Settings":
+        if not self.debug and not self.cookie_secure:
+            raise ValueError(
+                "COOKIE_SECURE must be true outside debug mode — auth cookies "
+                "would otherwise be sent over plain HTTP in production."
+            )
+        return self
+
     @field_validator("cors_origins")
     @classmethod
     def _validate_cors_origins(cls, v: str) -> str:
