@@ -38,6 +38,55 @@ class DestinationRepository:
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
+    async def get_bare(self, dest_id: str) -> Destination | None:
+        """Fetch without eager-loading relationships — cheap existence check
+        for admin mutation endpoints that don't need category/sections."""
+        return await self.db.get(Destination, dest_id)
+
+    # ── Sections (admin) ────────────────────────────────────────────────
+
+    async def get_sections(self, dest_id: str) -> list[DestinationSection]:
+        stmt = (
+            select(DestinationSection)
+            .where(DestinationSection.destination_id == dest_id)
+            .order_by(DestinationSection.order)
+        )
+        result = await self.db.execute(stmt)
+        return list(result.scalars().all())
+
+    async def get_section(self, dest_id: str, section_id: str) -> DestinationSection | None:
+        stmt = select(DestinationSection).where(
+            DestinationSection.id == section_id,
+            DestinationSection.destination_id == dest_id,
+        )
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def get_sections_by_ids(self, dest_id: str, section_ids: list[str]) -> list[DestinationSection]:
+        """Batch fetch — avoids an N+1 SELECT-per-id loop (e.g. reorder)."""
+        stmt = select(DestinationSection).where(
+            DestinationSection.destination_id == dest_id,
+            DestinationSection.id.in_(section_ids),
+        )
+        result = await self.db.execute(stmt)
+        return list(result.scalars().all())
+
+    async def create_section(
+        self, dest_id: str, section_type: str, title: str | None = None,
+        order: int = 0, visible: bool = True, data: dict | None = None,
+    ) -> DestinationSection:
+        section = DestinationSection(
+            destination_id=dest_id, section_type=section_type, title=title,
+            order=order, visible=visible, data=data or {},
+        )
+        self.db.add(section)
+        await self.db.flush()
+        return section
+
+    async def delete_section(self, section: DestinationSection) -> None:
+        await self.db.delete(section)
+        await self.db.flush()
+
     async def search(self, q: str = "", category_id: int | None = None, price_level: str | None = None,
                      rating_min: float | None = None, tags: list[str] | None = None,
                      city: str | None = None, cities: list[str] | None = None,

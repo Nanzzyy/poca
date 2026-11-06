@@ -30,6 +30,7 @@ from src.repositories.destination_repo import DestinationRepository
 from src.repositories.knowledge_repo import KnowledgeRepository
 from src.domain.models.knowledge import AIKnowledgeDocument
 from src.domain.schemas.knowledge import KnowledgeCreate, KnowledgeUpdate, knowledge_item
+from src.services.destination_service import DestinationService
 from src.services.knowledge_service import KnowledgeService
 from src.services.ai_conversation_service import AIConversationService
 from src.services.free_places_service import FreePlacesService
@@ -750,6 +751,23 @@ async def admin_export_template(
 
 
 # ── Sections CRUD (per destination) ──
+# Thin router — business logic lives in DestinationService, queries in
+# DestinationRepository (see src/services/destination_service.py).
+#
+# NOTE: /sections/reorder is registered BEFORE /sections/{section_id} on
+# purpose. FastAPI/Starlette matches routes in registration order, and
+# {section_id} would otherwise capture "reorder" as a literal id — this was
+# a real bug (the reorder endpoint was unreachable) before this fix.
+
+def _section_payload(s: DestinationSection) -> dict:
+    return {
+        "id": str(s.id), "destination_id": str(s.destination_id),
+        "section_type": s.section_type, "title": s.title,
+        "order": s.order, "visible": s.visible, "data": s.data or {},
+        "created_at": s.created_at.isoformat() if s.created_at else None,
+        "updated_at": s.updated_at.isoformat() if s.updated_at else None,
+    }
+
 
 @router.get("/destinations/{dest_id}/sections")
 async def admin_list_sections(
@@ -757,26 +775,11 @@ async def admin_list_sections(
     db: AsyncSession = Depends(get_db),
     _u: User = admin,
 ) -> list[dict]:
-    dest = await db.get(Destination, dest_id)
-    if not dest:
-        raise HTTPException(404)
-
-    stmt = (
-        select(DestinationSection)
-        .where(DestinationSection.destination_id == dest_id)
-        .order_by(DestinationSection.order)
-    )
-    rows = (await db.execute(stmt)).scalars().all()
-    return [
-        {
-            "id": str(s.id), "destination_id": str(s.destination_id),
-            "section_type": s.section_type, "title": s.title,
-            "order": s.order, "visible": s.visible, "data": s.data or {},
-            "created_at": s.created_at.isoformat() if s.created_at else None,
-            "updated_at": s.updated_at.isoformat() if s.updated_at else None,
-        }
-        for s in rows
-    ]
+    try:
+        rows = await DestinationService(db).list_sections(dest_id)
+    except ValueError as exc:
+        raise HTTPException(404, detail=str(exc))
+    return [_section_payload(s) for s in rows]
 
 
 @router.post("/destinations/{dest_id}/sections", status_code=status.HTTP_201_CREATED)
@@ -786,23 +789,29 @@ async def admin_create_section(
     db: AsyncSession = Depends(get_db),
     _u: User = admin,
 ) -> dict:
-    dest = await db.get(Destination, dest_id)
-    if not dest:
-        raise HTTPException(404)
-    if body.section_type not in SECTION_TYPES:
-        raise HTTPException(400, detail=f"Unknown section type: {body.section_type}")
-
-    section = DestinationSection(
-        destination_id=dest_id,
-        section_type=body.section_type,
-        title=body.title,
-        order=body.order,
-        visible=body.visible,
-        data=body.data,
-    )
-    db.add(section)
-    await db.flush()
+    try:
+        section = await DestinationService(db).create_section(
+            dest_id, section_type=body.section_type, title=body.title,
+            order=body.order, visible=body.visible, data=body.data,
+        )
+    except ValueError as exc:
+        detail = str(exc)
+        raise HTTPException(404 if detail == "Destination not found" else 400, detail=detail)
     return {"id": str(section.id), "section_type": section.section_type}
+
+
+@router.put("/destinations/{dest_id}/sections/reorder")
+async def admin_reorder_sections(
+    dest_id: str,
+    body: SectionReorder,
+    db: AsyncSession = Depends(get_db),
+    _u: User = admin,
+) -> dict:
+    try:
+        await DestinationService(db).reorder_sections(dest_id, body.items)
+    except ValueError as exc:
+        raise HTTPException(404, detail=str(exc))
+    return {"ok": True}
 
 
 @router.put("/destinations/{dest_id}/sections/{section_id}")
@@ -813,24 +822,13 @@ async def admin_update_section(
     db: AsyncSession = Depends(get_db),
     _u: User = admin,
 ) -> dict:
-    section = (await db.execute(
-        select(DestinationSection).where(
-            DestinationSection.id == section_id,
-            DestinationSection.destination_id == dest_id,
+    try:
+        await DestinationService(db).update_section(
+            dest_id, section_id, title=body.title, order=body.order,
+            visible=body.visible, data=body.data,
         )
-    )).scalar_one_or_none()
-    if not section:
-        raise HTTPException(404)
-
-    if body.title is not None:
-        section.title = body.title
-    if body.order is not None:
-        section.order = body.order
-    if body.visible is not None:
-        section.visible = body.visible
-    if body.data is not None:
-        section.data = body.data
-    await db.flush()
+    except ValueError as exc:
+        raise HTTPException(404, detail=str(exc))
     return {"ok": True}
 
 
@@ -841,41 +839,10 @@ async def admin_delete_section(
     db: AsyncSession = Depends(get_db),
     _u: User = admin,
 ) -> dict:
-    section = (await db.execute(
-        select(DestinationSection).where(
-            DestinationSection.id == section_id,
-            DestinationSection.destination_id == dest_id,
-        )
-    )).scalar_one_or_none()
-    if not section:
-        raise HTTPException(404)
-    await db.delete(section)
-    await db.flush()
-    return {"ok": True}
-
-
-@router.put("/destinations/{dest_id}/sections/reorder")
-async def admin_reorder_sections(
-    dest_id: str,
-    body: SectionReorder,
-    db: AsyncSession = Depends(get_db),
-    _u: User = admin,
-) -> dict:
-    dest = await db.get(Destination, dest_id)
-    if not dest:
-        raise HTTPException(404)
-
-    for item in body.items:
-        section = (await db.execute(
-            select(DestinationSection).where(
-                DestinationSection.id == item.id,
-                DestinationSection.destination_id == dest_id,
-            )
-        )).scalar_one_or_none()
-        if section:
-            section.order = item.order
-
-    await db.flush()
+    try:
+        await DestinationService(db).delete_section(dest_id, section_id)
+    except ValueError as exc:
+        raise HTTPException(404, detail=str(exc))
     return {"ok": True}
 
 
@@ -886,49 +853,15 @@ async def admin_apply_template(
     db: AsyncSession = Depends(get_db),
     _u: User = admin,
 ) -> dict:
-    dest = (await db.execute(
-        select(Destination).where(Destination.id == dest_id)
-    )).scalar_one_or_none()
-    if not dest:
-        raise HTTPException(404, detail="Destination not found")
-
     template = await db.get(PageTemplate, template_id)
     if not template:
         raise HTTPException(404, detail="Template not found")
 
-    # Get existing sections to preserve data
-    existing = (await db.execute(
-        select(DestinationSection).where(DestinationSection.destination_id == dest_id)
-    )).scalars().all()
-    existing_by_type = {s.section_type: s for s in existing}
-
-    # Remove sections not in template
-    template_types = {s.get("type") for s in template.sections}
-    for s in existing:
-        if s.section_type not in template_types:
-            await db.delete(s)
-
-    # Create or update sections from template
-    for idx, ts in enumerate(template.sections):
-        stype = ts.get("type", "")
-        if stype in existing_by_type:
-            # Update order, keep existing data
-            existing_section = existing_by_type[stype]
-            existing_section.order = ts.get("order", idx)
-            if ts.get("title"):
-                existing_section.title = ts["title"]
-        else:
-            section = DestinationSection(
-                destination_id=dest_id,
-                section_type=stype,
-                title=ts.get("title"),
-                order=ts.get("order", idx),
-                data=ts.get("defaults", {}),
-            )
-            db.add(section)
-
-    await db.flush()
-    return {"ok": True, "sections_created": len(template.sections)}
+    try:
+        sections_created = await DestinationService(db).apply_template(dest_id, template)
+    except ValueError as exc:
+        raise HTTPException(404, detail=str(exc))
+    return {"ok": True, "sections_created": sections_created}
 
 
 # ── Assets ──
