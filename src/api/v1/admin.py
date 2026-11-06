@@ -31,6 +31,7 @@ from src.domain.models.knowledge import AIKnowledgeDocument
 from src.domain.schemas.knowledge import KnowledgeCreate, KnowledgeUpdate, knowledge_item
 from src.services.asset_service import AssetService
 from src.services.destination_service import DestinationService
+from src.services.user_service import UserService
 from src.services.knowledge_service import KnowledgeService
 from src.services.ai_conversation_service import AIConversationService
 from src.services.free_places_service import FreePlacesService
@@ -39,7 +40,6 @@ from src.services.audit_service import log_audit
 from src.repositories.conversation_repo import ConversationRepository
 from src.domain.models.conversation import Conversation
 from src.domain.models.audit_log import AuditLog
-from src.core.text_safety import escape_like as _escape_like
 import json
 import io
 import zipfile
@@ -935,19 +935,7 @@ async def admin_list_users(
     db: AsyncSession = Depends(get_db),
     _u: User = admin,
 ) -> dict:
-    stmt = select(User)
-    if q:
-        needle = f"%{_escape_like(q)}%"
-        stmt = stmt.where(User.email.ilike(needle, escape="\\") | User.username.ilike(needle, escape="\\"))
-    total = (await db.execute(select(func.count()).select_from(stmt.subquery()))).scalar() or 0
-    stmt = stmt.order_by(User.created_at.desc()).offset((page - 1) * size).limit(size)
-    rows = (await db.execute(stmt)).scalars().all()
-    return {
-        "items": [{"id": str(u.id), "email": u.email, "username": u.username, "role": u.role,
-                    "is_verified": u.is_verified, "is_active": u.is_active,
-                    "created_at": u.created_at.isoformat()} for u in rows],
-        "total": total, "page": page, "size": size,
-    }
+    return await UserService(db).admin_list(q, page, size)
 
 
 @router.patch("/users/{user_id}")
@@ -958,31 +946,16 @@ async def admin_update_user(
     db: AsyncSession = Depends(get_db),
     _u: User = admin,
 ) -> dict:
-    user = (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
-    if not user:
-        raise HTTPException(404)
-    # Prevent an admin from demoting/deactivating themselves (lockout guard).
-    if str(user.id) == str(_u.id):
-        if body.role is not None and body.role != "admin":
-            raise HTTPException(400, detail="You cannot remove your own admin role")
-        if body.is_active is False:
-            raise HTTPException(400, detail="You cannot deactivate your own account")
-    if body.role is not None:
-        if body.role != user.role:
-            await log_audit(action="role_change", actor_id=_u.id, target_type="user",
-                            target_id=str(user.id), ip_address=request.client.host if request.client else None,
-                            user_agent=request.headers.get("user-agent", ""),
-                            meta={"from": user.role, "to": body.role})
-        user.role = body.role
-    if body.is_active is not None:
-        if body.is_active is False and user.is_active:
-            await log_audit(action="user_deactivate", actor_id=_u.id, target_type="user",
-                            target_id=str(user.id), ip_address=request.client.host if request.client else None,
-                            user_agent=request.headers.get("user-agent", ""))
-        user.is_active = body.is_active
-    if body.is_verified is not None:
-        user.is_verified = body.is_verified
-    await db.flush()
+    try:
+        await UserService(db).admin_update(
+            user_id, actor=_u, role=body.role, is_active=body.is_active, is_verified=body.is_verified,
+            ip_address=request.client.host if request.client else None,
+            user_agent=request.headers.get("user-agent", ""),
+        )
+    except ValueError as exc:
+        raise HTTPException(404, detail=str(exc))
+    except PermissionError as exc:
+        raise HTTPException(400, detail=str(exc))
     return {"ok": True}
 
 
@@ -993,11 +966,10 @@ async def admin_toggle_verified(
     db: AsyncSession = Depends(get_db),
     _u: User = admin,
 ) -> dict:
-    user = (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
-    if not user:
-        raise HTTPException(404, "User not found")
-    user.is_verified = verified
-    await db.flush()
+    try:
+        user = await UserService(db).set_verified(user_id, verified)
+    except ValueError as exc:
+        raise HTTPException(404, detail=str(exc))
     return {"id": str(user.id), "is_verified": user.is_verified}
 
 

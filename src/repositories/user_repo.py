@@ -1,10 +1,21 @@
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from src.core.text_safety import escape_like
 from src.domain.models.user import User
 
 class UserRepository:
     def __init__(self, db: AsyncSession):
         self.db = db
+
+    async def search(self, q: str = "", page: int = 1, size: int = 20) -> tuple[list[User], int]:
+        stmt = select(User)
+        if q:
+            needle = f"%{escape_like(q)}%"
+            stmt = stmt.where(User.email.ilike(needle, escape="\\") | User.username.ilike(needle, escape="\\"))
+        total = (await self.db.execute(select(func.count()).select_from(stmt.subquery()))).scalar() or 0
+        stmt = stmt.order_by(User.created_at.desc()).offset((page - 1) * size).limit(size)
+        rows = (await self.db.execute(stmt)).scalars().all()
+        return list(rows), total
 
     async def get_by_id(self, user_id: str) -> User | None:
         stmt = select(User).where(User.id == user_id)
