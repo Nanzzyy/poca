@@ -43,19 +43,37 @@ export default function RegisterPage() {
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-body-sm font-medium text-on-surface mb-1.5">Email</label>
-            <input type="email" required className="w-full p-3 border border-outline-variant bg-surface-container-lowest rounded-xl text-body-md outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+            <label htmlFor="register-email" className="mb-1.5 block text-body-sm font-medium text-on-surface">Email</label>
+            <input id="register-email" type="email" name="email" autoComplete="email" required placeholder="nama@email.com" className="h-12 w-full rounded-xl border border-outline-variant bg-surface-container-lowest px-4 text-body-md outline-none placeholder:text-outline focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
           </div>
           <div>
-            <label className="block text-body-sm font-medium text-on-surface mb-1.5">Username</label>
-            <input type="text" required className="w-full p-3 border border-outline-variant bg-surface-container-lowest rounded-xl text-body-md outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2" value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} />
+            <label htmlFor="register-username" className="mb-1.5 block text-body-sm font-medium text-on-surface">Username</label>
+            <input id="register-username" type="text" name="username" autoComplete="username" required placeholder="namapengguna" className="h-12 w-full rounded-xl border border-outline-variant bg-surface-container-lowest px-4 text-body-md outline-none placeholder:text-outline focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2" value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} />
           </div>
-          <div className="relative">
-            <label className="block text-body-sm font-medium text-on-surface mb-1.5">Password</label>
-            <input type={showPw ? "text" : "password"} required className="w-full p-3 border border-outline-variant bg-surface-container-lowest rounded-xl text-body-md outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 pr-10" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
-            <button type="button" onClick={() => setShowPw(!showPw)} className="absolute right-3 top-[42px] text-on-surface-variant">
-              {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            </button>
+          <div>
+            <label htmlFor="register-password" className="mb-1.5 block text-body-sm font-medium text-on-surface">Kata sandi</label>
+            <div className="relative">
+              <input
+                id="register-password"
+                type={showPw ? "text" : "password"}
+                name="password"
+                autoComplete="new-password"
+                required
+                placeholder="Buat kata sandi"
+                className="h-12 w-full rounded-xl border border-outline-variant bg-surface-container-lowest px-4 pr-12 text-body-md outline-none placeholder:text-outline focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                value={form.password}
+                onChange={(e) => setForm({ ...form, password: e.target.value })}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPw(!showPw)}
+                className="absolute inset-y-0 right-0 inline-flex w-12 items-center justify-center rounded-r-xl text-on-surface-variant focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset"
+                aria-label={showPw ? "Sembunyikan kata sandi" : "Tampilkan kata sandi"}
+                aria-pressed={showPw}
+              >
+                {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
           </div>
           <button type="submit" disabled={register.isPending} className="w-full py-3 bg-primary text-on-primary rounded-xl font-bold hover:bg-primary/90 disabled:opacity-50 transition-all active:scale-[0.98] flex items-center justify-center gap-2">
             <UserPlus className="w-4 h-4" />

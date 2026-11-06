@@ -46,27 +46,43 @@ export default function LoginPage() {
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-body-sm font-medium text-on-surface mb-1.5">Email</label>
+            <label htmlFor="login-email" className="mb-1.5 block text-body-sm font-medium text-on-surface">Email</label>
             <input
+              id="login-email"
               type="email"
+              name="email"
+              autoComplete="email"
               required
-              className="w-full p-3 border border-outline-variant bg-surface-container-lowest rounded-xl text-body-md outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+              placeholder="nama@email.com"
+              className="h-12 w-full rounded-xl border border-outline-variant bg-surface-container-lowest px-4 text-body-md outline-none placeholder:text-outline focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
           </div>
-          <div className="relative">
-            <label className="block text-body-sm font-medium text-on-surface mb-1.5">Password</label>
-            <input
-              type={showPw ? "text" : "password"}
-              required
-              className="w-full p-3 border border-outline-variant bg-surface-container-lowest rounded-xl text-body-md outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 pr-10"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-            <button type="button" onClick={() => setShowPw(!showPw)} className="absolute right-3 top-[42px] text-on-surface-variant">
-              {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            </button>
+          <div>
+            <label htmlFor="login-password" className="mb-1.5 block text-body-sm font-medium text-on-surface">Kata sandi</label>
+            <div className="relative">
+              <input
+                id="login-password"
+                type={showPw ? "text" : "password"}
+                name="password"
+                autoComplete="current-password"
+                required
+                placeholder="Masukkan kata sandi"
+                className="h-12 w-full rounded-xl border border-outline-variant bg-surface-container-lowest px-4 pr-12 text-body-md outline-none placeholder:text-outline focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPw(!showPw)}
+                className="absolute inset-y-0 right-0 inline-flex w-12 items-center justify-center rounded-r-xl text-on-surface-variant focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset"
+                aria-label={showPw ? "Sembunyikan kata sandi" : "Tampilkan kata sandi"}
+                aria-pressed={showPw}
+              >
+                {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
           </div>
           <button
             type="submit"
