@@ -35,7 +35,7 @@ async def enrich_all(
     return await svc.enrich_all(batch_size=5)
 
 
-@router.get("/search")
+@router.get("/search", dependencies=[Depends(rate_limit(limit=20, period=60, scope="ip"))])
 async def search_places(
     q: str,
     lat: float | None = None,

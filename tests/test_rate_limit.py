@@ -1,7 +1,10 @@
+import inspect
+
 import pytest
 from starlette.requests import Request
 
-from src.middleware.rate_limit import _client_ip, _scope_dependency
+from src.api.v1 import places
+from src.middleware.rate_limit import _client_ip, _is_allowed, _scope_dependency
 
 
 def _request(
@@ -47,3 +50,19 @@ async def test_rate_limit_keys_are_isolated_per_endpoint() -> None:
     assert login_key != register_key
     assert login_key != analytics_key
     assert register_key != analytics_key
+
+
+def test_places_search_route_is_rate_limited() -> None:
+    """HIGH-02 — GET /places/search has no auth and calls the paid Google
+    Places API; it must stay rate-limited so it can't be used for a billing
+    DoS. Static source check so a future edit can't silently drop it."""
+    decorator_source = inspect.getsource(places)
+    assert 'rate_limit(limit=20, period=60, scope="ip")' in decorator_source
+
+
+@pytest.mark.asyncio
+async def test_is_allowed_denies_after_configured_limit() -> None:
+    key = "test:places_search_limit"
+    for _ in range(20):
+        assert await _is_allowed(key, limit=20, period=60) is True
+    assert await _is_allowed(key, limit=20, period=60) is False
