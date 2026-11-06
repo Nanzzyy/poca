@@ -1,7 +1,8 @@
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.text_safety import escape_like
 from src.domain.models.user import User
+from src.repositories._pagination import paginate
 
 class UserRepository:
     def __init__(self, db: AsyncSession):
@@ -12,8 +13,8 @@ class UserRepository:
         if q:
             needle = f"%{escape_like(q)}%"
             stmt = stmt.where(User.email.ilike(needle, escape="\\") | User.username.ilike(needle, escape="\\"))
-        total = (await self.db.execute(select(func.count()).select_from(stmt.subquery()))).scalar() or 0
-        stmt = stmt.order_by(User.created_at.desc()).offset((page - 1) * size).limit(size)
+        stmt = stmt.order_by(User.created_at.desc())
+        stmt, total = await paginate(self.db, stmt, page, size)
         rows = (await self.db.execute(stmt)).scalars().all()
         return list(rows), total
 

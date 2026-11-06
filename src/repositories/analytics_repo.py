@@ -9,6 +9,7 @@ from src.domain.models.destination import Destination
 from src.domain.models.page_view import PageView
 from src.domain.models.post import Post
 from src.domain.models.user import User
+from src.repositories._pagination import paginate
 
 
 class AnalyticsRepository:
@@ -61,8 +62,8 @@ class AnalyticsRepository:
 
     async def search_pageviews(self, page: int, size: int) -> tuple[list[PageView], int]:
         stmt = select(PageView).order_by(PageView.created_at.desc())
-        total = (await self.db.execute(select(func.count()).select_from(stmt.subquery()))).scalar() or 0
-        rows = (await self.db.execute(stmt.offset((page - 1) * size).limit(size))).scalars().all()
+        stmt, total = await paginate(self.db, stmt, page, size)
+        rows = (await self.db.execute(stmt)).scalars().all()
         return list(rows), total
 
     async def search_audit_logs(
@@ -79,7 +80,7 @@ class AnalyticsRepository:
         if date_to:
             stmt = stmt.where(AuditLog.created_at <= date_to)
 
-        total = (await self.db.execute(select(func.count()).select_from(stmt.subquery()))).scalar() or 0
-        stmt = stmt.order_by(AuditLog.created_at.desc()).offset((page - 1) * size).limit(size)
+        stmt = stmt.order_by(AuditLog.created_at.desc())
+        stmt, total = await paginate(self.db, stmt, page, size)
         rows = (await self.db.execute(stmt)).scalars().all()
         return list(rows), total

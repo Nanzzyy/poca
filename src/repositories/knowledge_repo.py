@@ -3,11 +3,12 @@ from __future__ import annotations
 from datetime import datetime, timezone
 import json
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.text_safety import escape_like as _escape_like
 from src.domain.models.knowledge import AIKnowledgeDocument, AIKnowledgeRevision
+from src.repositories._pagination import paginate
 
 
 class KnowledgeRepository:
@@ -26,8 +27,9 @@ class KnowledgeRepository:
                 AIKnowledgeDocument.title.ilike(needle, escape="\\"),
                 AIKnowledgeDocument.content.ilike(needle, escape="\\"),
             ))
-        total = (await self.db.execute(select(func.count()).select_from(stmt.subquery()))).scalar() or 0
-        rows = (await self.db.execute(stmt.order_by(AIKnowledgeDocument.updated_at.desc()).offset((page - 1) * size).limit(size))).scalars().all()
+        stmt = stmt.order_by(AIKnowledgeDocument.updated_at.desc())
+        stmt, total = await paginate(self.db, stmt, page, size)
+        rows = (await self.db.execute(stmt)).scalars().all()
         return list(rows), total
 
     async def get(self, document_id: str):

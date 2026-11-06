@@ -1,7 +1,8 @@
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domain.models.asset import Asset
+from src.repositories._pagination import paginate
 
 
 class AssetRepository:
@@ -23,8 +24,8 @@ class AssetRepository:
         if section_id:
             stmt = stmt.where(Asset.section_id == section_id)
 
-        total = (await self.db.execute(select(func.count()).select_from(stmt.subquery()))).scalar() or 0
-        stmt = stmt.order_by(Asset.created_at.desc()).offset((page - 1) * size).limit(size)
+        stmt = stmt.order_by(Asset.created_at.desc())
+        stmt, total = await paginate(self.db, stmt, page, size)
         rows = (await self.db.execute(stmt)).scalars().all()
         return list(rows), total
 

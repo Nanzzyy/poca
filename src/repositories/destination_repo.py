@@ -4,6 +4,7 @@ from sqlalchemy.orm import selectinload
 from math import radians, sin, cos, acos
 from src.core.text_safety import escape_like
 from src.domain.models.destination import Destination, Category, DestinationSection
+from src.repositories._pagination import paginate
 
 
 def _haversine_km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
@@ -142,17 +143,13 @@ class DestinationRepository:
                 Destination.longitude.between(lng - lng_deg, lng + lng_deg),
             )
 
-        # Count
-        count_query = select(func.count()).select_from(query.subquery())
-        count_result = await self.db.execute(count_query)
-        total = count_result.scalar() or 0
-
-        # Paginate + sort
         order = {
             "popular": Destination.review_count.desc(),
             "name": Destination.name.asc(),
         }.get(sort or "", Destination.rating_avg.desc())
-        query = query.order_by(order).offset((page - 1) * size).limit(size)
+        query = query.order_by(order)
+
+        query, total = await paginate(self.db, query, page, size)
         query = query.options(selectinload(Destination.category))
         result = await self.db.execute(query)
         items = list(result.scalars().all())
