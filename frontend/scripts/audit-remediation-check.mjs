@@ -43,6 +43,7 @@ fail=true;await page.getByTitle('Sections',{exact:true}).click();
 await page.getByRole('alert').filter({hasText:'Gagal memuat data'}).waitFor();
 fail=false;await page.getByRole('button',{name:'Coba lagi'}).click();
 await page.getByRole('button',{name:'Edit Data'}).click();
+await page.getByLabel('Title Override').waitFor();
 fail=true;await page.getByRole('button',{name:'Tambah Gambar'}).click();
 await page.getByRole('alert').filter({hasText:'Gagal memuat data'}).waitFor();
 fail=false;await page.getByRole('button',{name:'Coba lagi'}).click();
