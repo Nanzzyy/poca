@@ -1,5 +1,7 @@
 "use client";
 
+import { FormField } from "@/components/admin/FormField";
+
 import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api-client";
@@ -274,24 +276,24 @@ export default function AdminDestinationsPage() {
             </div>
             <div className="space-y-3">
               {(["name", "city", "country", "slug"] as const).map((f) => (
-                <div key={f}><label className="text-[11px] font-medium text-on-surface-variant block mb-0.5">{f}</label>
+                <FormField key={f} label={f}>
                   <input value={form[f] as string || ""} onChange={e => setForm({ ...form, [f]: e.target.value })} className="w-full p-2 border border-outline-variant rounded-lg text-[13px] bg-surface-container-lowest outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2" />
-                </div>
+                </FormField>
               ))}
               <div className="grid grid-cols-2 gap-3">
-                <div><label className="text-[11px] font-medium text-on-surface-variant block mb-0.5">Latitude</label><input type="number" step="any" value={form.latitude || 0} onChange={e => setForm({ ...form, latitude: parseFloat(e.target.value) })} className="w-full p-2 border rounded-lg text-[13px]" /></div>
-                <div><label className="text-[11px] font-medium text-on-surface-variant block mb-0.5">Longitude</label><input type="number" step="any" value={form.longitude || 0} onChange={e => setForm({ ...form, longitude: parseFloat(e.target.value) })} className="w-full p-2 border rounded-lg text-[13px]" /></div>
+                <FormField label="Latitude"><input type="number" step="any" value={form.latitude || 0} onChange={e => setForm({ ...form, latitude: parseFloat(e.target.value) })} className="w-full p-2 border rounded-lg text-[13px]" /></FormField>
+                <FormField label="Longitude"><input type="number" step="any" value={form.longitude || 0} onChange={e => setForm({ ...form, longitude: parseFloat(e.target.value) })} className="w-full p-2 border rounded-lg text-[13px]" /></FormField>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <div><label className="text-[11px] font-medium text-on-surface-variant block mb-0.5">Price Level</label>
+                <FormField label="Price Level">
                   <select value={form.price_level || "mid"} onChange={e => setForm({ ...form, price_level: e.target.value })} className="w-full p-2 border rounded-lg text-[13px]">
                     <option value="budget">Budget</option><option value="mid">Mid</option><option value="luxury">Luxury</option>
                   </select>
-                </div>
-                <div><label className="text-[11px] font-medium text-on-surface-variant block mb-0.5">Rating</label><input type="number" step="0.1" min={0} max={5} value={form.rating_avg || 0} onChange={e => setForm({ ...form, rating_avg: parseFloat(e.target.value) })} className="w-full p-2 border rounded-lg text-[13px]" /></div>
+                </FormField>
+                <FormField label="Rating"><input type="number" step="0.1" min={0} max={5} value={form.rating_avg || 0} onChange={e => setForm({ ...form, rating_avg: parseFloat(e.target.value) })} className="w-full p-2 border rounded-lg text-[13px]" /></FormField>
               </div>
-              <div><label className="text-[11px] font-medium text-on-surface-variant block mb-0.5">Deskripsi</label><textarea value={form.description || ""} onChange={e => setForm({ ...form, description: e.target.value })} className="w-full p-2 border rounded-lg text-[13px] h-20" /></div>
-              <div><label className="text-[11px] font-medium text-on-surface-variant block mb-0.5">Tags (koma)</label><input value={(form.tags || []).join(", ")} onChange={e => setForm({ ...form, tags: e.target.value.split(",").map((t: string) => t.trim()).filter(Boolean) })} className="w-full p-2 border rounded-lg text-[13px]" /></div>
+              <FormField label="Deskripsi"><textarea value={form.description || ""} onChange={e => setForm({ ...form, description: e.target.value })} className="w-full p-2 border rounded-lg text-[13px] h-20" /></FormField>
+              <FormField label="Tags (koma)"><input value={(form.tags || []).join(", ")} onChange={e => setForm({ ...form, tags: e.target.value.split(",").map((t: string) => t.trim()).filter(Boolean) })} className="w-full p-2 border rounded-lg text-[13px]" /></FormField>
               <div className="flex items-center gap-2"><input type="checkbox" checked={form.is_active !== false} onChange={e => setForm({ ...form, is_active: e.target.checked })} /><span className="text-[13px]">Aktif</span></div>
 
               {!editItem && templates && templates.length > 0 && (
