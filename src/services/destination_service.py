@@ -1,3 +1,4 @@
+import logging
 import re
 import uuid
 
@@ -9,6 +10,9 @@ from src.domain.models.destination import Destination, Category, DestinationSect
 from src.domain.section_types import SECTION_TYPES
 from src.repositories.destination_repo import DestinationRepository
 from src.services.audit_service import log_audit
+
+
+logger = logging.getLogger(__name__)
 
 
 def _slugify(name: str) -> str:
@@ -147,8 +151,11 @@ class DestinationService:
                         ))
 
                 count += 1
-            except Exception as e:  # per-item construction error — record, don't abort batch
+            except ValueError as e:  # expected validation failure — message is safe to surface
                 errors.append({"index": i, "name": name, "error": str(e)})
+            except Exception:  # unexpected construction error — don't leak internals to the client
+                logger.exception("bulk_import: failed to construct destination %r (index %d)", name, i)
+                errors.append({"index": i, "name": name, "error": "Failed to import this item"})
 
         await self.repo.db.flush()
         return count, errors
