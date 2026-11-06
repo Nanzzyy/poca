@@ -124,7 +124,7 @@ export default function MapPage() {
               <input
                 type="text"
                 placeholder="Cari destinasi di peta..."
-                className="bg-transparent border-none focus:ring-0 text-[14px] flex-1 outline-none text-on-surface placeholder:text-outline"
+                className="bg-transparent border-none focus:ring-0 text-[14px] flex-1 outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 text-on-surface placeholder:text-outline"
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter" && results[0]) focusDest(results[0]); }}

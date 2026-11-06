@@ -90,7 +90,7 @@ export function TopNav() {
             <input
               type="text"
               placeholder="Cari destinasi..."
-              className="bg-transparent border-none focus:ring-0 text-[13px] w-36 outline-none text-on-surface placeholder:text-outline"
+              className="bg-transparent border-none focus:ring-0 text-[13px] w-36 outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 text-on-surface placeholder:text-outline"
               value={searchQ}
               onChange={(e) => setSearchQ(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter" && searchQ.trim()) { router.push(`/search?q=${encodeURIComponent(searchQ.trim())}`); setSearchQ(""); } }}
@@ -189,7 +189,7 @@ export function TopNav() {
                   <input
                     type="text"
                     placeholder="Cari destinasi..."
-                    className="bg-transparent border-none focus:ring-0 text-[14px] flex-1 outline-none"
+                    className="bg-transparent border-none focus:ring-0 text-[14px] flex-1 outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                     value={searchQ}
                     onChange={(e) => setSearchQ(e.target.value)}
                     onKeyDown={(e) => { if (e.key === "Enter" && searchQ.trim()) { router.push(`/search?q=${encodeURIComponent(searchQ.trim())}`); setSearchQ(""); setOpen(false); } }}

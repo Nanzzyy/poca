@@ -123,7 +123,7 @@ export default function AdminAssetsPage() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-on-surface-variant/50" />
           <input value={destFilter} onChange={e => { setDestFilter(e.target.value); setPage(1); }}
             placeholder="Filter by destination ID..."
-            className="w-full pl-9 pr-3 py-2 border border-outline-variant rounded-xl text-[13px] bg-surface-container-lowest outline-none" />
+            className="w-full pl-9 pr-3 py-2 border border-outline-variant rounded-xl text-[13px] bg-surface-container-lowest outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2" />
         </div>
       </div>
 
@@ -207,12 +207,12 @@ export default function AdminAssetsPage() {
               <div>
                 <label className="text-[11px] font-medium text-on-surface-variant uppercase tracking-wider">Alt Text</label>
                 <input value={altText} onChange={e => setAltText(e.target.value)}
-                  className="w-full p-2.5 mt-1 border border-outline-variant rounded-xl text-[13px] bg-surface-container-lowest outline-none" />
+                  className="w-full p-2.5 mt-1 border border-outline-variant rounded-xl text-[13px] bg-surface-container-lowest outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2" />
               </div>
               <div>
                 <label className="text-[11px] font-medium text-on-surface-variant uppercase tracking-wider">Tags (comma-separated)</label>
                 <input value={assetTags} onChange={e => setAssetTags(e.target.value)}
-                  className="w-full p-2.5 mt-1 border border-outline-variant rounded-xl text-[13px] bg-surface-container-lowest outline-none" />
+                  className="w-full p-2.5 mt-1 border border-outline-variant rounded-xl text-[13px] bg-surface-container-lowest outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2" />
               </div>
             </div>
 

@@ -219,7 +219,7 @@ export default function AdminSectionsPage() {
             <div className="mb-4">
               <label className="text-[11px] font-medium text-on-surface-variant uppercase tracking-wider">Section Title (optional)</label>
               <input value={editSection.title || ""} onChange={e => setEditSection({ ...editSection, title: e.target.value })}
-                className="w-full p-2.5 mt-1 border border-outline-variant rounded-xl text-[13px] bg-surface-container-lowest outline-none" />
+                className="w-full p-2.5 mt-1 border border-outline-variant rounded-xl text-[13px] bg-surface-container-lowest outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2" />
             </div>
 
             {/* Dynamic fields based on section type */}
@@ -282,7 +282,7 @@ function SectionFieldEditor({ sectionType, data, onChange }: {
             <div key={field.key}>
               <label className="text-[11px] font-medium text-on-surface-variant uppercase tracking-wider">{field.label}</label>
               <input type={field.type === "color" ? "color" : "text"} value={String(value || "")} onChange={e => setField(field.key, e.target.value)}
-                className="w-full p-2.5 mt-1 border border-outline-variant rounded-xl text-[13px] bg-surface-container-lowest outline-none" />
+                className="w-full p-2.5 mt-1 border border-outline-variant rounded-xl text-[13px] bg-surface-container-lowest outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2" />
             </div>
           );
         }
@@ -292,7 +292,7 @@ function SectionFieldEditor({ sectionType, data, onChange }: {
             <div key={field.key}>
               <label className="text-[11px] font-medium text-on-surface-variant uppercase tracking-wider">{field.label}</label>
               <textarea value={String(value || "")} onChange={e => setField(field.key, e.target.value)} rows={4}
-                className="w-full p-2.5 mt-1 border border-outline-variant rounded-xl text-[13px] bg-surface-container-lowest outline-none" />
+                className="w-full p-2.5 mt-1 border border-outline-variant rounded-xl text-[13px] bg-surface-container-lowest outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2" />
             </div>
           );
         }
@@ -303,7 +303,7 @@ function SectionFieldEditor({ sectionType, data, onChange }: {
               <label className="text-[11px] font-medium text-on-surface-variant uppercase tracking-wider">{field.label}</label>
               <input type="number" value={Number(value ?? field.default ?? 0)} min={field.min} max={field.max}
                 onChange={e => setField(field.key, Number(e.target.value))}
-                className="w-full p-2.5 mt-1 border border-outline-variant rounded-xl text-[13px] bg-surface-container-lowest outline-none" />
+                className="w-full p-2.5 mt-1 border border-outline-variant rounded-xl text-[13px] bg-surface-container-lowest outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2" />
             </div>
           );
         }
@@ -322,7 +322,7 @@ function SectionFieldEditor({ sectionType, data, onChange }: {
             <div key={field.key}>
               <label className="text-[11px] font-medium text-on-surface-variant uppercase tracking-wider">{field.label}</label>
               <select value={String(value || "")} onChange={e => setField(field.key, e.target.value)}
-                className="w-full p-2.5 mt-1 border border-outline-variant rounded-xl text-[13px] bg-surface-container-lowest outline-none">
+                className="w-full p-2.5 mt-1 border border-outline-variant rounded-xl text-[13px] bg-surface-container-lowest outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
                 <option value="">Select...</option>
                 {field.options?.map(o => <option key={o} value={o}>{o}</option>)}
               </select>
@@ -335,7 +335,7 @@ function SectionFieldEditor({ sectionType, data, onChange }: {
             <div key={field.key}>
               <label className="text-[11px] font-medium text-on-surface-variant uppercase tracking-wider">{field.label}</label>
               <select value={String(value || "")} onChange={e => setField(field.key, e.target.value)}
-                className="w-full p-2.5 mt-1 border border-outline-variant rounded-xl text-[13px] bg-surface-container-lowest outline-none">
+                className="w-full p-2.5 mt-1 border border-outline-variant rounded-xl text-[13px] bg-surface-container-lowest outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
                 <option value="">Select icon...</option>
                 {ICON_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
               </select>
@@ -362,7 +362,7 @@ function SectionFieldEditor({ sectionType, data, onChange }: {
                 </button>
               </div>
               <input value={url} onChange={e => setField(field.key, e.target.value)} placeholder="atau tempel URL..."
-                className="w-full p-2.5 mt-2 border border-outline-variant rounded-xl text-[12px] bg-surface-container-lowest outline-none" />
+                className="w-full p-2.5 mt-2 border border-outline-variant rounded-xl text-[12px] bg-surface-container-lowest outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2" />
             </div>
           );
         }
@@ -400,7 +400,7 @@ function SectionFieldEditor({ sectionType, data, onChange }: {
                     onBlur={e => { addUrl(e.target.value); e.target.value = ""; }}
                     onKeyDown={e => { if (e.key === "Enter") { addUrl((e.target as HTMLInputElement).value); (e.target as HTMLInputElement).value = ""; } }}
                     placeholder="atau tempel URL gambar (OSM/Wikimedia/dll) lalu Enter..."
-                    className="w-full p-2.5 mt-2 border border-outline-variant rounded-xl text-[12px] bg-surface-container-lowest outline-none"
+                    className="w-full p-2.5 mt-2 border border-outline-variant rounded-xl text-[12px] bg-surface-container-lowest outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                   />
                 </>
               )}
@@ -443,16 +443,16 @@ function SectionFieldEditor({ sectionType, data, onChange }: {
                         <label className="text-[10px] text-on-surface-variant">{f.label}</label>
                         {f.type === "textarea" ? (
                           <textarea value={String(item[f.key] || "")} onChange={e => updateItem(idx, f.key, e.target.value)} rows={2}
-                            className="w-full p-2 mt-0.5 border border-outline-variant rounded-lg text-[12px] bg-surface-container-lowest outline-none" />
+                            className="w-full p-2 mt-0.5 border border-outline-variant rounded-lg text-[12px] bg-surface-container-lowest outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2" />
                         ) : f.type === "select" ? (
                           <select value={String(item[f.key] || "")} onChange={e => updateItem(idx, f.key, e.target.value)}
-                            className="w-full p-2 mt-0.5 border border-outline-variant rounded-lg text-[12px] bg-surface-container-lowest outline-none">
+                            className="w-full p-2 mt-0.5 border border-outline-variant rounded-lg text-[12px] bg-surface-container-lowest outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
                             <option value="">Select...</option>
                             {f.options?.map(o => <option key={o} value={o}>{o}</option>)}
                           </select>
                         ) : f.type === "icon" ? (
                           <select value={String(item[f.key] || "")} onChange={e => updateItem(idx, f.key, e.target.value)}
-                            className="w-full p-2 mt-0.5 border border-outline-variant rounded-lg text-[12px] bg-surface-container-lowest outline-none">
+                            className="w-full p-2 mt-0.5 border border-outline-variant rounded-lg text-[12px] bg-surface-container-lowest outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
                             <option value="">Select icon...</option>
                             {ICON_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
                           </select>
@@ -473,7 +473,7 @@ function SectionFieldEditor({ sectionType, data, onChange }: {
                           </div>
                         ) : (
                           <input value={String(item[f.key] || "")} onChange={e => updateItem(idx, f.key, e.target.value)}
-                            className="w-full p-2 mt-0.5 border border-outline-variant rounded-lg text-[12px] bg-surface-container-lowest outline-none" />
+                            className="w-full p-2 mt-0.5 border border-outline-variant rounded-lg text-[12px] bg-surface-container-lowest outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2" />
                         )}
                       </div>
                     ))}

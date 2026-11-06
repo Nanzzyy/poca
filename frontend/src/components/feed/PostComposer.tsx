@@ -61,7 +61,7 @@ export function PostComposer() {
             onChange={(e) => setContent(e.target.value)}
             placeholder={`Lagi ngapain, ${user.username}? Bagikan perjalananmu…`}
             rows={2}
-            className="w-full resize-none text-body-md text-on-surface placeholder:text-on-surface-variant focus:outline-none bg-transparent"
+            className="w-full resize-none text-body-md text-on-surface placeholder:text-on-surface-variant focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 bg-transparent"
           />
 
           <AnimatePresence>

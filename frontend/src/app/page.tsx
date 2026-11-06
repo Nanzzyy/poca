@@ -59,7 +59,7 @@ export default function Home() {
             </div>
             <div className="space-y-4">
               <div className="flex items-center bg-white border border-outline-variant rounded-2xl p-2 shadow-sm">
-                <input type="text" placeholder="Cari destinasi, kuliner, atau aktivitas..." className="w-full border-none bg-transparent px-4 py-2 text-[14px] text-on-surface outline-none placeholder:text-outline" value={q} onChange={e => setQ(e.target.value)} onKeyDown={e => e.key === "Enter" && q && router.push(`/search?q=${encodeURIComponent(q)}`)} />
+                <input type="text" placeholder="Cari destinasi, kuliner, atau aktivitas..." className="w-full border-none bg-transparent px-4 py-2 text-[14px] text-on-surface outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 placeholder:text-outline" value={q} onChange={e => setQ(e.target.value)} onKeyDown={e => e.key === "Enter" && q && router.push(`/search?q=${encodeURIComponent(q)}`)} />
                 <button onClick={() => q && router.push(`/search?q=${encodeURIComponent(q)}`)} className="bg-primary-container text-on-primary-container px-6 py-3 rounded-xl text-[14px] font-bold active:scale-[0.98]">Cari</button>
               </div>
               <div className="flex flex-wrap gap-2">

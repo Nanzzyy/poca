@@ -75,7 +75,7 @@ function SearchContent() {
             <input
               type="text"
               placeholder="Mau kemana hari ini? Misal: Pantai tersembunyi di Bali"
-              className="flex-1 border-none focus:ring-0 text-on-surface caret-primary text-[16px] bg-transparent outline-none placeholder:text-on-surface-variant"
+              className="flex-1 border-none focus:ring-0 text-on-surface caret-primary text-[16px] bg-transparent outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 placeholder:text-on-surface-variant"
               value={q}
               onChange={(e) => setQ(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && q && router.push(`/search?q=${encodeURIComponent(q)}`)}
@@ -108,17 +108,17 @@ function SearchContent() {
           <div className="flex items-center gap-4 overflow-x-auto hide-scrollbar">
             <div className="flex items-center gap-2 font-bold text-primary whitespace-nowrap text-[14px]">Filter Destinasi</div>
             <div className="h-6 w-px bg-outline-variant" />
-            <select value={category} onChange={(e) => setCategory(e.target.value)} className="border-none bg-surface-container rounded-lg text-[14px] text-on-surface outline-none px-3 py-2 cursor-pointer">
+            <select value={category} onChange={(e) => setCategory(e.target.value)} className="border-none bg-surface-container rounded-lg text-[14px] text-on-surface outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 px-3 py-2 cursor-pointer">
               <option value="">Kategori: Semua</option>
               {(cats || []).map(c => <option key={c.id} value={c.slug}>{c.name}</option>)}
             </select>
-            <select value={budget} onChange={(e) => setBudget(e.target.value)} className="border-none bg-surface-container rounded-lg text-[14px] text-on-surface outline-none px-3 py-2 cursor-pointer">
+            <select value={budget} onChange={(e) => setBudget(e.target.value)} className="border-none bg-surface-container rounded-lg text-[14px] text-on-surface outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 px-3 py-2 cursor-pointer">
               <option value="">Budget: Semua</option>
               <option value="budget">Ekonomis</option>
               <option value="mid">Menengah</option>
               <option value="luxury">Mewah</option>
             </select>
-            <select value={rating} onChange={(e) => setRating(e.target.value)} className="border-none bg-surface-container rounded-lg text-[14px] text-on-surface outline-none px-3 py-2 cursor-pointer">
+            <select value={rating} onChange={(e) => setRating(e.target.value)} className="border-none bg-surface-container rounded-lg text-[14px] text-on-surface outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 px-3 py-2 cursor-pointer">
               <option value="">Rating: Semua</option>
               <option value="4">4.0+</option>
               <option value="4.5">4.5+</option>

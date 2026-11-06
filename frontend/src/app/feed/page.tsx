@@ -89,7 +89,7 @@ export default function FeedPage() {
               </div>
               <div className="flex-grow">
                 <textarea
-                  className="w-full border-none focus:ring-0 text-[16px] text-on-surface bg-transparent resize-none h-24 p-0 placeholder:text-outline outline-none"
+                  className="w-full border-none focus:ring-0 text-[16px] text-on-surface bg-transparent resize-none h-24 p-0 placeholder:text-outline outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                   placeholder={user ? `Lagi ngapain, ${user.username}? Bagikan petualanganmu...` : "Share your latest adventure with the Poca community..."}
                   value={postContent}
                   onChange={(e) => setPostContent(e.target.value)}

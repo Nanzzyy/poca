@@ -115,7 +115,7 @@ export default function EditProfilePage() {
             value={bio}
             onChange={(e) => setBio(e.target.value)}
             placeholder="Ceritakan sedikit tentang gaya liburanmu..."
-            className="w-full p-3 border border-outline-variant/50 rounded-xl text-[14px] bg-surface-container-lowest outline-none resize-none"
+            className="w-full p-3 border border-outline-variant/50 rounded-xl text-[14px] bg-surface-container-lowest outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 resize-none"
           />
         </div>
 
@@ -141,7 +141,7 @@ export default function EditProfilePage() {
               value={location}
               onChange={(e) => setLocation(e.target.value)}
               placeholder="cth: Jakarta, Indonesia"
-              className="w-full p-3 border border-outline-variant/50 rounded-xl text-[14px] bg-surface-container-lowest outline-none"
+              className="w-full p-3 border border-outline-variant/50 rounded-xl text-[14px] bg-surface-container-lowest outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
             />
           </div>
           <div>
@@ -150,7 +150,7 @@ export default function EditProfilePage() {
               value={website}
               onChange={(e) => setWebsite(e.target.value)}
               placeholder="cth: instagram.com/username"
-              className="w-full p-3 border border-outline-variant/50 rounded-xl text-[14px] bg-surface-container-lowest outline-none"
+              className="w-full p-3 border border-outline-variant/50 rounded-xl text-[14px] bg-surface-container-lowest outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
             />
           </div>
         </div>

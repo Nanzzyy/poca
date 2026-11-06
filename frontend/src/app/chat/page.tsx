@@ -375,7 +375,7 @@ function ChatPageInner() {
                 </div>
               )}
               <input
-                className="w-full bg-surface-container-low border border-outline-variant/50 rounded-2xl py-4 pl-6 pr-14 outline-none transition-all text-[14px] text-on-surface"
+                className="w-full bg-surface-container-low border border-outline-variant/50 rounded-2xl py-4 pl-6 pr-14 outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 transition-all text-[14px] text-on-surface"
                 placeholder="Tanyakan apa saja tentang perjalananmu..."
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
