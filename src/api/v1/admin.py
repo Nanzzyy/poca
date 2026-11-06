@@ -30,6 +30,7 @@ from src.repositories.knowledge_repo import KnowledgeRepository
 from src.domain.models.knowledge import AIKnowledgeDocument
 from src.domain.schemas.knowledge import KnowledgeCreate, KnowledgeUpdate, knowledge_item
 from src.services.asset_service import AssetService
+from src.services.category_service import CategoryService
 from src.services.destination_service import DestinationService
 from src.services.user_service import UserService
 from src.services.knowledge_service import KnowledgeService
@@ -980,7 +981,7 @@ async def admin_list_categories(
     db: AsyncSession = Depends(get_db),
     _u: User = admin,
 ) -> list[dict]:
-    rows = (await db.execute(select(Category).order_by(Category.id))).scalars().all()
+    rows = await CategoryService(db).list_all()
     return [{"id": c.id, "name": c.name, "slug": c.slug, "icon": c.icon, "parent_id": c.parent_id} for c in rows]
 
 
@@ -991,14 +992,11 @@ async def admin_create_category(
     db: AsyncSession = Depends(get_db),
     _u: User = admin,
 ) -> dict:
-    name = body.name.strip()
-    slug = body.slug or name.lower().replace(" ", "-")
-    cat = Category(name=name, slug=slug, icon=body.icon, parent_id=body.parent_id)
-    db.add(cat)
-    await db.flush()
-    await log_audit(action="category_create", actor_id=_u.id, target_type="category",
-                    target_id=str(cat.id), ip_address=request.client.host if request.client else None,
-                    user_agent=request.headers.get("user-agent", ""), meta={"name": name})
+    cat = await CategoryService(db).create(
+        name=body.name, slug=body.slug, icon=body.icon, parent_id=body.parent_id,
+        actor_id=_u.id, ip_address=request.client.host if request.client else None,
+        user_agent=request.headers.get("user-agent", ""),
+    )
     return {"id": cat.id, "name": cat.name, "slug": cat.slug}
 
 
@@ -1009,17 +1007,14 @@ async def admin_update_category(
     db: AsyncSession = Depends(get_db),
     _u: User = admin,
 ) -> dict:
-    cat = (await db.execute(select(Category).where(Category.id == cat_id))).scalar_one_or_none()
-    if not cat:
-        raise HTTPException(404)
-    values = body.model_dump(exclude_unset=True)
-    for f in ("name", "slug", "icon"):
-        if f in values and values[f] is not None:
-            setattr(cat, f, values[f])
-    await db.flush()
-    await log_audit(action="category_update", actor_id=_u.id, target_type="category",
-                    target_id=str(cat.id), ip_address=request.client.host if request.client else None,
-                    user_agent=request.headers.get("user-agent", ""))
+    try:
+        await CategoryService(db).update(
+            cat_id, body.model_dump(exclude_unset=True), actor_id=_u.id,
+            ip_address=request.client.host if request.client else None,
+            user_agent=request.headers.get("user-agent", ""),
+        )
+    except ValueError as exc:
+        raise HTTPException(404, detail=str(exc))
     return {"ok": True}
 
 
@@ -1029,14 +1024,12 @@ async def admin_delete_category(
     db: AsyncSession = Depends(get_db),
     _u: User = admin,
 ) -> dict:
-    cat = (await db.execute(select(Category).where(Category.id == cat_id))).scalar_one_or_none()
-    if not cat:
-        raise HTTPException(404)
-    cnt = (await db.execute(select(func.count()).select_from(Destination).where(Destination.category_id == cat_id))).scalar()
-    if cnt:
-        raise HTTPException(400, detail=f"Cannot delete: {cnt} destinations use this category")
-    await db.delete(cat)
-    await db.flush()
+    try:
+        await CategoryService(db).delete(cat_id)
+    except ValueError as exc:
+        raise HTTPException(404, detail=str(exc))
+    except PermissionError as exc:
+        raise HTTPException(400, detail=str(exc))
     return {"ok": True}
 
 
